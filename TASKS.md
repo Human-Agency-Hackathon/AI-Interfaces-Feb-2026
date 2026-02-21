@@ -428,7 +428,12 @@ interface ITranscriptLogger {
 | 52 | Process template library: prebuilt brainstorming workflows users can pick from | | TODO | e.g. "Six Thinking Hats", "SCAMPER", "Design Sprint", custom |
 | 53 | Export session: save brainstorming output as a structured report | | TODO | Transcript logs exist but need a synthesis/export format |
 | 54 | Dashboard view: summary of ideas generated, votes, stages completed | | TODO | Aggregate view beyond the in-game panels |
-| 55 | Click agent to see history | | TODO | Clicking an agent sprite in the game client should open a panel showing that agent's history: findings posted, conversation transcript, actions taken, role/persona info. Needs a click handler on `AgentSprite`, a new UI panel (or reuse DialogueLog filtered to that agent), and a server message to request agent history data. |
+| 55 | Click agent to see history | Ken | In Progress | **Scoped and delegated.** Architecture doc: `docs/AGENT-DETAILS-PANEL.md`. Split into 55a-55e below. |
+| 55a | Protocol types for agent details request/response | Behrang | TODO | Add `player:get-agent-details` (client→server) and `agent:details` (server→client) to `shared/protocol.ts`. Mirror to server + client `types.ts`. Add to `ClientMessage`/`ServerMessage` unions. See `docs/AGENT-DETAILS-PANEL.md` for exact type definitions. |
+| 55b | BridgeServer handler for agent details | Behrang | TODO | Add `handleGetAgentDetails(ws, msg)` in BridgeServer. Aggregates data from WorldState (agent info), KnowledgeVault (expertise, insights, task history), and FindingsBoard (filtered by agent_id). Add server test. **Blocked by:** 55a. |
+| 55c | Create AgentDetailsPanel DOM overlay | Ida | TODO | New file `client/src/panels/AgentDetailsPanel.ts`. Follow DialogueLog pattern. Sections: header (name, role, status), expertise bars, task history list, findings list. Methods: show/hide/populateData/clear. Style to dungeon aesthetic. See `docs/AGENT-DETAILS-PANEL.md`. |
+| 55d | Add sidebar container + CSS for agent details | Ida | TODO | Add `<div id="agent-details-panel">` in `index.html` sidebar. Add CSS matching dungeon stone palette. |
+| 55e | Wire click → request → panel in GameScene/UIScene | Ida | TODO | Extend AgentSprite pointerdown in GameScene to send `player:get-agent-details` + emit to UIScene. Add `agent:details` WS listener. Instantiate AgentDetailsPanel in UIScene. **Blocked by:** 55a, 55b, 55c, 55d. |
 
 ---
 
@@ -482,6 +487,9 @@ Ideas and features that need further scoping before they become numbered tasks.
 | | | **Protocol fixes:** StageAdvancedMessage aligned between server broadcast and shared types (added fromStageName, totalStages). ProcessStartedMessage now includes totalStages. |
 | | | **Also fixed:** WASD key interception during name entry (CameraController rewritten upstream), and canvas stealing focus from JoinScreen name input (removed postBoot auto-focus). |
 | | | **@Ken:** Your gap analysis was spot-on. All items implemented. **@Jeff:** Next layer from BRAINSTORM-E2E.md (parent-child spawn tracking, all-children-idle notification) is ready to build on top of this. **@Ida:** Client now has visual brainstorm progress — stage bar + findings in dialogue log — ready for your styling pass. |
+| 2026-02-21 | Ken | **Feature 55: Click Agent to See History — delegated. Full architecture at `docs/AGENT-DETAILS-PANEL.md`.** |
+| | | **@Behrang: Tasks 55a + 55b are yours (protocol types + server handler).** Add `player:get-agent-details` / `agent:details` message pair to `shared/protocol.ts` + mirrors. Then add `handleGetAgentDetails()` in BridgeServer that aggregates WorldState info, KnowledgeVault data, and FindingsBoard entries filtered by agent_id. Add a server test. Exact type definitions and handler code are in the architecture doc. These can run in parallel with Ida's panel work. |
+| | | **@Ida: Tasks 55c + 55d + 55e are yours (panel + styling + wiring).** Create `AgentDetailsPanel.ts` following DialogueLog's pattern: DOM overlay in sidebar showing agent name/role, expertise, task history, and findings. Add the container div + CSS in `index.html`. Then wire the GameScene click handler to send the WS request and the UIScene to receive the response and populate the panel. 55c and 55d can start immediately (parallel with Behrang); 55e needs Behrang's protocol types merged first. Architecture doc has the full data flow and code snippets. |
 
 ---
 
