@@ -8,11 +8,13 @@ import { PromptBar } from './panels/PromptBar';
 import { MiniMap } from './panels/MiniMap';
 import { QuestLog } from './panels/QuestLog';
 import { StageProgressBar } from './panels/StageProgressBar';
+import { AgentRoster } from './panels/AgentRoster';
 import type {
   RepoReadyMessage,
   ProcessStartedMessage,
   StageAdvancedMessage,
   AgentJoinedMessage,
+  AgentLeftMessage,
   AgentActivityMessage,
   FindingsPostedMessage,
   ErrorMessage,
@@ -113,10 +115,23 @@ ws.on('repo:ready', (_msg) => {
 ws.on('agent:joined', (msg) => {
   const data = msg as unknown as AgentJoinedMessage;
   console.log(`[Agent Joined] ${data.agent.name} (${data.agent.role}) — realm: ${data.agent.realm}`);
+  agentRoster?.addAgent(data.agent);
   // Broadcast so UIScene and DialogueLog can show display names instead of raw IDs
   window.dispatchEvent(new CustomEvent('agent-joined', {
     detail: { agentId: data.agent.agent_id, name: data.agent.name, color: data.agent.color },
   }));
+});
+
+// Agent left — remove from roster
+ws.on('agent:left', (msg) => {
+  const data = msg as unknown as AgentLeftMessage;
+  agentRoster?.removeAgent(data.agent_id);
+});
+
+// World state sync — keep roster up to date after reconnect
+ws.on('world:state', (msg) => {
+  const data = msg as unknown as WorldStateMessage;
+  agentRoster?.syncAgents(data.agents);
 });
 
 // Agent activity updates
@@ -242,6 +257,7 @@ let promptBar: PromptBar | null = null;
 let miniMap: MiniMap | null = null;
 let questLog: QuestLog | null = null;
 let stageProgressBar: StageProgressBar | null = null;
+let agentRoster: AgentRoster | null = null;
 
 // Spectator state
 let mySpectatorId: string | null = null;
@@ -347,6 +363,12 @@ function startGame(identity: SetupIdentity): void {
   // Stage progress bar at top of sidebar
   if (stageProgressBar) stageProgressBar.destroy();
   stageProgressBar = new StageProgressBar('sidebar');
+
+  // Agent roster (top-left overlay listing active agents)
+  if (agentRoster) agentRoster.destroy();
+  agentRoster = new AgentRoster((agent) => {
+    window.dispatchEvent(new CustomEvent('agent-roster-click', { detail: agent }));
+  });
 
   // Add spectator list panel to sidebar (before quest-log)
   if (!document.getElementById('spectator-panel')) {
