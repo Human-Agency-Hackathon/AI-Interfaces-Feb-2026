@@ -140,15 +140,13 @@ export class CustomToolHandler extends EventEmitter {
 
     const agentName = this.getAgentName(agentId);
 
-    const entry = this.findingsBoard.addFinding({
+    const entry = await this.findingsBoard.addFinding({
       agent_id: agentId,
       agent_name: agentName,
       realm,
       finding,
       severity,
     });
-
-    await this.findingsBoard.save();
 
     this.emit('findings:posted', {
       agentId,

@@ -58,7 +58,7 @@ describe('CustomToolHandler integration', () => {
       tool_input: { realm: 'src/auth/', finding: 'Auth module has no error handling', severity: 'high' },
       agent_id: 'oracle',
     });
-    expect(board.getAll()).toHaveLength(1);
+    expect(await board.getAll()).toHaveLength(1);
 
     // 2. Engineer claims the auth quest
     const claimResult = await handler.handleToolCall({
@@ -95,7 +95,7 @@ describe('CustomToolHandler integration', () => {
     expect(knowledge.expertise.authentication).toBe(3);
     expect(knowledge.expertise.quests_completed).toBe(1);
     expect(knowledge.task_history.length).toBe(1);
-    expect(board.getAll()).toHaveLength(1);
+    expect(await board.getAll()).toHaveLength(1);
   });
 
   it('findings persist across save/load cycle', async () => {
@@ -107,8 +107,9 @@ describe('CustomToolHandler integration', () => {
 
     const board2 = new FindingsBoard(tempDir);
     await board2.load();
-    expect(board2.getAll()).toHaveLength(1);
-    expect(board2.getAll()[0].finding).toBe('Persisted finding');
+    const all = await board2.getAll();
+    expect(all).toHaveLength(1);
+    expect(all[0].finding).toBe('Persisted finding');
   });
 
   it('knowledge vault persists across save/load cycle', async () => {

@@ -94,8 +94,9 @@ describe('CustomToolHandler', () => {
 
       expect(result.result.acknowledged).toBe(true);
       expect(result.result.finding_id).toBeTruthy();
-      expect(board.getAll()).toHaveLength(1);
-      expect(board.getAll()[0].finding).toBe('No test coverage');
+      const all = await board.getAll();
+      expect(all).toHaveLength(1);
+      expect(all[0].finding).toBe('No test coverage');
       expect(emitted).toHaveLength(1);
       expect(emitted[0].agentName).toBe('Oracle');
     });
