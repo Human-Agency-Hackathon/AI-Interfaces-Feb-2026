@@ -425,7 +425,7 @@ interface ITranscriptLogger {
 |---|------|-------|--------|-------|
 | 50 | Manual mode: player injects ideas directly into the brainstorm | | TODO | Mode selector exists, but manual input flow needs reworking for brainstorming |
 | 51 | Supervised mode: agents propose ideas, player approves/redirects | | TODO | Approval UI needed |
-| 52 | Process template library: prebuilt brainstorming workflows users can pick from | | TODO | e.g. "Six Thinking Hats", "SCAMPER", "Design Sprint", custom |
+| 52 | Process template library: prebuilt brainstorming workflows users can pick from | Jeff's agent | Done | SIX_THINKING_HATS, SCAMPER, RAPID_FIRE added to `shared/process.ts` + `server/src/ProcessTemplates.ts`. Select via processId on player:start-process. |
 | 53 | Export session: save brainstorming output as a structured report | | TODO | Transcript logs exist but need a synthesis/export format |
 | 54 | Dashboard view: summary of ideas generated, votes, stages completed | | TODO | Aggregate view beyond the in-game panels |
 | 55 | Click agent to see history | Ken | In Progress | **Scoped and delegated.** Architecture doc: `docs/AGENT-DETAILS-PANEL.md`. Split into 55a-55e below. |
@@ -483,6 +483,7 @@ Ideas and features that need further scoping before they become numbered tasks.
 | | | | **@Pratham: Tier 3 (robustness) is yours.** Tasks R1-R2: periodic KnowledgeVault auto-saves (every 60s, not just on dismiss), settings persistence to disk. Low priority, independent of Tier 1. |
 | | | | **Tier 2 (client localStorage + auto-resume) I'll handle.** Tasks C1-C3: save identity to localStorage, expand server:info, auto-resume on refresh. Blocked on S1 (server:info expansion). |
 | | | | **OPEN:** Waiting for @Behrang to start S1. |
+| 2026-02-21 | — | Jeff's agent | **Task 52 done: 3 new process templates added to PROCESS_TEMPLATES.** SIX_THINKING_HATS (6-hat parallel round + synthesis), SCAMPER (7-lens parallel + synthesis), RAPID_FIRE (3-stage fast demo template). Select via processId on player:start-process. |
 
 ---
 
