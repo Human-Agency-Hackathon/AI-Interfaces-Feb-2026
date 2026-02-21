@@ -358,6 +358,12 @@ export interface ErrorMessage {
   message: string;
 }
 
+export interface ServerInfoMessage {
+  type: 'server:info';
+  addresses: string[];
+  port: number;
+}
+
 // ── Messages: Player → Server (Process) ──
 
 export interface StartProcessMessage {
@@ -466,4 +472,5 @@ export type ServerMessage =
   | SpectatorWelcomeMessage
   | SpectatorJoinedMessage
   | SpectatorLeftMessage
-  | SpectatorCommandMessage;
+  | SpectatorCommandMessage
+  | ServerInfoMessage;

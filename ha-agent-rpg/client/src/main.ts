@@ -25,10 +25,13 @@ import type {
   SpectatorLeftMessage,
   SpectatorCommandMessage,
   SpectatorInfo,
+  ServerInfoMessage,
 } from './types';
 
 // ── Connect to the bridge immediately ──
-const ws = new WebSocketClient('ws://localhost:3001');
+// Use current hostname so LAN spectators connect back to the correct server
+const wsHost = window.location.hostname || 'localhost';
+const ws = new WebSocketClient(`ws://${wsHost}:3001`);
 ws.connect();
 
 // ── Screen instances ──
@@ -126,6 +129,26 @@ ws.on('quest:update', (msg) => {
     questLog.updateQuestStatus(data.quest_id, data.status, data.agent_id);
   }
 });
+
+// ── Server Info (LAN address for spectators) ──
+let serverAddresses: string[] = [];
+let serverPort = 3001;
+
+ws.on('server:info', (msg) => {
+  const data = msg as unknown as ServerInfoMessage;
+  serverAddresses = data.addresses;
+  serverPort = data.port;
+  updateServerInfoPanel();
+});
+
+function updateServerInfoPanel(): void {
+  const el = document.getElementById('server-info');
+  if (!el || serverAddresses.length === 0) return;
+  const clientPort = 5173;
+  const ip = serverAddresses[0];
+  el.textContent = `Spectate: ${ip}:${clientPort}`;
+  el.title = `Open http://${ip}:${clientPort} on any device on the same network to spectate`;
+}
 
 let phaserGame: Phaser.Game | null = null;
 let promptBar: PromptBar | null = null;
@@ -248,6 +271,17 @@ function startGame(): void {
     sidebar.insertBefore(spectatorPanel, questLogEl);
   }
 
+  // Add server info panel (LAN address for spectators)
+  if (!document.getElementById('server-info')) {
+    const infoEl = document.createElement('div');
+    infoEl.id = 'server-info';
+    infoEl.className = 'server-info';
+    const sidebar = document.getElementById('sidebar')!;
+    const questLogEl = document.getElementById('quest-log')!;
+    sidebar.insertBefore(infoEl, questLogEl);
+    updateServerInfoPanel();
+  }
+
   // Launch PromptBar in the sidebar
   if (promptBar) {
     promptBar.destroy();
@@ -347,9 +381,11 @@ function stopGame(): void {
     promptBar = null;
   }
 
-  // Remove spectator panel
+  // Remove spectator panel and server info
   const spectatorPanel = document.getElementById('spectator-panel');
   if (spectatorPanel) spectatorPanel.remove();
+  const serverInfo = document.getElementById('server-info');
+  if (serverInfo) serverInfo.remove();
 
   // Reset spectator state
   mySpectatorId = null;

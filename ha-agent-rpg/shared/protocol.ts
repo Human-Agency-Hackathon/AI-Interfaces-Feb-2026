@@ -350,6 +350,15 @@ export interface ErrorMessage {
   message: string;
 }
 
+/** Sent to every client on connect with the server's LAN address for spectator sharing. */
+export interface ServerInfoMessage {
+  type: 'server:info';
+  /** LAN IP addresses the server is reachable on */
+  addresses: string[];
+  /** WebSocket port */
+  port: number;
+}
+
 // ── Messages: Player → Server (Process) ──
 
 /**
@@ -460,4 +469,5 @@ export type ServerMessage =
   | SpectatorWelcomeMessage
   | SpectatorJoinedMessage
   | SpectatorLeftMessage
-  | SpectatorCommandMessage;
+  | SpectatorCommandMessage
+  | ServerInfoMessage;

@@ -32,6 +32,7 @@ import { FindingsBoard } from './FindingsBoard.js';
 import { LocalTreeReader, type LocalRepoData } from './LocalTreeReader.js';
 import { TranscriptLogger } from './TranscriptLogger.js';
 import { join } from 'node:path';
+import { networkInterfaces } from 'node:os';
 import { RealmRegistry } from './RealmRegistry.js';
 import { WorldStatePersistence } from './WorldStatePersistence.js';
 import { GitHelper } from './GitHelper.js';
@@ -52,6 +53,7 @@ const AGENT_COLORS = [
 
 export class BridgeServer {
   private wss: WebSocketServer;
+  private port: number;
   private worldState: WorldState;
   private repoAnalyzer = new RepoAnalyzer();
   private mapGenerator = new MapGenerator();
@@ -86,6 +88,7 @@ export class BridgeServer {
   };
 
   constructor(port: number) {
+    this.port = port;
     this.worldState = new WorldState();
 
     // Realm tracking — uses home directory for global registry
@@ -101,13 +104,39 @@ export class BridgeServer {
     this.wss = new WebSocketServer({ port });
     this.wss.on('connection', (ws) => this.handleConnection(ws));
 
+    const lanAddresses = this.getLanAddresses();
     console.log(`Bridge server listening on ws://localhost:${port}`);
+    if (lanAddresses.length > 0) {
+      console.log(`  LAN: ${lanAddresses.map(ip => `ws://${ip}:${port}`).join(', ')}`);
+    }
+  }
+
+  /** Returns IPv4 LAN addresses (non-loopback). */
+  private getLanAddresses(): string[] {
+    const nets = networkInterfaces();
+    const results: string[] = [];
+    for (const entries of Object.values(nets)) {
+      if (!entries) continue;
+      for (const entry of entries) {
+        if (entry.family === 'IPv4' && !entry.internal) {
+          results.push(entry.address);
+        }
+      }
+    }
+    return results;
   }
 
   // ── Connection Handling ──
 
   private handleConnection(ws: WebSocket): void {
     this.allSockets.add(ws);
+
+    // Send server network info so clients can display spectator URL
+    this.send(ws, {
+      type: 'server:info',
+      addresses: this.getLanAddresses(),
+      port: this.port,
+    });
 
     // Send current world state if in gameplay phase
     if (this.gamePhase === 'playing') {

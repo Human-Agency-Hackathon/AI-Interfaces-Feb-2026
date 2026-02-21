@@ -5,6 +5,7 @@ export default defineConfig({
   base: './',
   server: {
     port: 5173,
+    host: true,   // Listen on 0.0.0.0 so LAN spectators can connect
     open: true,
   },
   build: {
