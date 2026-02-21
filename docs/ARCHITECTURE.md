@@ -433,7 +433,15 @@ ha-agent-rpg/
 
 **Ports**: Bridge 3001, Vite client 5173
 
-**Quick start**: `./scripts/start-all.sh` then open `http://localhost:5173`
+### Multiplayer / Observation
+
+To watch the game from another device on the same network, connect to the host's IP instead of `localhost`.
+
+| Host | IP | URL |
+|------|----|-----|
+| Behrang | `10.4.33.165` | `http://10.4.33.165:5173` |
+
+**Quick start**: `./scripts/start-all.sh` then open `http://localhost:5173` (or the remote URL above for spectating)
 
 ---
 
