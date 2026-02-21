@@ -1,72 +1,80 @@
-/** Padding (in canvas pixels) around the room diorama. */
 const ROOM_PADDING = 24;
 
 export class CameraController {
   private scene: Phaser.Scene;
   private camera: Phaser.Cameras.Scene2D.Camera;
+  private followTarget: { x: number; y: number } | null = null;
   private followingAgent: string | null = null;
+  private mode: 'diorama' | 'follow' = 'diorama';
 
-  constructor(scene: Phaser.Scene, mapWidth: number, mapHeight: number, tileSize: number) {
+  constructor(
+    scene: Phaser.Scene,
+    mapWidth: number,
+    mapHeight: number,
+    tileSize: number
+  ) {
     this.scene = scene;
     this.camera = scene.cameras.main;
-
     this.fitRoom(mapWidth, mapHeight, tileSize);
   }
 
-  /** Call from scene.update() each frame — currently a no-op (room fits in view) */
+  setMode(mode: 'diorama' | 'follow'): void {
+    this.mode = mode;
+    if (mode === 'follow') {
+      this.camera.setZoom(1);
+    }
+  }
+
   update(): void {
-    // No keyboard scrolling needed; the whole room is visible.
+    if (this.mode === 'follow' && this.followTarget) {
+      const cam = this.camera;
+      const targetX = this.followTarget.x * 32 + 16;
+      const targetY = this.followTarget.y * 32 + 16;
+      cam.scrollX += (targetX - cam.scrollX - cam.width / 2) * 0.08;
+      cam.scrollY += (targetY - cam.scrollY - cam.height / 2) * 0.08;
+    }
   }
 
-  /** Smoothly pan to center on a position (used when clicking an agent) */
   panTo(x: number, y: number, agentId?: string): void {
-    this.followingAgent = agentId ?? null;
-    // Room already fits in view — no panning needed in diorama mode
+    this.followTarget = { x, y };
+    if (agentId) this.followingAgent = agentId;
   }
 
-  /** Snap to a position instantly (used for initial camera placement) */
   snapTo(x: number, y: number): void {
-    // Room already centered via fitRoom — ignore positional snaps
+    if (this.mode === 'follow') {
+      const cam = this.camera;
+      cam.scrollX = x * 32 + 16 - cam.width / 2;
+      cam.scrollY = y * 32 + 16 - cam.height / 2;
+      this.followTarget = { x, y };
+    }
   }
 
-  /** Check if currently following a specific agent */
   isFollowing(agentId: string): boolean {
     return this.followingAgent === agentId;
   }
 
-  /** Stop following any agent */
   clearFollow(): void {
     this.followingAgent = null;
+    this.followTarget = null;
   }
 
-  /** Update camera bounds when navigating to a differently-sized room */
   updateBounds(mapWidth: number, mapHeight: number, tileSize: number): void {
-    this.fitRoom(mapWidth, mapHeight, tileSize);
+    if (this.mode === 'diorama') {
+      this.fitRoom(mapWidth, mapHeight, tileSize);
+    } else {
+      this.camera.setBounds(0, 0, mapWidth * tileSize, mapHeight * tileSize);
+    }
   }
 
-  /**
-   * Zoom and center the camera so the entire room fits inside the
-   * 640×480 canvas with padding — creating a "diorama" framing.
-   */
   private fitRoom(mapWidth: number, mapHeight: number, tileSize: number): void {
+    const cam = this.camera;
     const roomPxW = mapWidth * tileSize;
     const roomPxH = mapHeight * tileSize;
-    const canvasW = this.camera.width;   // 640
-    const canvasH = this.camera.height;  // 480
-
-    // How much do we need to zoom out so the room + padding fits?
-    const availW = canvasW - ROOM_PADDING * 2;
-    const availH = canvasH - ROOM_PADDING * 2;
+    const availW = cam.width - ROOM_PADDING * 2;
+    const availH = cam.height - ROOM_PADDING * 2;
     const zoom = Math.min(availW / roomPxW, availH / roomPxH, 1);
-
-    this.camera.setZoom(zoom);
-
-    // Remove bounds so the camera can center freely (dark bg fills the rest)
-    this.camera.removeBounds();
-
-    // Center camera on the middle of the room
-    const centerX = roomPxW / 2;
-    const centerY = roomPxH / 2;
-    this.camera.centerOn(centerX, centerY);
+    cam.setZoom(zoom);
+    cam.removeBounds();
+    cam.centerOn(roomPxW / 2, roomPxH / 2);
   }
 }

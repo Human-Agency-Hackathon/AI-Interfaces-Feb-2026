@@ -8,6 +8,8 @@ export class MapRenderer {
   private waterFrame = 0;
   private waterTimer: Phaser.Time.TimerEvent | null = null;
   private backgroundMode = false;
+  private fogTiles: Phaser.GameObjects.Image[] = [];
+  private exploredState: boolean[][] = [];
 
   constructor(scene: Phaser.Scene, mapData: TileMapData) {
     this.scene = scene;
@@ -83,6 +85,54 @@ export class MapRenderer {
     this.render();
   }
 
+  setExplored(explored: boolean[][]): void {
+    this.exploredState = explored;
+    this.renderFog();
+  }
+
+  revealTiles(tiles: { x: number; y: number }[]): void {
+    for (const t of tiles) {
+      if (this.exploredState[t.y]) {
+        this.exploredState[t.y][t.x] = true;
+      }
+    }
+    // Remove fog images for revealed tiles
+    this.fogTiles = this.fogTiles.filter(fogImg => {
+      const tx = Math.floor((fogImg.x - 16) / 32);
+      const ty = Math.floor((fogImg.y - 16) / 32);
+      if (tiles.some(t => t.x === tx && t.y === ty)) {
+        this.scene.tweens.add({
+          targets: fogImg,
+          alpha: 0,
+          duration: 500,
+          onComplete: () => fogImg.destroy(),
+        });
+        return false;
+      }
+      return true;
+    });
+  }
+
+  private renderFog(): void {
+    this.fogTiles.forEach(f => f.destroy());
+    this.fogTiles = [];
+
+    if (this.exploredState.length === 0) return;
+
+    const map = this.mapData;
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (!this.exploredState[y]?.[x]) {
+          const fog = this.scene.add.image(
+            x * 32 + 16, y * 32 + 16, 'tile-fog'
+          );
+          fog.setDepth(5);
+          this.fogTiles.push(fog);
+        }
+      }
+    }
+  }
+
   private getTileKey(tileType: number, x: number, y: number): string {
     switch (tileType) {
       case 0: {
@@ -94,6 +144,12 @@ export class MapRenderer {
       case 2: return 'tile-water-0';
       case 3: return 'tile-door';
       case 4: return 'tile-floor';
+      case 5: return 'tile-tree';
+      case 6: return 'tile-hill';
+      case 7: return 'tile-sand';
+      case 8: return 'tile-path';
+      case 9: return 'tile-lava';
+      case 10: return 'tile-crystal';
       default: return 'tile-grass-0';
     }
   }

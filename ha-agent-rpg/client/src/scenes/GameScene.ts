@@ -7,6 +7,8 @@ import { CameraController } from '../systems/CameraController';
 import { MapObjectSprite } from '../systems/MapObjectSprite';
 import { RoomBackground } from '../systems/RoomBackground';
 import { ThoughtBubble } from '../systems/ThoughtBubble';
+import { FortSprite } from '../systems/FortSprite';
+import { Minimap } from '../ui/Minimap';
 import type {
   WorldStateMessage,
   AgentJoinedMessage,
@@ -35,6 +37,10 @@ export class GameScene extends Phaser.Scene {
   private currentMapDimensions: { width: number; height: number } | null = null;
   private arrowKeys!: Phaser.Types.Input.Keyboard.CursorKeys;
   private isPlayerMoving = false;
+  private fortSprites: Map<string, FortSprite> = new Map();
+  private minimap: Minimap | null = null;
+  private isFogMode = false;
+  private inFortView = false;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -55,24 +61,48 @@ export class GameScene extends Phaser.Scene {
 
     this.wsClient.on('world:state', (msg) => {
       const state = msg as unknown as WorldStateMessage;
+      const isFogMap = state.map.width > 60;
+      this.isFogMode = isFogMap;
+
       if (!this.mapRenderer) {
         // First render — create map renderer and camera
         this.mapRenderer = new MapRenderer(this, state.map);
-        this.mapRenderer.setBackgroundMode(true);
-        this.mapRenderer.render();
         this.currentMapDimensions = { width: state.map.width, height: state.map.height };
 
-        // Show room background image instead of individual tiles
-        this.roomBackground = new RoomBackground(this);
-        this.roomBackground.show('', state.map.width, state.map.height, state.map.tile_size);
+        if (isFogMap) {
+          // Fog-of-war mode: tile rendering, no room background
+          this.mapRenderer.setBackgroundMode(false);
+          this.mapRenderer.render();
 
-        // Create camera controller — zooms/centers to fit the whole room
-        this.cameraController = new CameraController(
-          this,
-          state.map.width,
-          state.map.height,
-          state.map.tile_size,
-        );
+          if ((state as any).explored) {
+            this.mapRenderer.setExplored((state as any).explored);
+          }
+
+          this.cameraController = new CameraController(
+            this, state.map.width, state.map.height, state.map.tile_size,
+          );
+          this.cameraController.setMode('follow');
+          this.cameraController.updateBounds(state.map.width, state.map.height, state.map.tile_size);
+
+          this.minimap = new Minimap(state.map.width, state.map.height);
+          if ((state as any).explored) {
+            this.minimap.setExplored((state as any).explored);
+          }
+          if ((state as any).biomeMap) {
+            this.minimap.setBiomeMap((state as any).biomeMap);
+          }
+        } else {
+          // Diorama mode: room background
+          this.mapRenderer.setBackgroundMode(true);
+          this.mapRenderer.render();
+
+          this.roomBackground = new RoomBackground(this);
+          this.roomBackground.show('', state.map.width, state.map.height, state.map.tile_size);
+
+          this.cameraController = new CameraController(
+            this, state.map.width, state.map.height, state.map.tile_size,
+          );
+        }
       } else {
         // Subsequent world:state — reload tilemap (e.g. new agent room added)
         this.mapRenderer.loadMap(state.map);
@@ -200,6 +230,52 @@ export class GameScene extends Phaser.Scene {
 
     this.wsClient.on('agent:details', (msg) => {
       this.scene.get('UIScene').events.emit('agent-details-loaded', msg);
+    });
+
+    // ─── Fog-of-War message handlers ───
+
+    this.wsClient.on('fog:reveal', (msg: any) => {
+      if (this.mapRenderer) {
+        this.mapRenderer.revealTiles(msg.tiles);
+      }
+      if (this.minimap) {
+        this.minimap.revealTiles(msg.tiles);
+      }
+    });
+
+    this.wsClient.on('fort:update', (msg: any) => {
+      const existing = this.fortSprites.get(msg.agentId);
+      if (existing) {
+        existing.setStage(msg.stage);
+      } else {
+        const agent = (msg as any).agentInfo;
+        const name = agent?.name ?? msg.agentId;
+        const color = agent?.color ? parseInt(agent.color, 16) : 0xffffff;
+        const fort = new FortSprite(
+          this, msg.agentId, name, color,
+          msg.position.x, msg.position.y, msg.stage
+        );
+        fort.on('pointerdown', () => {
+          this.wsClient.send({ type: 'fort:click', agentId: msg.agentId });
+        });
+        this.fortSprites.set(msg.agentId, fort);
+        if (this.minimap) {
+          this.minimap.setFort(
+            msg.agentId, msg.position.x, msg.position.y,
+            '#' + (agent?.color ?? 'ffffff'),
+          );
+        }
+      }
+    });
+
+    this.wsClient.on('fort:view', (msg: any) => {
+      this.inFortView = true;
+      if (this.roomBackground) {
+        this.roomBackground.show(
+          msg.roomImage,
+          20, 15, 32,
+        );
+      }
     });
 
     // Player nav door clicks
@@ -364,6 +440,15 @@ export class GameScene extends Phaser.Scene {
           const targetX = (result.params.x as number) * TILE_SIZE + TILE_SIZE / 2;
           const targetY = (result.params.y as number) * TILE_SIZE + TILE_SIZE / 2;
           this.cameraController.panTo(targetX, targetY, result.agent_id);
+        }
+        // Update minimap agent position
+        if (this.minimap) {
+          this.minimap.setAgentPosition(
+            result.agent_id,
+            result.params.x as number,
+            result.params.y as number,
+            '#' + (sprite.agentColor ?? 'ffffff'),
+          );
         }
         break;
 
