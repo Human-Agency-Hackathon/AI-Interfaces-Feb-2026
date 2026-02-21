@@ -36,13 +36,15 @@ function getRoomKey(path: string): string {
 export class RoomBackground {
   private scene: Phaser.Scene;
   private bgImage: Phaser.GameObjects.Image | null = null;
+  private frame: Phaser.GameObjects.Graphics | null = null;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
   }
 
   /**
-   * Display a room background image sized to cover the tile grid area.
+   * Display a room background image sized to cover the tile grid area,
+   * with a decorative gold frame around it.
    *
    * @param path      Folder path ('' for root)
    * @param widthTiles   Room width in tiles
@@ -89,12 +91,33 @@ export class RoomBackground {
     // Use bilinear filtering for smooth downscaling (overrides pixelArt: true
     // for this image only, so the detailed room art doesn't alias).
     this.bgImage.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+
+    // ── Decorative frame around the room ──
+    this.frame = this.scene.add.graphics();
+    const border = 3;
+
+    // Outer gold border
+    this.frame.lineStyle(border, 0xc8a84a, 0.8);
+    this.frame.strokeRect(
+      -border, -border,
+      roomPxW + border * 2, roomPxH + border * 2,
+    );
+
+    // Inner dark inset
+    this.frame.lineStyle(1, 0x2a2020, 0.9);
+    this.frame.strokeRect(0, 0, roomPxW, roomPxH);
+
+    this.frame.setDepth(0);
   }
 
   destroy(): void {
     if (this.bgImage) {
       this.bgImage.destroy();
       this.bgImage = null;
+    }
+    if (this.frame) {
+      this.frame.destroy();
+      this.frame = null;
     }
   }
 }

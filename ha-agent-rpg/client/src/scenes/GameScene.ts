@@ -66,35 +66,23 @@ export class GameScene extends Phaser.Scene {
         this.roomBackground = new RoomBackground(this);
         this.roomBackground.show('', state.map.width, state.map.height, state.map.tile_size);
 
-        // Create camera controller with actual map dimensions
+        // Create camera controller — zooms/centers to fit the whole room
         this.cameraController = new CameraController(
           this,
           state.map.width,
           state.map.height,
           state.map.tile_size,
         );
-
-        // Snap camera to oracle
-        const oracle = state.agents.find((a) => a.agent_id === 'oracle');
-        const tileSize = state.map.tile_size;
-        if (oracle) {
-          this.cameraController.snapTo(
-            oracle.x * tileSize + tileSize / 2,
-            oracle.y * tileSize + tileSize / 2,
-          );
-        }
       } else {
         // Subsequent world:state — reload tilemap (e.g. new agent room added)
         this.mapRenderer.loadMap(state.map);
-        // Update camera bounds if map dimensions changed
+        // Re-fit camera if map dimensions changed
         if (
           state.map.width !== this.currentMapDimensions?.width ||
           state.map.height !== this.currentMapDimensions?.height
         ) {
-          this.cameras.main.setBounds(
-            0, 0,
-            state.map.width * state.map.tile_size,
-            state.map.height * state.map.tile_size,
+          this.cameraController?.updateBounds(
+            state.map.width, state.map.height, state.map.tile_size,
           );
           this.currentMapDimensions = { width: state.map.width, height: state.map.height };
         }
