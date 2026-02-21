@@ -9,6 +9,7 @@ import { RoomBackground } from '../systems/RoomBackground';
 import { SpeechBubbleManager } from '../systems/SpeechBubbleManager';
 import { FortSprite } from '../systems/FortSprite';
 import { Minimap } from '../ui/Minimap';
+import { ZoomControls } from '../ui/ZoomControls';
 import type {
   WorldStateMessage,
   AgentJoinedMessage,
@@ -41,6 +42,7 @@ export class GameScene extends Phaser.Scene {
   private minimap: Minimap | null = null;
   private isFogMode = false;
   private inFortView = false;
+  private zoomControls: ZoomControls | null = null;
   private _rosterClickHandler: EventListener | null = null;
 
   constructor() {
@@ -102,6 +104,15 @@ export class GameScene extends Phaser.Scene {
           if ((state as any).biomeMap) {
             this.minimap.setBiomeMap((state as any).biomeMap);
           }
+
+          // Create zoom controls for fog-of-war mode
+          this.zoomControls = new ZoomControls({
+            onZoomIn: () => this.cameraController?.zoomIn(),
+            onZoomOut: () => this.cameraController?.zoomOut(),
+            onFit: () => this.cameraController?.fitToMap(
+              state.map.width, state.map.height, state.map.tile_size,
+            ),
+          });
         } else {
           // Diorama mode: tile-based rendering
           this.mapRenderer.setBackgroundMode(false);
@@ -286,6 +297,9 @@ export class GameScene extends Phaser.Scene {
 
     this.wsClient.on('fort:view', (msg: any) => {
       this.inFortView = true;
+      // Hide zoom controls during fort interior view
+      this.zoomControls?.hide();
+
 
       // Create or reuse room background for fort interior
       if (!this.roomBackground) {
@@ -311,6 +325,7 @@ export class GameScene extends Phaser.Scene {
       backBtn.onclick = () => {
         this.wsClient.send({ type: 'fort:exit' });
         backBtn.remove();
+        this.zoomControls?.show();
         this.inFortView = false;
       };
       document.body.appendChild(backBtn);
@@ -407,6 +422,12 @@ export class GameScene extends Phaser.Scene {
     if (this.minimap) {
       this.minimap.destroy();
       this.minimap = null;
+    }
+
+    // Clean up zoom controls
+    if (this.zoomControls) {
+      this.zoomControls.destroy();
+      this.zoomControls = null;
     }
 
     // Clean up player sprite
