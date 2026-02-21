@@ -33,6 +33,8 @@ async def main():
                 world_state = msg
 
             elif msg_type == "turn:start":
+                # NOTE: Server does not currently send turn:start. Server-managed
+                # agents use Claude Agent SDK follow-ups. Kept for forward-compat.
                 if msg["agent_id"] == agent_id:
                     turn_id = msg["turn_id"]
                     chosen = behavior.next_action(world_state)

@@ -335,9 +335,10 @@ function startGame(identity: SetupIdentity): void {
   viewport.style.display = 'flex';
   viewport.classList.remove('screen-hidden');
 
-  // Launch Phaser
+  // Launch Phaser and share the WebSocketClient via registry
   if (!phaserGame) {
     phaserGame = new Phaser.Game(gameConfig);
+    phaserGame.registry.set('wsClient', ws);
   }
 
   // Stage progress bar at top of sidebar

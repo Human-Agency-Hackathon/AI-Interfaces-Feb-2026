@@ -2,8 +2,9 @@ import { readFile, writeFile, mkdir, rm, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { WorldState } from './WorldState.js';
 import { sanitizePathComponent } from './PathSafety.js';
+import type { IWorldStatePersistence } from './interfaces/index.js';
 
-export class WorldStatePersistence {
+export class WorldStatePersistence implements IWorldStatePersistence {
   private baseDir: string;
 
   constructor(baseDir: string) {

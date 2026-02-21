@@ -1,6 +1,8 @@
 # Brainstorm Process
 
-The brainstorm skill is a 9-stage divergent-then-convergent ideation process using 15 specialized agent personas. Managed by `ProcessController` on the server, driven by `brainstorm-process.json`.
+The brainstorm skill is a 9-stage divergent-then-convergent ideation process using 17 specialized agent personas. Managed by `ProcessController` on the server, driven by `brainstorm-process.json`.
+
+**Additional process templates** are available beyond the standard brainstorm: **SIX_THINKING_HATS** (Edward de Bono's parallel thinking: 6-hat round + blue hat synthesis), **SCAMPER** (structured ideation: 7 SCAMPER lenses in parallel + synthesis), and **RAPID_FIRE** (fast 3-stage: spark + pick + go). Select via `processId` on `player:start-process`.
 
 ## Stage Flow Overview
 
@@ -378,7 +380,7 @@ Gray = skipped in fast demo mode.
 
 ---
 
-## 15 Agent Personas
+## 17 Agent Personas
 
 | # | Stage | Persona | Thinking Style | Optimizes For |
 |---|-------|---------|---------------|---------------|

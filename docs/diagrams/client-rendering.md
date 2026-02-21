@@ -6,20 +6,22 @@ How the Phaser client receives data and turns it into pixels. The client is a **
 
 ```mermaid
 stateDiagram-v2
-    [*] --> TitleScreen: Page load
-    TitleScreen --> RepoScreen: "Begin Quest" clicked
-    RepoScreen --> Analyzing: Submit problem / resume realm
-    Analyzing --> GameStarted: process:started or repo:ready
-    GameStarted --> JoinScreen: Overlay appears
-    JoinScreen --> Playing: Spectator registered
+    [*] --> SplashScreen: Page load
+    SplashScreen --> SetupScreen: "Enter the Dungeon" clicked
+    SetupScreen --> Loading: Submit (name + color + problem)
+    Loading --> Playing: process:started received
 
-    Playing --> TitleScreen: /quit command
+    Playing --> SessionComplete: process:completed
+    SessionComplete --> Playing: "Read Dialogue Log"
+    SessionComplete --> SetupScreen: "New Session"
 
-    note right of TitleScreen: Static landing page<br/>"Agent RPG" branding
-    note right of RepoScreen: Problem input or<br/>realm history list
-    note right of Analyzing: Loading spinner<br/>server analyzing repo
-    note right of JoinScreen: Name + color picker<br/>for spectator identity
+    Playing --> SetupScreen: /quit command
+
+    note right of SplashScreen: Dungeon branding<br/>"Agent Dungeon" logo
+    note right of SetupScreen: Name + color picker +<br/>problem textarea<br/>(all in one form)
+    note right of Loading: SetupScreen.showLoading()<br/>+ process-loading-overlay<br/>"Spawning agents..."
     note right of Playing: Phaser game active<br/>+ DOM panels visible
+    note right of SessionComplete: Overlay with options:<br/>Read log, Export, New session
 ```
 
 ---
@@ -36,24 +38,36 @@ sequenceDiagram
     participant WS as WebSocketClient
 
     Note over Boot: Preloads room background images
-    Boot->>Boot: Generate 20+ procedural textures
-    Note over Boot: grass (3 variants), wall, water (3 frames),<br/>door, floor, file objects, characters
+    Boot->>Boot: Generate 30+ procedural textures
+    Note over Boot: Terrain: grass (3), wall, water (3),<br/>door, floor, tree, hill, sand,<br/>path, lava, crystal, fog<br/>Forts: stage 1-5<br/>Characters + file objects
 
     Boot->>Game: scene.start('GameScene')
     Boot->>UI: scene.launch('UIScene')
     Note over Game,UI: Both scenes run simultaneously
 
     WS-->>Game: world:state (initial)
-    Game->>Game: Create MapRenderer + RoomBackground
-    Game->>Game: Create CameraController
+
+    alt Large map (width > 60) — Fog-of-War mode
+        Game->>Game: Create MapRenderer (tile mode)
+        Game->>Game: Create CameraController (follow mode)
+        Game->>Game: Create Minimap (canvas overlay)
+        Game->>Game: Set initial fog/explored state
+    else Small map (width <= 60) — Diorama mode
+        Game->>Game: Create MapRenderer + RoomBackground
+        Game->>Game: Create CameraController (diorama mode)
+    end
+
     Game->>Game: Create AgentSprites for each agent
 
     WS-->>Game: action:result (agent moves, speaks, etc.)
     Game->>Game: Animate sprites
     Game->>UI: Emit show-dialogue, agent-thought, agent-activity
 
-    WS-->>Game: map:change (room transition)
-    Game->>Game: Fade out → swap map → fade in
+    WS-->>Game: fog:reveal (fog-of-war mode only)
+    Game->>Game: Reveal tiles on MapRenderer + Minimap
+
+    WS-->>Game: fort:update (fog-of-war mode only)
+    Game->>Game: Create/upgrade FortSprite
 ```
 
 ---
@@ -72,6 +86,12 @@ graph TD
         WS7["agent:activity"]
         WS8["findings:posted"]
         WS9["stage:advanced"]
+        WS10["agent:details"]
+        WS11["fog:reveal"]
+        WS12["fort:update"]
+        WS13["fort:view"]
+        WS14["spectator:welcome/joined/left"]
+        WS15["process:completed"]
     end
 
     subgraph GameScene ["GameScene Handlers"]
@@ -80,6 +100,9 @@ graph TD
         GS3["Create new AgentSprite"]
         GS4["Destroy AgentSprite"]
         GS5["Fade out → new map → fade in"]
+        GS6["Reveal fog tiles +<br/>update Minimap"]
+        GS7["Create/upgrade FortSprite"]
+        GS8["Enter fort interior<br/>(switch to diorama)"]
     end
 
     subgraph UIScene ["UIScene + Panels"]
@@ -88,12 +111,15 @@ graph TD
         UI3["DialogueLog entry (activity)"]
         UI4["DialogueLog entry (finding)"]
         UI5["DialogueLog entry (stage announcement)"]
+        UI6["AgentDetailsPanel<br/>(show on agent click)"]
     end
 
-    subgraph Panels ["DOM Panels"]
+    subgraph Panels ["DOM Panels (main.ts)"]
         P1["MiniMap: realm tree + presence"]
         P2["QuestLog: quest status"]
         P3["StageProgressBar: stage indicator"]
+        P4["SpectatorPanel: connected viewers"]
+        P5["ServerInfoPanel: LAN address"]
     end
 
     WS1 --> GS1
@@ -109,6 +135,52 @@ graph TD
     WS8 --> UI4
     WS9 --> UI5
     WS9 --> P3
+    WS10 --> UI6
+    WS11 --> GS6
+    WS12 --> GS7
+    WS13 --> GS8
+    WS14 --> P4
+    WS15 --> P5
+```
+
+---
+
+## Dual Rendering Modes
+
+The client operates in one of two rendering modes based on the initial `world:state` map dimensions.
+
+```mermaid
+graph TD
+    WorldState["world:state received"]
+    WorldState --> Check{"map.width > 60?"}
+
+    Check -->|"Yes"| Fog["Fog-of-War Mode"]
+    Check -->|"No"| Diorama["Diorama Mode"]
+
+    subgraph FogMode ["Fog-of-War Mode (120x120 overworld)"]
+        F1["MapRenderer: tile rendering<br/>(no room background)"]
+        F2["CameraController: follow mode<br/>(smooth lerp, scroll bounds)"]
+        F3["Minimap: canvas overlay<br/>(biome + fog + agents + forts)"]
+        F4["FortSprites: per-agent forts<br/>(5 evolution stages, tinted)"]
+        F5["Fog overlay: dark tiles<br/>(revealed incrementally)"]
+    end
+
+    subgraph DioramaMode ["Diorama Mode (small rooms)"]
+        D1["MapRenderer: background mode"]
+        D2["RoomBackground: JPEG illustration<br/>(hash-selected from 8 types)"]
+        D3["CameraController: diorama mode<br/>(fit room, no scroll)"]
+        D4["MapObjectSprites: file icons,<br/>nav doors, signs"]
+    end
+
+    Fog --> F1
+    Fog --> F2
+    Fog --> F3
+    Fog --> F4
+    Fog --> F5
+    Diorama --> D1
+    Diorama --> D2
+    Diorama --> D3
+    Diorama --> D4
 ```
 
 ---
@@ -134,6 +206,13 @@ graph TD
         Interact["playInteract()<br/>Blink + sparkle particles"]
     end
 
+    subgraph Click ["Click Interaction"]
+        ClickAgent["pointerdown on AgentSprite"]
+        ClickAgent --> PanCam["Camera pans to agent"]
+        ClickAgent --> ReqDetails["Send player:get-agent-details"]
+        ClickAgent --> ShowPanel["UIScene shows AgentDetailsPanel"]
+    end
+
     subgraph Generation ["Character Generation"]
         Color["Agent's hex color (e.g. #ff3300)"]
         Color --> Body["Body (base color)"]
@@ -147,7 +226,40 @@ graph TD
 
 ---
 
-## Room Rendering
+## Fort Sprite Rendering (Fog-of-War Mode)
+
+Agent forts evolve through 5 stages as agents progress through their work.
+
+```mermaid
+graph TD
+    subgraph FortEvolution ["Fort Evolution Stages"]
+        S1["Stage 1: Campfire<br/>2x2 tiles"]
+        S2["Stage 2: Tent<br/>3x3 tiles"]
+        S3["Stage 3: Hut<br/>4x4 tiles"]
+        S4["Stage 4: Tower<br/>5x5 tiles"]
+        S5["Stage 5: Fort<br/>6x6 tiles"]
+        S1 --> S2 --> S3 --> S4 --> S5
+    end
+
+    subgraph FortRender ["FortSprite Components"]
+        Img["Image (fort-stage-N texture)<br/>depth 3, tinted by agent color"]
+        Label["Name label (monospace 9px)<br/>depth 4, below fort"]
+        Click2["Interactive: useHandCursor"]
+        Click2 -->|"pointerdown"| Send["Send fort:click"]
+        Send --> View["Receive fort:view"]
+        View --> Interior["Switch to diorama mode<br/>(room JPEG + back button)"]
+    end
+
+    subgraph Upgrade ["Stage Upgrade"]
+        NewStage["fort:update message"]
+        NewStage --> SwapTex["Swap texture + re-tint"]
+        NewStage --> Particles["Crystal particle burst<br/>(12 particles, 800ms)"]
+    end
+```
+
+---
+
+## Room Rendering (Diorama Mode)
 
 Rooms use full-illustration backgrounds instead of tile-by-tile rendering.
 
@@ -182,13 +294,13 @@ graph TD
 
 ---
 
-## Camera System (Diorama Framing)
+## Camera System
 
-The camera always shows the entire room. No scrolling; the room is the stage.
+The camera has two modes depending on the rendering mode.
 
 ```mermaid
 graph TD
-    subgraph Calculation ["Zoom Calculation"]
+    subgraph DioramaCam ["Diorama Mode"]
         Canvas["Canvas: 640 x 480"]
         Padding["Padding: 24px each side"]
         Available["Available: 592 x 432"]
@@ -200,11 +312,21 @@ graph TD
         RoomSize --> Zoom
         Zoom --> Center["Camera centers on<br/>room midpoint"]
     end
+
+    subgraph FollowCam ["Follow Mode (Fog-of-War)"]
+        Target["Active agent position"]
+        Target --> Lerp["Smooth lerp tracking"]
+        Lerp --> Bounds["Camera bounded to<br/>map dimensions (120x120)"]
+        Bounds --> Viewport["Shows ~20x15 tile area"]
+
+        PanTo["panTo(x, y, agentId)"]
+        PanTo --> Lerp
+    end
 ```
 
 ---
 
-## Map Transitions
+## Map Transitions (Diorama Mode)
 
 When navigating between folders, the camera fades between rooms.
 
@@ -241,21 +363,30 @@ UI panels are HTML elements positioned around the Phaser canvas.
 
 ```
 +--------------------------------------------------+
-|  [Mode: Autonomous]              [Stage 3 of 9]  |  <- StageProgressBar
+|  [Stage 3 of 9: Convergent Thinking]             |  <- StageProgressBar
 +--------------------------------------------------+
 |                                  |                |
-|                                  | MiniMap        |
-|     Phaser Canvas (640x480)      | (folder tree)  |
+|                                  | Spectators     |
+|     Phaser Canvas (640x480)      | (viewer list)  |
+|                                  |                |
+|  Diorama mode:                   +----------------+
 |     - Room background            |                |
-|     - Agent sprites              +----------------+
-|     - Map objects                |                |
-|                                  | QuestLog       |
-|                                  | (quest list)   |
+|     - Agent sprites              | Server Info    |
+|     - Map objects                | (LAN address)  |
+|                                  +----------------+
+|  Fog-of-war mode:                |                |
+|     - Tile terrain + fog layer   | QuestLog       |
+|     - Fort sprites               | (quest list)   |
+|     - Agent sprites              |                |
+|     - Minimap overlay (top-right)+----------------+
+|                                  |                |
+|                                  | AgentDetails   |
+|                                  | (on click)     |
 +----------------------------------+----------------+
 |                                                   |
 |  DialogueLog (scrolling message history)          |
-|  [Oracle] Found race condition in reconnect...    |
-|  [Test Guardian] Writing regression test...       |
+|  [Cartographer] The problem boundaries are...     |
+|  [Wild Ideator] What if we tried...               |
 |                                                   |
 +--------------------------------------------------+
 |  > Type a message or /command...          [Send]  |  <- PromptBar
@@ -292,7 +423,7 @@ graph TD
 | `/dismiss [name]` | Remove agent | Server |
 | `/focus [name]` | Direct all commands to agent | Local |
 | `/clear` | Clear dialogue log | Local |
-| `/quit` | Return to title screen | Local |
+| `/quit` | Return to setup screen | Local |
 | `/approve` | Approve brainstorm gate | Server (ProcessController) |
 | `/inject [idea]` | Add idea to brainstorm | Server (ProcessController) |
 | `/skip` | Skip optional stage | Server (ProcessController) |

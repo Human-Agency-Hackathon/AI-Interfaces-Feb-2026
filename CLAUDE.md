@@ -97,7 +97,21 @@ The bridge is the hub; agents and the client never talk directly to each other.
 
 ## Git Workflow
 
-This is a hackathon. Commit and push early and often. Do not accumulate large changesets; small, frequent commits keep the team aligned and avoid painful integrations. When in doubt, push what you have. Pull `origin main` frequently too; teammates are constantly pushing new code and you need to stay current.
+This is a hackathon. Commit and push early and often. Do not accumulate large changesets; small, frequent commits keep the team aligned and avoid painful integrations. When in doubt, push what you have.
+
+### Pull constantly
+
+Five agents are pushing to `main` simultaneously. If you go more than a few minutes without pulling, you **will** drift out of sync and hit merge conflicts. Run `git pull origin main` at all of these moments:
+
+1. **Session start.** Before reading any code or making any plans. The codebase may have changed significantly since your last session.
+2. **Before starting any new task.** Even if you just pulled 10 minutes ago, pull again. Another agent may have landed changes that affect your work.
+3. **Before committing.** Pull immediately before `git add` so your commit is based on the latest code. This is the single biggest way to avoid merge conflicts.
+4. **After finishing a task, before starting the next one.** Don't chain tasks back-to-back without pulling between them.
+5. **Every ~10 minutes during long sessions.** If you've been heads-down coding for a while, stop and pull. The longer you wait, the worse the merge.
+6. **Whenever you read the Bulletin Board.** The board changes constantly; stale reads lead to duplicated or conflicting work.
+7. **When something doesn't look right.** If code doesn't match what you expect, pull before investigating. Someone may have already fixed it.
+
+**After every pull**, re-read the Bulletin Board in `TASKS.md` for new messages (see Bulletin Board rules above).
 
 ## Documentation
 
@@ -114,6 +128,7 @@ This is a hackathon. Commit and push early and often. Do not accumulate large ch
 | `agent-lifecycle.md` | Agent spawning, session management, shutdown, AgentSessionManager |
 | `agent-communication.md` | Findings board, inter-agent messaging, system prompts, knowledge vaults |
 | `brainstorm-process.md` | ProcessController, stage transitions, brainstorm skill, personas |
+| `fog-of-war-map.md` | Overworld map, biomes, agent forts, fog reveal, camera modes, minimap |
 | `client-rendering.md` | Phaser scenes, UI panels, WebSocket handlers, screen flow |
 | `data-persistence.md` | Redis, knowledge vaults, realm registry, transcript logs |
 

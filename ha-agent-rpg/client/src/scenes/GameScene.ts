@@ -49,7 +49,17 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.effectSystem = new EffectSystem(this, this.agentSprites);
     this.thoughtBubble = new ThoughtBubble(this);
-    this.wsClient = new WebSocketClient('ws://localhost:3001');
+
+    // Use shared WebSocketClient from registry (set by main.ts) instead of
+    // creating a duplicate connection. Falls back to localhost for safety.
+    const sharedWs = this.registry.get('wsClient') as WebSocketClient | undefined;
+    if (sharedWs) {
+      this.wsClient = sharedWs;
+    } else {
+      console.warn('[GameScene] No shared wsClient in registry, creating standalone connection');
+      const host = window.location.hostname || 'localhost';
+      this.wsClient = new WebSocketClient(`ws://${host}:3001`);
+    }
 
     // Setup keyboard controls for player movement (arrow keys only)
     if (this.input.keyboard) {
@@ -310,7 +320,47 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    this.wsClient.connect();
+    // Only connect if we created a standalone fallback (not using shared)
+    if (!sharedWs) {
+      this.wsClient.connect();
+    }
+  }
+
+  /** Called by Phaser when the scene shuts down (e.g. game.destroy()) */
+  shutdown(): void {
+    // Clean up agent sprites
+    for (const sprite of this.agentSprites.values()) {
+      sprite.destroy();
+    }
+    this.agentSprites.clear();
+
+    // Clean up fort sprites
+    for (const fort of this.fortSprites.values()) {
+      fort.destroy();
+    }
+    this.fortSprites.clear();
+
+    // Clean up map object sprites
+    for (const sprite of this.mapObjectSprites) {
+      sprite.destroy();
+    }
+    this.mapObjectSprites = [];
+
+    // Clean up minimap
+    if (this.minimap) {
+      this.minimap.destroy();
+      this.minimap = null;
+    }
+
+    // Clean up player sprite
+    if (this.playerSprite) {
+      this.playerSprite.destroy();
+      this.playerSprite = null;
+    }
+
+    this.mapRenderer = null;
+    this.roomBackground = null;
+    this.cameraController = null;
   }
 
   /** Phaser update loop — runs every frame */

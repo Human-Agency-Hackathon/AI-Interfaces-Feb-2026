@@ -374,9 +374,16 @@ export interface MapChangeMessage {
   breadcrumb: { x: number; y: number };
 }
 
+export interface PlayerPresence {
+  id: string;
+  name: string;
+  path: string;
+  depth: number;
+}
+
 export interface RealmPresenceMessage {
   type: 'realm:presence';
-  players: Array<{ id: string; name: string; path: string; depth: number }>;
+  players: PlayerPresence[];
 }
 
 export interface RealmTreeMessage {
