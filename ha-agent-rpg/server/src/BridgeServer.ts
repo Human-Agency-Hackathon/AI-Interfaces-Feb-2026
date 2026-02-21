@@ -138,6 +138,105 @@ export class BridgeServer {
     }
   }
 
+  /**
+   * Auto-load the last active realm on server startup.
+   * Called from index.ts after construction. If anything fails,
+   * falls back to normal onboarding — never crashes.
+   */
+  async autoLoadLastRealm(): Promise<void> {
+    const lastRealmId = this.realmRegistry.getLastActiveRealmId();
+    if (!lastRealmId) return;
+
+    const realm = this.realmRegistry.getRealm(lastRealmId);
+    if (!realm) {
+      console.warn(`[Bridge] Auto-load: realm "${lastRealmId}" not found in registry, skipping`);
+      this.realmRegistry.clearLastActiveRealmId();
+      await this.realmRegistry.save().catch(() => {});
+      return;
+    }
+
+    try {
+      const savedState = await this.worldStatePersistence.load(lastRealmId);
+      if (!savedState) {
+        console.warn(`[Bridge] Auto-load: no saved state for realm "${lastRealmId}", skipping`);
+        this.realmRegistry.clearLastActiveRealmId();
+        await this.realmRegistry.save().catch(() => {});
+        return;
+      }
+
+      this.repoPath = realm.path;
+      this.worldState = savedState;
+      this.activeRealmId = lastRealmId;
+
+      // Restore navigation state
+      const navState = this.worldState.navigationState;
+      if (navState) {
+        for (const [agentId, stack] of Object.entries(navState.agentNavStacks)) {
+          this.agentNavStacks.set(agentId, stack);
+        }
+        for (const [agentId, path] of Object.entries(navState.agentCurrentPath)) {
+          this.agentCurrentPath.set(agentId, path);
+        }
+      }
+
+      // Reload quests
+      this.questManager.loadQuests(savedState.getQuests());
+
+      // Initialize subsystems
+      this.findingsBoard = new FindingsBoard(realm.path);
+      await this.findingsBoard.load();
+      this.transcriptLogger = new TranscriptLogger(realm.path);
+      this.toolHandler = new CustomToolHandler(
+        this.findingsBoard,
+        this.questManager,
+        (agentId: string) => this.sessionManager.getVault(agentId),
+        (agentId: string) => {
+          const session = this.sessionManager.getSession(agentId);
+          return session?.config.agentName ?? agentId;
+        },
+      );
+      this.wireToolHandlerEvents();
+      this.sessionManager = new AgentSessionManager(this.findingsBoard, this.toolHandler);
+      this.wireSessionManagerEvents();
+      this.eventTranslator.setObjects(savedState.getObjects());
+
+      this.gamePhase = 'playing';
+
+      // Process-aware agent spawn (same as handleResumeRealm)
+      const processState = this.worldState.getProcessState();
+      if (processState && processState.status === 'running') {
+        const template = PROCESS_TEMPLATES[processState.processId];
+        if (template) {
+          this.processController = ProcessController.fromJSON(
+            processState,
+            template,
+            this.createProcessDelegate(),
+          );
+          this.wireProcessControllerEvents(this.processController);
+          await this.spawnProcessAgents(
+            template,
+            processState.currentStageIndex,
+            processState.problemStatement ?? processState.problem,
+            { resumed: true },
+          );
+          console.log(`[Bridge] Auto-loaded realm with running process: ${realm.displayName} (stage ${processState.currentStageIndex})`);
+        } else {
+          console.warn(`[Bridge] Auto-load: template "${processState.processId}" not found, falling back to Oracle`);
+          await this.spawnOracle(realm.path);
+          console.log(`[Bridge] Auto-loaded realm (Oracle fallback): ${realm.displayName}`);
+        }
+      } else {
+        await this.spawnOracle(realm.path);
+        console.log(`[Bridge] Auto-loaded realm: ${realm.displayName}`);
+      }
+    } catch (err) {
+      console.error('[Bridge] Auto-load failed, falling back to onboarding:', err);
+      this.gamePhase = 'onboarding';
+      this.realmRegistry.clearLastActiveRealmId();
+      await this.realmRegistry.save().catch(() => {});
+    }
+  }
+
   /** Returns IPv4 LAN addresses (non-loopback). */
   private getLanAddresses(): string[] {
     const nets = networkInterfaces();
