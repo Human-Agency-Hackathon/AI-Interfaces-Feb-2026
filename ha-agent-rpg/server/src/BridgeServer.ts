@@ -575,7 +575,7 @@ export class BridgeServer {
       if (msg.repoInput?.trim()) {
         resolvedRepoDir = await resolveRepoPath(msg.repoInput.trim());
       }
-      const problem = msg.problem?.trim() || `Explore the codebase at: ${msg.repoInput}`;
+      const problem = msg.problem?.trim() || `Explore the codebase at: ${msg.repoInput!.trim()}`;
 
       const processState: ProcessState = {
         processId: template.id,
@@ -664,7 +664,7 @@ export class BridgeServer {
     } catch (err) {
       this.gamePhase = 'onboarding';
       const message = err instanceof Error ? err.message : 'Failed to start process';
-      this.send(ws, { type: 'error', message });
+      this.send(ws, { type: 'process:error', message });
     }
   }
 
