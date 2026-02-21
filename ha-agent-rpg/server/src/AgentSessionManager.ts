@@ -10,7 +10,7 @@ import { KnowledgeVault } from './KnowledgeVault.js';
 import { FindingsBoard } from './FindingsBoard.js';
 import { buildSystemPrompt } from './SystemPromptBuilder.js';
 import type { TeamMember } from './SystemPromptBuilder.js';
-import { createRpgMcpServer } from './RpgMcpServer.js';
+import { createRpgMcpServer, createBrainstormMcpServer } from './RpgMcpServer.js';
 import type { CustomToolHandler } from './CustomToolHandler.js';
 
 export interface AgentSessionConfig {
@@ -267,7 +267,9 @@ export class AgentSessionManager extends EventEmitter {
     const systemPrompt = this.buildPromptForSession(session);
 
     try {
-      const rpgMcpServer = createRpgMcpServer(config.agentId, this.toolHandler);
+      const mcpServer = config.processContext
+        ? createBrainstormMcpServer(config.agentId, this.toolHandler)
+        : createRpgMcpServer(config.agentId, this.toolHandler);
       const q = query({
         prompt: config.mission,
         options: {
@@ -279,7 +281,7 @@ export class AgentSessionManager extends EventEmitter {
           allowDangerouslySkipPermissions: permissionMode === 'bypassPermissions',
           abortController,
           maxTurns: 50,
-          mcpServers: { rpg: rpgMcpServer },
+          mcpServers: { rpg: mcpServer },
           stderr: (data: string) => {
             if (data.trim()) {
               console.error(`[Agent:${config.agentId}:stderr] ${data.trim()}`);
@@ -321,7 +323,9 @@ export class AgentSessionManager extends EventEmitter {
     const systemPrompt = this.buildPromptForSession(session);
 
     try {
-      const rpgMcpServer = createRpgMcpServer(config.agentId, this.toolHandler);
+      const mcpServer = config.processContext
+        ? createBrainstormMcpServer(config.agentId, this.toolHandler)
+        : createRpgMcpServer(config.agentId, this.toolHandler);
       const q = query({
         prompt,
         options: {
@@ -334,7 +338,7 @@ export class AgentSessionManager extends EventEmitter {
           abortController,
           resume: session.sessionId,
           maxTurns: 50,
-          mcpServers: { rpg: rpgMcpServer },
+          mcpServers: { rpg: mcpServer },
           stderr: (data: string) => {
             if (data.trim()) {
               console.error(`[Agent:${config.agentId}:stderr] ${data.trim()}`);

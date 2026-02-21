@@ -6,6 +6,13 @@
 //    client/src/types.ts
 // ══════════════════════════════════════════════════════
 
+// ── Spectator Identity ──
+export interface SpectatorInfo {
+  spectator_id: string;
+  name: string;
+  color: number;
+}
+
 // ── Agent Identity ──
 export interface AgentStats {
   realm_knowledge: Record<string, number>;   // directory -> familiarity score
@@ -113,6 +120,21 @@ export interface AgentActionMessage {
   params: MoveParams | SpeakParams | SkillParams | InteractParams | EmoteParams | WaitParams | ThinkParams;
 }
 
+// ── Messages: Spectator → Server ──
+export interface SpectatorRegisterMessage {
+  type: 'spectator:register';
+  name: string;
+  color: number;
+}
+
+export interface SpectatorCommandMessage {
+  type: 'spectator:command';
+  spectator_id: string;
+  name: string;
+  color: number;
+  text: string;
+}
+
 // ── Messages: Player → Server ──
 export interface LinkRepoMessage {
   type: 'player:link-repo';
@@ -142,6 +164,25 @@ export interface WorldStateMessage {
   map: TileMapData;
   objects: MapObject[];
   quests: Quest[];
+  spectators?: SpectatorInfo[];
+}
+
+export interface SpectatorWelcomeMessage {
+  type: 'spectator:welcome';
+  spectator_id: string;
+  name: string;
+}
+
+export interface SpectatorJoinedMessage {
+  type: 'spectator:joined';
+  spectator_id: string;
+  name: string;
+  color: number;
+}
+
+export interface SpectatorLeftMessage {
+  type: 'spectator:left';
+  spectator_id: string;
 }
 
 export interface ActionResultMessage {
@@ -389,7 +430,9 @@ export type ClientMessage =
   | ListRealmsMessage
   | ResumeRealmMessage
   | RemoveRealmMessage
-  | StartProcessMessage;
+  | StartProcessMessage
+  | SpectatorRegisterMessage
+  | SpectatorCommandMessage;
 
 export type ServerMessage =
   | WorldStateMessage
@@ -413,4 +456,8 @@ export type ServerMessage =
   | StageAdvancedMessage
   | StageCompletedMessage
   | IdeaProposedMessage
-  | IdeaVotedMessage;
+  | IdeaVotedMessage
+  | SpectatorWelcomeMessage
+  | SpectatorJoinedMessage
+  | SpectatorLeftMessage
+  | SpectatorCommandMessage;

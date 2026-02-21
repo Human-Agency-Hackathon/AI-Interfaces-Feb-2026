@@ -1,7 +1,8 @@
 /**
- * Creates an in-process MCP server that exposes the 6 custom RPG tools
- * as real Claude tool definitions. Pass the returned config to query()
- * via options.mcpServers.
+ * MCP server factories for agent tool sets.
+ *
+ * createRpgMcpServer       — original 6-tool set for codebase exploration
+ * createBrainstormMcpServer — 3-tool set for brainstorming sessions
  */
 
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
@@ -116,6 +117,69 @@ export function createRpgMcpServer(agentId: string, toolHandler: CustomToolHandl
         async (args) => {
           const result = await toolHandler.handleToolCall({
             tool_name: 'CompleteQuest',
+            tool_input: args as Record<string, unknown>,
+            agent_id: agentId,
+          });
+          return makeResult(result.result);
+        },
+      ),
+    ],
+  });
+}
+
+/**
+ * Brainstorming-specific MCP server.
+ * Tools: PostFindings, UpdateKnowledge, CompleteStage
+ */
+export function createBrainstormMcpServer(agentId: string, toolHandler: CustomToolHandler) {
+  return createSdkMcpServer({
+    name: 'brainstorm',
+    version: '1.0.0',
+    tools: [
+      tool(
+        'PostFindings',
+        'Share an idea, insight, or critique with the group. Use this liberally — it\'s how the group builds shared knowledge.',
+        {
+          finding: z.string().describe('The idea, insight, or critique to share'),
+          severity: z.enum(['low', 'medium', 'high']).describe('Importance level: low = background info, medium = notable idea, high = key insight or blocker'),
+        },
+        async (args) => {
+          const result = await toolHandler.handleToolCall({
+            tool_name: 'PostFindings',
+            tool_input: { ...args, realm: 'brainstorm' } as Record<string, unknown>,
+            agent_id: agentId,
+          });
+          return makeResult(result.result);
+        },
+      ),
+
+      tool(
+        'UpdateKnowledge',
+        'Note something important for your own reference. Use for things you want to remember across turns.',
+        {
+          insight: z.string().describe('The insight to save'),
+          area: z.string().describe('Knowledge area (e.g. "problem", "constraints", "ideas")'),
+        },
+        async (args) => {
+          const result = await toolHandler.handleToolCall({
+            tool_name: 'UpdateKnowledge',
+            tool_input: args as Record<string, unknown>,
+            agent_id: agentId,
+          });
+          return makeResult(result.result);
+        },
+      ),
+
+      tool(
+        'CompleteStage',
+        'Signal that the current stage is complete and the group is ready to move on. Only call this when the stage goal has been clearly met. Include a summary of what was accomplished.',
+        {
+          summary: z.string().describe('Summary of what was accomplished in this stage'),
+          artifacts: z.record(z.string(), z.string()),
+        },
+        async (args) => {
+          const result = await toolHandler.handleToolCall({
+            tool_name: 'CompleteStage',
             tool_input: args as Record<string, unknown>,
             agent_id: agentId,
           });

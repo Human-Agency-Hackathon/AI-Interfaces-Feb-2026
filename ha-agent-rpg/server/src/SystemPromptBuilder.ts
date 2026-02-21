@@ -1,5 +1,6 @@
 import type { AgentKnowledge } from './KnowledgeVault.js';
 import type { Finding } from './FindingsBoard.js';
+import type { ProcessAgentContext } from './AgentSessionManager.js';
 
 export interface TeamMember {
   agent_id: string;
@@ -19,9 +20,74 @@ export interface PromptContext {
   team: TeamMember[];
   findings: Finding[];
   currentTask?: string;
+  /** When set, generates a brainstorming prompt instead of a codebase-exploration prompt. */
+  processContext?: ProcessAgentContext;
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
+  // Route to process-aware prompt when process context is present
+  if (ctx.processContext) {
+    return buildProcessPrompt(ctx);
+  }
+  return buildCodebasePrompt(ctx);
+}
+
+// ── Brainstorming process prompt ──────────────────────────────────────────────
+
+function buildProcessPrompt(ctx: PromptContext): string {
+  const pc = ctx.processContext!;
+  const sections: string[] = [];
+
+  sections.push(`You are "${ctx.agentName}", participating in a structured brainstorming session.
+
+PROBLEM: ${pc.problem}
+
+SESSION: ${pc.processName} (stage ${pc.stageIndex + 1} of ${pc.totalStages})
+CURRENT STAGE: ${pc.stageName}
+STAGE GOAL: ${pc.stageGoal}
+
+YOUR ROLE: ${ctx.role}
+YOUR PERSONA: ${pc.persona}
+
+Stay in character. Everything you contribute should serve the stage goal and fit your persona.`);
+
+  // Prior stage artifacts as context
+  const priorStageIds = Object.keys(pc.priorArtifacts);
+  if (priorStageIds.length > 0) {
+    const artifactLines: string[] = [];
+    for (const stageId of priorStageIds) {
+      const artifacts = pc.priorArtifacts[stageId];
+      for (const [artifactId, content] of Object.entries(artifacts)) {
+        artifactLines.push(`[${stageId} / ${artifactId}]:\n${content}`);
+      }
+    }
+    sections.push(`CONTEXT FROM PREVIOUS STAGES:\n${artifactLines.join('\n\n')}`);
+  }
+
+  if (ctx.team.length > 0) {
+    sections.push(`YOUR CO-PARTICIPANTS:
+${ctx.team.map(t => `- ${t.agent_name} (${t.role})`).join('\n')}
+
+Engage with their contributions — build on ideas, challenge them, or synthesize across them.`);
+  }
+
+  if (ctx.findings.length > 0) {
+    sections.push(`IDEAS AND FINDINGS SO FAR:
+${ctx.findings.slice(-15).map(f => `- [${f.agent_name}] ${f.finding}`).join('\n')}`);
+  }
+
+  sections.push(`TOOLS AVAILABLE:
+- PostFindings: Share an idea, insight, or critique with the group. Use this liberally — it's how the group builds shared knowledge.
+- UpdateKnowledge: Note something important for your own reference.
+
+PLAYER COMMANDS: When you receive a message prefixed with [PLAYER COMMAND], treat it as a direct instruction from the human facilitator. Highest priority — act on it immediately.`);
+
+  return sections.join('\n\n---\n\n');
+}
+
+// ── Codebase exploration prompt (original) ────────────────────────────────────
+
+function buildCodebasePrompt(ctx: PromptContext): string {
   const sections: string[] = [];
 
   sections.push(`You are "${ctx.agentName}", a specialist agent working on the codebase at ${ctx.repoPath}.

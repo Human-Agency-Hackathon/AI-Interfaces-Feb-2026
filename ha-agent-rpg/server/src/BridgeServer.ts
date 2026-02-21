@@ -32,7 +32,8 @@ import { join } from 'node:path';
 import { RealmRegistry } from './RealmRegistry.js';
 import { WorldStatePersistence } from './WorldStatePersistence.js';
 import { GitHelper } from './GitHelper.js';
-import { PROCESS_TEMPLATES, STANDARD_BRAINSTORM, type ProcessDefinition } from './ProcessTemplates.js';
+import { PROCESS_TEMPLATES, STANDARD_BRAINSTORM, type ProcessDefinition, type StageDefinition } from './ProcessTemplates.js';
+import { ProcessController } from './ProcessController.js';
 
 // Agent colors — auto-assigned in spawn order
 const AGENT_COLORS = [
@@ -71,6 +72,7 @@ export class BridgeServer {
   private playerSocket: WebSocket | null = null;
   private playerNavStack: NavigationFrame[] = [];
   private playerCurrentPath = '';
+  private processController: ProcessController | null = null;
   private settings: SessionSettings = {
     max_agents: 5,
     token_budget_usd: 2.0,
@@ -249,8 +251,33 @@ export class BridgeServer {
 
       this.gamePhase = 'playing';
 
+      // Create process controller with delegate callbacks
+      this.processController = new ProcessController({
+        dismissStageAgents: async (stage: StageDefinition) => {
+          for (const roleId of stage.roles) {
+            await this.sessionManager.dismissAgent(roleId);
+          }
+        },
+        spawnStageAgents: async (tpl: ProcessDefinition, idx: number, prob: string) => {
+          await this.spawnProcessAgents(tpl, idx, prob);
+        },
+        broadcast: (msg) => this.broadcast(msg as unknown as ServerMessage),
+        saveArtifact: (stageId, artifactId, content) => {
+          this.worldState.setArtifact(stageId, artifactId, content);
+        },
+        onStageAdvanced: (completedStageId, artifacts) => {
+          this.worldState.advanceStage(completedStageId, artifacts);
+        },
+        sendFollowUp: async (agentId, prompt) => {
+          await this.sessionManager.sendFollowUp(agentId, prompt);
+        },
+      });
+
       // Spawn the first stage's agents
       await this.spawnProcessAgents(template, 0, msg.problem);
+
+      // Start stage tracking after agents are spawned
+      this.processController.start(msg.problem, template);
 
       console.log(`[Bridge] Process started: "${msg.problem}" (template: ${template.id})`);
     } catch (err) {
@@ -273,7 +300,7 @@ export class BridgeServer {
       return { agentId: roleId, name: roleDef.name, role: roleDef.name };
     });
 
-    const result = this.mapGenerator.generateAgentMap(agentEntries);
+    const result = this.mapGenerator.generateProcessStageMap(template, stageIndex);
     this.worldState.setMap(result.map);
     this.worldState.setObjects(result.objects);
     this.eventTranslator.setObjects(result.objects);
@@ -289,6 +316,8 @@ export class BridgeServer {
 
     this.broadcast(this.worldState.getSnapshot());
 
+    const priorArtifacts = this.worldState.getProcessState()?.collectedArtifacts ?? {};
+
     for (const entry of agentEntries) {
       const roleDef = template.roles.find((r) => r.id === entry.agentId)!;
       await this.sessionManager.spawnAgent({
@@ -296,19 +325,20 @@ export class BridgeServer {
         agentName: entry.name,
         role: entry.role,
         realm: '/',
-        mission: `You are participating in a brainstorming session.
-
-Problem: ${problem}
-
-Stage: ${stage.name}
-Stage goal: ${stage.goal}
-
-Your role: ${roleDef.name}
-Your persona: ${roleDef.persona}
-
-Engage with the other participants, contribute your perspective, and help the group make progress toward the stage goal.`,
+        mission: `Participate in the "${stage.name}" stage of the brainstorming session. Use PostFindings to share ideas with the group.`,
         repoPath: this.repoPath ?? process.env.HOME ?? '/tmp',
         permissionLevel: this.settings.permission_level,
+        processContext: {
+          problem,
+          processName: template.name,
+          stageId: stage.id,
+          stageName: stage.name,
+          stageGoal: stage.goal,
+          stageIndex,
+          totalStages: template.stages.length,
+          persona: roleDef.persona,
+          priorArtifacts,
+        },
       });
     }
   }
@@ -798,6 +828,11 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
   }
 
   private async cleanupCurrentRealm(): Promise<void> {
+    // Stop any running process controller before dismissing agents
+    if (this.processController) {
+      this.processController.stop();
+      this.processController = null;
+    }
     if (this.sessionManager) {
       const activeIds = this.sessionManager.getActiveAgentIds();
       for (const id of activeIds) {
@@ -838,9 +873,14 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
       });
     });
 
-    // Agent went idle
+    // Agent went idle — notify process controller to check stage completion
     this.sessionManager.on('agent:idle', (agentId: string) => {
       this.worldState.updateAgentStatus(agentId, 'idle');
+      if (this.processController) {
+        this.processController.onAgentTurnComplete(agentId).catch((err) => {
+          console.error('[Bridge] ProcessController error on agent idle:', err);
+        });
+      }
     });
 
     // Agent was dismissed
@@ -906,6 +946,17 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     this.toolHandler.on('quest:completed', (data: any) => {
       if (data.update) {
         this.broadcast(data.update);
+      }
+    });
+
+    // Stage completion signal from agent
+    this.toolHandler.on('stage:complete', (data: any) => {
+      if (this.processController) {
+        this.processController
+          .onExplicitStageComplete(data.agentId, data.artifacts)
+          .catch((err) => {
+            console.error('[Bridge] ProcessController error on explicit stage complete:', err);
+          });
       }
     });
   }

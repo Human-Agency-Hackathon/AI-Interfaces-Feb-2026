@@ -50,6 +50,10 @@ export class MapRenderer {
     }
   }
 
+  getMap(): TileMapData {
+    return this.mapData;
+  }
+
   loadMap(mapData: TileMapData): void {
     // Destroy all existing tile images (water tiles are included in tileImages)
     for (const img of this.tileImages) {

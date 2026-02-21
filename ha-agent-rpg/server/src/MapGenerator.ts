@@ -1,5 +1,6 @@
 import type { TileMapData, MapObject, Quest, MapNode } from './types.js';
 import type { RepoData, RepoTreeEntry } from './RepoAnalyzer.js';
+import type { ProcessDefinition } from './ProcessTemplates.js';
 
 // ---------- Constants ----------
 
@@ -1003,5 +1004,63 @@ export class MapGenerator {
         for (let off = -halfW; off <= halfW; off++) carve(sDoorX + off, cy);
       }
     }
+  }
+
+  /**
+   * Generate a map for a brainstorming process stage.
+   *
+   * Layout: same "offices" grid as generateAgentMap, but rooms are decorated
+   * with stage-appropriate objects (idea scrolls, critique notes, etc.) instead
+   * of code-file objects. The first role in the stage becomes the "central" room.
+   *
+   * Uses generateAgentMap internally, then overlays stage-themed decorations.
+   */
+  generateProcessStageMap(
+    template: ProcessDefinition,
+    stageIndex: number,
+  ): AgentMapResult {
+    const stage = template.stages[stageIndex];
+    if (!stage) {
+      return { map: { width: AGENT_MAP_W, height: AGENT_MAP_H, tile_size: TILE_SIZE, tiles: this.createBlankGrid(AGENT_MAP_W, AGENT_MAP_H) }, objects: [], agentPositions: {} };
+    }
+
+    // Build agent specs from stage roles
+    const agents: AgentRoomSpec[] = stage.roles.map((roleId) => {
+      const roleDef = template.roles.find((r) => r.id === roleId)!;
+      return { agentId: roleId, name: roleDef.name, role: roleDef.name };
+    });
+
+    // Use the base agent map layout
+    const base = this.generateAgentMap(agents);
+
+    // Replace generic doc objects with stage-themed ones
+    const themedObjects = base.objects.map((obj) => {
+      if (obj.type === 'doc') {
+        // Map doc objects to stage artifact labels
+        const artifactLabels = stage.artifacts.map((a) => a.label);
+        const idx = parseInt(obj.id.split('_').pop() ?? '0', 10) - 1;
+        const label = artifactLabels[idx] ?? obj.label;
+        return { ...obj, label };
+      }
+      if (obj.type === 'sign') {
+        // Enrich sign with stage name
+        return { ...obj, label: `${obj.label} — ${stage.name}` };
+      }
+      return obj;
+    });
+
+    // Add a central stage banner object at map center
+    const centerX = Math.floor(AGENT_MAP_W / 2);
+    const centerY = Math.floor(AGENT_MAP_H / 2);
+    themedObjects.push({
+      id: `stage_banner_${stage.id}`,
+      type: 'sign',
+      x: centerX,
+      y: 1,
+      label: `Stage: ${stage.name}`,
+      metadata: { stageId: stage.id, stageGoal: stage.goal },
+    });
+
+    return { ...base, objects: themedObjects };
   }
 }

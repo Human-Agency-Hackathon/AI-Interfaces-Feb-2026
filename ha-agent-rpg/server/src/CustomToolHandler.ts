@@ -8,6 +8,7 @@
  *   knowledge:updated — vault updated with new insight / expertise
  *   quest:claimed     — quest assigned to an agent
  *   quest:completed   — quest marked done
+ *   stage:complete    — agent signals the current stage is done
  */
 
 import { EventEmitter } from 'node:events';
@@ -71,6 +72,9 @@ export class CustomToolHandler extends EventEmitter {
 
       case 'CompleteQuest':
         return this.handleCompleteQuest(agent_id, tool_input);
+
+      case 'CompleteStage':
+        return this.handleCompleteStage(agent_id, tool_input);
 
       default:
         return { result: { error: `Unknown tool: ${tool_name}` } };
@@ -233,5 +237,23 @@ export class CustomToolHandler extends EventEmitter {
     });
 
     return { result: { closed: true, quest_id } };
+  }
+
+  private handleCompleteStage(
+    agentId: string,
+    input: Record<string, unknown>,
+  ): CustomToolResult {
+    const { summary, artifacts } = input as {
+      summary: string;
+      artifacts?: Record<string, string>;
+    };
+
+    this.emit('stage:complete', {
+      agentId,
+      summary,
+      artifacts: artifacts ?? {},
+    });
+
+    return { result: { acknowledged: true, message: 'Stage completion signal sent.' } };
   }
 }
