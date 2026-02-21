@@ -428,12 +428,12 @@ interface ITranscriptLogger {
 | 52 | Process template library: prebuilt brainstorming workflows users can pick from | Jeff's agent | Done | SIX_THINKING_HATS, SCAMPER, RAPID_FIRE added to `shared/process.ts` + `server/src/ProcessTemplates.ts`. Select via processId on player:start-process. |
 | 53 | Export session: save brainstorming output as a structured report | | TODO | Transcript logs exist but need a synthesis/export format |
 | 54 | Dashboard view: summary of ideas generated, votes, stages completed | | TODO | Aggregate view beyond the in-game panels |
-| 55 | Click agent to see history | Ken | In Progress | **Scoped and delegated.** Architecture doc: `docs/AGENT-DETAILS-PANEL.md`. Split into 55a-55e below. |
+| 55 | Click agent to see history | Ken | Done | **Scoped and delegated.** Architecture doc: `docs/AGENT-DETAILS-PANEL.md`. Split into 55a-55e below. |
 | 55a | Protocol types for agent details request/response | Behrang | TODO | Add `player:get-agent-details` (client→server) and `agent:details` (server→client) to `shared/protocol.ts`. Mirror to server + client `types.ts`. Add to `ClientMessage`/`ServerMessage` unions. See `docs/AGENT-DETAILS-PANEL.md` for exact type definitions. |
 | 55b | BridgeServer handler for agent details | Behrang | TODO | Add `handleGetAgentDetails(ws, msg)` in BridgeServer. Aggregates data from WorldState (agent info), KnowledgeVault (expertise, insights, task history), and FindingsBoard (filtered by agent_id). Add server test. **Blocked by:** 55a. |
-| 55c | Create AgentDetailsPanel DOM overlay | Ida | TODO | New file `client/src/panels/AgentDetailsPanel.ts`. Follow DialogueLog pattern. Sections: header (name, role, status), expertise bars, task history list, findings list. Methods: show/hide/populateData/clear. Style to dungeon aesthetic. See `docs/AGENT-DETAILS-PANEL.md`. |
-| 55d | Add sidebar container + CSS for agent details | Ida | TODO | Add `<div id="agent-details-panel">` in `index.html` sidebar. Add CSS matching dungeon stone palette. |
-| 55e | Wire click → request → panel in GameScene/UIScene | Ida | TODO | Extend AgentSprite pointerdown in GameScene to send `player:get-agent-details` + emit to UIScene. Add `agent:details` WS listener. Instantiate AgentDetailsPanel in UIScene. **Blocked by:** 55a, 55b, 55c, 55d. |
+| 55c | Create AgentDetailsPanel DOM overlay | Behrang | Done | New file `client/src/panels/AgentDetailsPanel.ts`. Follow DialogueLog pattern. Sections: header (name, role, status), expertise bars, task history list, findings list. Methods: show/hide/populateData/clear. Style to dungeon aesthetic. See `docs/AGENT-DETAILS-PANEL.md`. |
+| 55d | Add sidebar container + CSS for agent details | Behrang | Done | Add `<div id="agent-details-panel">` in `index.html` sidebar. Add CSS matching dungeon stone palette. |
+| 55e | Wire click → request → panel in GameScene/UIScene | Behrang | Done | Extend AgentSprite pointerdown in GameScene to send `player:get-agent-details` + emit to UIScene. Add `agent:details` WS listener. Instantiate AgentDetailsPanel in UIScene. **Blocked by:** 55a, 55b, 55c, 55d. |
 
 ---
 
@@ -492,6 +492,7 @@ Ideas and features that need further scoping before they become numbered tasks.
 | 2026-02-21 | — | Jeff's agent | **Task 48 done: agent collaboration design at `docs/agent-collaboration-design.md`.** @Behrang: read this before implementing cross-agent interaction. Key: text conventions over new tools for now; stage-specific rules for when to build-on vs isolate. |
 | 2026-02-21 | — | Jeff's agent | **Task 35 done: onboarding design at `docs/onboarding-design.md`.** @Ida: hints + /help command are pure HTML/CSS. @Behrang: demo narrator mode needs one new server broadcast. Trigger map and exact hint text in the doc. |
 | 2026-02-21 | — | Jeff's agent | **Task 53 done: export format design at `docs/export-format.md`.** Includes ExportReport TS type, assembly logic, example report, and protocol addition. @Behrang: recommend option (b) — server sends markdown via WS, client triggers download. |
+| 2026-02-21 | 16:20 | Behrang | **Agent history panel implemented (Task 55 fully complete: 55a-55e).** Server: extended `agent:details` with transcript data (thoughts + actions from JSONL logs), added `readTranscript()` to TranscriptLogger with 4 tests, updated protocol types across all 3 files. Client: new `AgentDetailsPanel` with 4 collapsible sections (Findings, Insights, Actions, Thoughts), sidebar container + CSS in `index.html`, wired GameScene click → WS request → UIScene → panel. 375 server tests pass, client type-checks clean. Design doc: `docs/plans/2026-02-21-agent-history-panel-design.md`. **@Ida:** Panel is functional with dungeon palette styling — ready for your visual polish pass when you get to it. **@Ken:** Task 55 is fully done (55a through 55e). |
 
 ---
 
