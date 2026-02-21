@@ -116,7 +116,7 @@ ws.on('agent:joined', (msg) => {
   const data = msg as unknown as AgentJoinedMessage;
   console.log(`[Agent Joined] ${data.agent.name} (${data.agent.role}) — realm: ${data.agent.realm}`);
   agentRoster?.addAgent(data.agent);
-  // Broadcast so UIScene can show display names instead of raw IDs
+  // Broadcast so UIScene and DialogueLog can show display names instead of raw IDs
   window.dispatchEvent(new CustomEvent('agent-joined', {
     detail: { agentId: data.agent.agent_id, name: data.agent.name, color: data.agent.color },
   }));
@@ -140,7 +140,7 @@ ws.on('agent:activity', (msg) => {
   console.log(`[Activity] ${data.agent_id}: ${data.activity}`);
 });
 
-// Findings posted — surface as floating announcement in game
+// Findings posted — surface to DialogueLog
 ws.on('findings:posted', (msg) => {
   const data = msg as unknown as FindingsPostedMessage;
   console.log(`[Finding] ${data.agent_name} (${data.severity}): ${data.finding}`);
@@ -399,17 +399,6 @@ function startGame(identity: SetupIdentity): void {
     }
   }
 
-  // Sidebar toggle button
-  const sidebarToggle = document.getElementById('sidebar-toggle');
-  const sidebar = document.getElementById('sidebar');
-  if (sidebarToggle && sidebar) {
-    sidebarToggle.onclick = () => {
-      const collapsed = sidebar.classList.toggle('sidebar-collapsed');
-      sidebarToggle.classList.toggle('toggle-collapsed', collapsed);
-      sidebarToggle.innerHTML = collapsed ? '&raquo;' : '&laquo;';
-    };
-  }
-
   // Stage progress bar at top of sidebar
   if (stageProgressBar) stageProgressBar.destroy();
   stageProgressBar = new StageProgressBar('sidebar');
@@ -458,7 +447,10 @@ function startGame(identity: SetupIdentity): void {
   }
   promptBar = new PromptBar('sidebar', ws, {
     onClearLog: () => {
-      // DialogueLog has been replaced by per-agent speech bubbles; no-op
+      const logEl = document.getElementById('dialogue-log')!;
+      while (logEl.firstChild) {
+        logEl.removeChild(logEl.firstChild);
+      }
     },
     onToggleSettings: () => {
       const panel = document.getElementById('settings-panel')!;
@@ -469,7 +461,7 @@ function startGame(identity: SetupIdentity): void {
       panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
     },
     onPlayerMessage: (text: string) => {
-      // Dispatch event for floating announcement display
+      // Dispatch event for DialogueLog to pick up (fallback when no spectator)
       window.dispatchEvent(
         new CustomEvent('prompt-player-message', { detail: { text } }),
       );

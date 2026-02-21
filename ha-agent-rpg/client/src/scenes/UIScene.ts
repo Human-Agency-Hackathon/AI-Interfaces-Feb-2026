@@ -1,10 +1,11 @@
+import { DialogueLog } from '../panels/DialogueLog';
 import { AgentDetailsPanel } from '../panels/AgentDetailsPanel';
-import type { AgentThoughtMessage, AgentDetailsMessage } from '../types';
+import type { DialogueData } from '../systems/DialogueSystem';
+import type { AgentThoughtMessage, AgentActivityMessage, AgentDetailsMessage } from '../types';
 
 export class UIScene extends Phaser.Scene {
+  private dialogueLog!: DialogueLog;
   private statusText!: Phaser.GameObjects.Text;
-  /** Maps agent_id → { name, color } so other systems can look up display names */
-  private agentInfo = new Map<string, { name: string; color: number }>();
   private agentDetailsPanel!: AgentDetailsPanel;
 
   constructor() {
@@ -12,6 +13,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.dialogueLog = new DialogueLog('dialogue-log');
+
     // Status indicator — top right
     this.statusText = this.add.text(620, 10, 'Agents starting...', {
       fontSize: '12px',
@@ -28,16 +31,10 @@ export class UIScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5).setDepth(50).setName('waitingText');
 
-    // Track agent name/color for display
-    window.addEventListener('agent-joined', ((e: CustomEvent) => {
-      this.agentInfo.set(e.detail.agentId, { name: e.detail.name, color: e.detail.color });
-      // Remove waiting text once any agent has joined
-      const wt = this.children.getByName('waitingText');
-      if (wt) wt.destroy();
-    }) as EventListener);
-
-    // Listen for thought events from GameScene (just for status text update)
+    // Listen for events from GameScene
+    this.events.on('show-dialogue', this.onShowDialogue, this);
     this.events.on('agent-thought', this.onAgentThought, this);
+    this.events.on('agent-activity', this.onAgentActivity, this);
 
     // Agent details panel
     this.agentDetailsPanel = new AgentDetailsPanel('agent-details-panel');
@@ -51,14 +48,39 @@ export class UIScene extends Phaser.Scene {
     });
   }
 
+  private onShowDialogue(data: DialogueData): void {
+    this.dialogueLog.addEntry({
+      agent_name: data.name,
+      agent_color: data.color,
+      text: data.text,
+      type: 'speak',
+      timestamp: Date.now(),
+    });
+  }
+
   private onAgentThought(data: AgentThoughtMessage): void {
     // Remove waiting text on first thought
     const waitingText = this.children.getByName('waitingText');
     if (waitingText) waitingText.destroy();
 
-    const info = this.agentInfo.get(data.agent_id);
-    const displayName = info?.name ?? data.agent_id;
+    // Update status
+    this.statusText.setText(`Active: ${data.agent_id}`);
 
-    this.statusText.setText(`Active: ${displayName}`);
+    this.dialogueLog.addEntry({
+      agent_name: data.agent_id,
+      agent_color: 0x888888,
+      text: data.text,
+      type: 'think',
+      timestamp: Date.now(),
+    });
+  }
+
+  private onAgentActivity(data: AgentActivityMessage): void {
+    // Remove waiting text on first activity
+    const waitingText = this.children.getByName('waitingText');
+    if (waitingText) waitingText.destroy();
+
+    this.statusText.setText(`Active: ${data.agent_id}`);
+    this.dialogueLog.addActivity(data.agent_id, data.activity, data.tool_name);
   }
 }

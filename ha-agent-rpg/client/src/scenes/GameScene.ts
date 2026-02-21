@@ -6,7 +6,7 @@ import { EffectSystem } from '../systems/EffectSystem';
 import { CameraController } from '../systems/CameraController';
 import { MapObjectSprite } from '../systems/MapObjectSprite';
 import { RoomBackground } from '../systems/RoomBackground';
-import { SpeechBubbleManager } from '../systems/SpeechBubbleManager';
+import { ThoughtBubble } from '../systems/ThoughtBubble';
 import { FortSprite } from '../systems/FortSprite';
 import { Minimap } from '../ui/Minimap';
 import { ZoomControls } from '../ui/ZoomControls';
@@ -33,7 +33,7 @@ export class GameScene extends Phaser.Scene {
   private cameraController: CameraController | null = null;
   private mapObjectSprites: MapObjectSprite[] = [];
   private roomBackground: RoomBackground | null = null;
-  private speechBubbleManager!: SpeechBubbleManager;
+  private thoughtBubble!: ThoughtBubble;
   private objects: MapObject[] = [];
   private currentMapDimensions: { width: number; height: number } | null = null;
   private arrowKeys!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -44,7 +44,6 @@ export class GameScene extends Phaser.Scene {
   private inFortView = false;
   private zoomControls: ZoomControls | null = null;
   private _rosterClickHandler: EventListener | null = null;
-  private _windowEventHandlers: { event: string; handler: EventListener }[] = [];
 
   constructor() {
     super({ key: 'GameScene' });
@@ -52,7 +51,7 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.effectSystem = new EffectSystem(this, this.agentSprites);
-    this.speechBubbleManager = new SpeechBubbleManager(this);
+    this.thoughtBubble = new ThoughtBubble(this);
 
     // Use shared WebSocketClient from registry (set by main.ts) instead of
     // creating a duplicate connection. Falls back to localhost for safety.
@@ -181,7 +180,6 @@ export class GameScene extends Phaser.Scene {
         sprite.destroy();
         this.agentSprites.delete(data.agent_id);
       }
-      this.speechBubbleManager.removeBubble(data.agent_id);
     });
 
     this.wsClient.on('action:result', (msg) => {
@@ -194,27 +192,15 @@ export class GameScene extends Phaser.Scene {
       const data = msg as unknown as AgentThoughtMessage;
       const sprite = this.agentSprites.get(data.agent_id);
       if (sprite) {
-        this.speechBubbleManager.updateBubble(
-          data.agent_id, 'think', data.text,
-          sprite.getX(), sprite.getY(),
-          sprite.agentColor, sprite.agentName,
-        );
+        this.thoughtBubble.show(sprite.getX(), sprite.getY(), data.text);
       }
-      // Still forward to UIScene for status text update
+      // Forward to UIScene for dialogue log
       this.scene.get('UIScene').events.emit('agent-thought', data);
     });
 
     this.wsClient.on('agent:activity', (msg) => {
       const data = msg as unknown as AgentActivityMessage;
-      const sprite = this.agentSprites.get(data.agent_id);
-      if (sprite) {
-        this.speechBubbleManager.updateBubble(
-          data.agent_id, 'activity', data.activity,
-          sprite.getX(), sprite.getY(),
-          sprite.agentColor, sprite.agentName,
-          data.tool_name,
-        );
-      }
+      this.scene.get('UIScene').events.emit('agent-activity', data);
     });
 
     this.wsClient.on('map:change', (msg) => {
@@ -363,42 +349,12 @@ export class GameScene extends Phaser.Scene {
     }) as EventListener;
     window.addEventListener('agent-roster-click', this._rosterClickHandler);
 
-    // ── Floating announcements: route system-level window events to in-game text ──
-    const addWindowHandler = (event: string, handler: EventListener) => {
-      window.addEventListener(event, handler);
-      this._windowEventHandlers.push({ event, handler });
-    };
-
-    addWindowHandler('stage-announcement', ((e: CustomEvent) => {
-      this.speechBubbleManager.showFloatingAnnouncement(
-        e.detail.text, this.cameras.main, 6000, '#ffdd44',
-      );
-    }) as EventListener);
-
-    addWindowHandler('findings-posted', ((e: CustomEvent) => {
-      const text = `${e.detail.agent_name}: ${e.detail.finding}`;
-      this.speechBubbleManager.showFloatingAnnouncement(
-        text.length > 120 ? text.slice(0, 120) + '\u2026' : text,
-        this.cameras.main, 5000, '#88ccff',
-      );
-    }) as EventListener);
-
-    addWindowHandler('prompt-system-message', ((e: CustomEvent) => {
-      this.speechBubbleManager.showFloatingAnnouncement(
-        e.detail.text, this.cameras.main, 4000, '#aaaacc',
-      );
-    }) as EventListener);
-
-    // Clean up window event listeners on scene shutdown
+    // Clean up window event listener on scene shutdown
     this.events.once('shutdown', () => {
       if (this._rosterClickHandler) {
         window.removeEventListener('agent-roster-click', this._rosterClickHandler);
         this._rosterClickHandler = null;
       }
-      for (const { event, handler } of this._windowEventHandlers) {
-        window.removeEventListener(event, handler);
-      }
-      this._windowEventHandlers = [];
     });
 
     // Only connect if we created a standalone fallback (not using shared)
@@ -444,11 +400,6 @@ export class GameScene extends Phaser.Scene {
     }
     this.mapObjectSprites = [];
 
-    // Clean up speech bubbles
-    if (this.speechBubbleManager) {
-      this.speechBubbleManager.destroy();
-    }
-
     // Clean up minimap
     if (this.minimap) {
       this.minimap.destroy();
@@ -476,11 +427,6 @@ export class GameScene extends Phaser.Scene {
   update(): void {
     if (this.cameraController) {
       this.cameraController.update();
-    }
-
-    // Update speech bubbles (off-screen detection, edge indicators)
-    if (this.speechBubbleManager) {
-      this.speechBubbleManager.update(this.cameras.main);
     }
 
     // Handle player movement input
@@ -615,19 +561,17 @@ export class GameScene extends Phaser.Scene {
     if (!sprite) return;
 
     switch (result.action) {
-      case 'move': {
+      case 'move':
         sprite.walkTo(
           result.params.x as number,
           result.params.y as number
         );
-        // Move speech bubble to follow the agent
-        const TILE_SIZE = 32;
-        const moveTargetX = (result.params.x as number) * TILE_SIZE + TILE_SIZE / 2;
-        const moveTargetY = (result.params.y as number) * TILE_SIZE + TILE_SIZE / 2;
-        this.speechBubbleManager.repositionBubble(result.agent_id, moveTargetX, moveTargetY);
         // If following this agent, smoothly track the movement
         if (this.cameraController && this.cameraController.isFollowing(result.agent_id)) {
-          this.cameraController.panTo(moveTargetX, moveTargetY, result.agent_id);
+          const TILE_SIZE = 32;
+          const targetX = (result.params.x as number) * TILE_SIZE + TILE_SIZE / 2;
+          const targetY = (result.params.y as number) * TILE_SIZE + TILE_SIZE / 2;
+          this.cameraController.panTo(targetX, targetY, result.agent_id);
         }
         // Update minimap agent position
         if (this.minimap) {
@@ -639,22 +583,28 @@ export class GameScene extends Phaser.Scene {
           );
         }
         break;
-      }
 
       case 'speak':
-        this.speechBubbleManager.updateBubble(
-          result.agent_id, 'speak', result.params.text as string,
-          sprite.getX(), sprite.getY(),
-          sprite.agentColor, sprite.agentName,
-        );
+        this.scene.get('UIScene').events.emit('show-dialogue', {
+          agent_id: result.agent_id,
+          name: sprite.agentName,
+          text: result.params.text as string,
+          color: sprite.agentColor,
+        });
         break;
 
       case 'think':
-        this.speechBubbleManager.updateBubble(
-          result.agent_id, 'think', result.params.text as string,
-          sprite.getX(), sprite.getY(),
-          sprite.agentColor, sprite.agentName,
+        // Show thought bubble above the agent
+        this.thoughtBubble.show(
+          sprite.getX(),
+          sprite.getY(),
+          result.params.text as string,
         );
+        // Forward to UIScene for dialogue log
+        this.scene.get('UIScene').events.emit('agent-thought', {
+          agent_id: result.agent_id,
+          text: result.params.text as string,
+        });
         break;
 
       case 'skill':
