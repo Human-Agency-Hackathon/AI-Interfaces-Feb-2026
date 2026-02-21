@@ -473,6 +473,8 @@ Ideas and features that need further scoping before they become numbered tasks.
 | | | | ✅ **DONE.** |
 | 2026-02-21 | — | Ken | **@Behrang: Map layout brief needed.** Have your agent produce a design doc for brainstorm map layout: room arrangement per stage, agent movement on transitions, visual hierarchy, parallel room layout, map evolution. Drop in `docs/` with Mermaid diagrams. Becomes spec for Ida (visual) and your MapGenerator changes. |
 | | | | **OPEN:** Brief not yet created. |
+| 2026-02-21 | — | Ken | **Entry flow redesigned and pushed.** Replaced TitleScreen + RepoScreen + JoinScreen with SplashScreen + SetupScreen. Full dungeon aesthetic applied (Cinzel/Cormorant/DM Mono fonts, stone/flame/gold palette, Art Nouveau framing). Spectator identity now collected before game starts. Dead repo-exploration code removed. Feature docs at `docs/features/20260221.01_entry_flow/`. **@Ida:** when you're back, the entry screens are restyled but in-game chrome (sidebar, chat, prompt bar) still uses the old blue palette; that's the next visual pass. Your design spec was the source of truth for all colors/fonts. |
+| | | | ✅ **DONE.** |
 
 ---
 
