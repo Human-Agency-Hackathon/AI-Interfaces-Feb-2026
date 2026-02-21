@@ -414,6 +414,37 @@ describe('Process State', () => {
       expect(ws2.getProcessState()!.status).toBe('completed');
       expect(ws2.getProcessState()!.completedAt).toBeTruthy();
     });
+
+    it('round-trips persistence fields (S1: stageTurnCounts, agentTurnCounts, stageStartedAt, problemStatement)', () => {
+      const state = {
+        ...makeProcessState(),
+        problemStatement: 'How to build an agent?',
+        stageTurnCounts: { ideation: 6, critique: 4 },
+        agentTurnCounts: { 'ideation:wild_ideator_1': 3, 'ideation:cross_pollinator_1': 3 },
+        stageStartedAt: '2026-02-21T15:00:00.000Z',
+      };
+      world.setProcessState(state);
+
+      const ws2 = WorldState.fromJSON(world.toJSON());
+      const ps = ws2.getProcessState()!;
+      expect(ps.problemStatement).toBe('How to build an agent?');
+      expect(ps.stageTurnCounts).toEqual({ ideation: 6, critique: 4 });
+      expect(ps.agentTurnCounts).toEqual({ 'ideation:wild_ideator_1': 3, 'ideation:cross_pollinator_1': 3 });
+      expect(ps.stageStartedAt).toBe('2026-02-21T15:00:00.000Z');
+    });
+
+    it('round-trips process state without persistence fields (backward compat)', () => {
+      const oldState = makeProcessState();
+      world.setProcessState(oldState);
+
+      const ws2 = WorldState.fromJSON(world.toJSON());
+      const ps = ws2.getProcessState()!;
+      expect(ps.processId).toBe('test_process');
+      expect(ps.problemStatement).toBeUndefined();
+      expect(ps.stageTurnCounts).toBeUndefined();
+      expect(ps.agentTurnCounts).toBeUndefined();
+      expect(ps.stageStartedAt).toBeUndefined();
+    });
   });
 });
 
