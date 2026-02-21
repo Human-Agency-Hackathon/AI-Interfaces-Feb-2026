@@ -1,20 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { FindingsBoard } from '../FindingsBoard.js';
-import { getRedisClient } from '../RedisClient.js';
-
-const TEST_SESSION = `test-findings-${Date.now()}`;
+import { mkdtemp, rm } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 describe('FindingsBoard', () => {
   let board: FindingsBoard;
+  let tempDir: string;
 
   beforeEach(async () => {
-    board = new FindingsBoard(TEST_SESSION);
-    // Clear any leftover keys from previous runs
-    await getRedisClient().del(`session:${TEST_SESSION}:findings`);
-  });
-
-  afterEach(async () => {
-    await getRedisClient().del(`session:${TEST_SESSION}:findings`);
+    tempDir = await mkdtemp(join(tmpdir(), 'findings-test-'));
+    board = new FindingsBoard(tempDir);
+    await board.load();
   });
 
   describe('addFinding()', () => {
@@ -81,16 +78,17 @@ describe('FindingsBoard', () => {
   });
 
   describe('load() and save()', () => {
-    it('load() and save() are no-ops (Redis is always live)', async () => {
+    it('starts empty after load', async () => {
       await board.load();
       await board.save();
       expect(await board.getAll()).toHaveLength(0);
     });
 
-    it('findings persist across board instances with the same key', async () => {
+    it('findings persist across board instances with the same session path', async () => {
       await board.addFinding({ agent_id: 'a1', agent_name: 'O', realm: '/', finding: 'test', severity: 'medium' });
 
-      const board2 = new FindingsBoard(TEST_SESSION);
+      const board2 = new FindingsBoard(tempDir);
+      await board2.load();
       const all = await board2.getAll();
       expect(all).toHaveLength(1);
       expect(all[0].finding).toBe('test');
