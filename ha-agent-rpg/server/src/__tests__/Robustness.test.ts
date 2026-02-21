@@ -68,7 +68,7 @@ describe('R1: periodic KnowledgeVault auto-saves', () => {
     const { CustomToolHandler } = await import('../CustomToolHandler.js');
 
     const board = new FindingsBoard('/tmp');
-    const handler = new CustomToolHandler(null as any, null as any);
+    const handler = new CustomToolHandler(null as any, null as any, () => undefined, () => 'unknown');
     const mgr = new AgentSessionManager(board as any, handler as any);
 
     await mgr.spawnAgent({
@@ -100,7 +100,7 @@ describe('R1: periodic KnowledgeVault auto-saves', () => {
     const { CustomToolHandler } = await import('../CustomToolHandler.js');
 
     const board = new FindingsBoard('/tmp');
-    const handler = new CustomToolHandler(null as any, null as any);
+    const handler = new CustomToolHandler(null as any, null as any, () => undefined, () => 'unknown');
     const mgr = new AgentSessionManager(board as any, handler as any);
 
     await mgr.spawnAgent({
