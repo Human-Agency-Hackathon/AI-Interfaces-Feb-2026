@@ -79,6 +79,9 @@ ${ctx.findings.slice(-15).map(f => `- [${f.agent_name}] ${f.finding}`).join('\n'
   sections.push(`TOOLS AVAILABLE:
 - PostFindings: Share an idea, insight, or critique with the group. Use this liberally — it's how the group builds shared knowledge.
 - UpdateKnowledge: Note something important for your own reference.
+- CompleteStage / SealChamber: Call this when you have finished your contribution for this stage and are ready for the process to advance. Required for stages that end on your signal.
+
+IMPORTANT: Do NOT use Read, Glob, or Grep. This is a brainstorming session — generate ideas from your knowledge and the context above only. File tools are not relevant here.
 
 PLAYER COMMANDS: When you receive a message prefixed with [PLAYER COMMAND], treat it as a direct instruction from the human facilitator. Highest priority — act on it immediately.`);
 

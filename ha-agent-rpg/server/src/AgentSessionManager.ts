@@ -255,6 +255,7 @@ export class AgentSessionManager extends EventEmitter {
       knowledge: vault.getKnowledge(),
       team: this.getTeamRoster(config.agentId),
       findings: await this.findingsBoard.getRecent(15),
+      processContext: config.processContext,
     });
   }
 

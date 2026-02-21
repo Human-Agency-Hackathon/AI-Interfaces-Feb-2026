@@ -353,6 +353,8 @@ export class BridgeServer {
         dismissStageAgents: async (stage: StageDefinition) => {
           for (const roleId of stage.roles) {
             await this.sessionManager.dismissAgent(roleId);
+            this.worldState.removeAgent(roleId);
+            this.broadcast({ type: 'agent:left', agent_id: roleId });
           }
         },
         spawnStageAgents: async (tpl: ProcessDefinition, idx: number, prob: string) => {
@@ -364,6 +366,9 @@ export class BridgeServer {
         },
         onStageAdvanced: (completedStageId, artifacts) => {
           this.worldState.advanceStage(completedStageId, artifacts);
+        },
+        onProcessCompleted: (finalStageId, artifacts) => {
+          this.worldState.completeProcess(finalStageId, artifacts);
         },
         sendFollowUp: async (agentId, prompt) => {
           await this.sessionManager.sendFollowUp(agentId, prompt);

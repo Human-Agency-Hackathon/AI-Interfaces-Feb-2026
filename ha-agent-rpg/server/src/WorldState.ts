@@ -113,7 +113,11 @@ export class WorldState {
    */
   advanceStage(completedStageId: string, artifacts: Record<string, string>): void {
     if (!this.processState) return;
-    this.processState.collectedArtifacts[completedStageId] = { ...artifacts };
+    // Merge into existing artifacts (setArtifact may have already written findings here)
+    this.processState.collectedArtifacts[completedStageId] = {
+      ...this.processState.collectedArtifacts[completedStageId],
+      ...artifacts,
+    };
     this.processState.currentStageIndex++;
   }
 
@@ -122,7 +126,11 @@ export class WorldState {
    */
   completeProcess(finalStageId: string, artifacts: Record<string, string>): void {
     if (!this.processState) return;
-    this.processState.collectedArtifacts[finalStageId] = { ...artifacts };
+    // Merge into existing artifacts (setArtifact may have already written findings here)
+    this.processState.collectedArtifacts[finalStageId] = {
+      ...this.processState.collectedArtifacts[finalStageId],
+      ...artifacts,
+    };
     this.processState.status = 'completed';
     this.processState.completedAt = new Date().toISOString();
   }

@@ -48,6 +48,7 @@ function makeDelegate(): ProcessControllerDelegate & {
     broadcast: [],
     saveArtifact: [],
     onStageAdvanced: [],
+    onProcessCompleted: [],
     sendFollowUp: [],
   };
   return {
@@ -57,6 +58,7 @@ function makeDelegate(): ProcessControllerDelegate & {
     broadcast: vi.fn((...args) => { calls.broadcast.push(args); }),
     saveArtifact: vi.fn((...args) => { calls.saveArtifact.push(args); }),
     onStageAdvanced: vi.fn((...args) => { calls.onStageAdvanced.push(args); }),
+    onProcessCompleted: vi.fn((...args) => { calls.onProcessCompleted.push(args); }),
     sendFollowUp: vi.fn(async (...args) => { calls.sendFollowUp.push(args); }),
   };
 }
@@ -372,7 +374,7 @@ describe('ProcessController', () => {
       expect(controller.getCurrentStage()).toBeNull();
     });
 
-    it('broadcasts stage:completed message with process info', async () => {
+    it('broadcasts process:completed message with process info', async () => {
       const template = makeTemplate({
         stages: [
           {
@@ -391,7 +393,7 @@ describe('ProcessController', () => {
       await controller.onExplicitStageComplete('agent_a');
 
       const completeMsg = delegate.calls.broadcast.find(
-        ([msg]) => msg.type === 'stage:completed',
+        ([msg]) => msg.type === 'process:completed',
       );
       expect(completeMsg).toBeDefined();
       expect(completeMsg![0].processId).toBe('test_process');

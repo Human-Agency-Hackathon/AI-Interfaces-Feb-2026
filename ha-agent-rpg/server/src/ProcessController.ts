@@ -31,6 +31,8 @@ export interface ProcessControllerDelegate {
   saveArtifact(stageId: string, artifactId: string, content: string): void;
   /** Advance WorldState to the next stage (persists currentStageIndex) */
   onStageAdvanced(completedStageId: string, artifacts: Record<string, string>): void;
+  /** Mark the process as completed in WorldState */
+  onProcessCompleted(finalStageId: string, artifacts: Record<string, string>): void;
   /** Send a follow-up prompt to an agent (for sequential turn driving) */
   sendFollowUp(agentId: string, prompt: string): Promise<void>;
 }
@@ -109,8 +111,18 @@ export class ProcessController extends EventEmitter {
       await this.driveNextSequentialAgent(stage, agentId);
     } else if (stage.turnStructure.type === 'parallel') {
       await this.driveParallelAgent(stage, agentId, agentCount);
+    } else if (stage.turnStructure.type === 'single' && stage.completionCriteria.type === 'explicit_signal') {
+      // Single-agent stage with explicit_signal: agent must call CompleteStage/SealChamber.
+      // If it went idle without doing so, send a reminder so it doesn't hang.
+      try {
+        await this.delegate.sendFollowUp(
+          agentId,
+          `[PROCESS TURN] You have completed a turn but have not yet signalled stage completion. If you have finished your contribution for the "${stage.name}" stage, call CompleteStage or SealChamber now. If you have more to contribute, continue and then call CompleteStage when done.`,
+        );
+      } catch (err) {
+        console.error(`[ProcessController] Failed to send completion reminder to "${agentId}":`, err);
+      }
     }
-    // 'single' type: agent drives itself, no follow-up needed
   }
 
   /**
@@ -257,7 +269,8 @@ export class ProcessController extends EventEmitter {
     });
 
     if (!nextStage) {
-      // Process complete
+      // Process complete — persist status and broadcast
+      this.delegate.onProcessCompleted(currentStage.id, {});
       this.context = null;
       this.emit('process:completed', {
         type: 'process:completed',
@@ -265,7 +278,7 @@ export class ProcessController extends EventEmitter {
         problem,
       } as ProcessControllerEvent);
       this.delegate.broadcast({
-        type: 'stage:completed',
+        type: 'process:completed',
         processId: template.id,
         problem,
         message: 'Brainstorming session complete.',
