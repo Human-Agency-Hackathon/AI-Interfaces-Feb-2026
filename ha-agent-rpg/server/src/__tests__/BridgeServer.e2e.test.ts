@@ -445,5 +445,38 @@ describe('BridgeServer E2E', () => {
       const worldStates = client.messages.filter((m) => m.type === 'world:state');
       expect(worldStates.length).toBeGreaterThanOrEqual(1);
     });
+
+    it('fort:click on a registered agent returns fort:view', async () => {
+      const client = await connect();
+      client.send({ type: 'player:link-repo', repo_url: '/tmp/test-repo' });
+      await client.waitForMessage((m) => m.type === 'world:state', 10_000);
+
+      // Fort click on oracle (which exists after link-repo spawns it)
+      client.send({ type: 'fort:click', agentId: 'oracle' });
+      const view = await client.waitForMessage(
+        (m) => m.type === 'fort:view',
+        5_000,
+      );
+      expect(view.agentId).toBe('oracle');
+      expect(view.roomImage).toBe('room-throne');
+    });
+
+    it('fort:exit after fort:view returns world:state', async () => {
+      const client = await connect();
+      client.send({ type: 'player:link-repo', repo_url: '/tmp/test-repo' });
+      await client.waitForMessage((m) => m.type === 'world:state', 10_000);
+
+      // Enter fort view then exit
+      client.send({ type: 'fort:click', agentId: 'oracle' });
+      await client.waitForMessage((m) => m.type === 'fort:view', 5_000);
+
+      client.send({ type: 'fort:exit' });
+      const state = await client.waitForMessage(
+        (m) => m.type === 'world:state',
+        5_000,
+      );
+      expect(state.map).toBeDefined();
+      expect(state.agents).toBeDefined();
+    });
   });
 });

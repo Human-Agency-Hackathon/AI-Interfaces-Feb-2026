@@ -110,6 +110,55 @@ export class RoomBackground {
     this.frame.setDepth(0);
   }
 
+  /**
+   * Display a dungeon visual room image by direct key (for fort interior views).
+   * Falls back to path-based selection if the dungeon visual texture is not found.
+   */
+  showDirect(roomKey: string, widthTiles: number, heightTiles: number, tileSize: number): void {
+    const textureKey = 'dv-' + roomKey;
+    if (this.scene.textures.exists(textureKey)) {
+      this.destroy();
+      const roomPxW = widthTiles * tileSize;
+      const roomPxH = heightTiles * tileSize;
+
+      this.bgImage = this.scene.add.image(roomPxW / 2, roomPxH / 2, textureKey);
+
+      const source = this.bgImage.texture.getSourceImage();
+      const srcW = source.width;
+      const srcH = source.height;
+      const roomAspect = roomPxW / roomPxH;
+
+      let cropW: number;
+      let cropH: number;
+
+      if (roomAspect >= 1) {
+        cropW = srcW;
+        cropH = Math.floor(srcW / roomAspect);
+      } else {
+        cropW = Math.floor(srcH * roomAspect);
+        cropH = srcH;
+      }
+
+      const cropX = Math.floor((srcW - cropW) / 2);
+      const cropY = Math.floor((srcH - cropH) / 2);
+
+      this.bgImage.setCrop(cropX, cropY, cropW, cropH);
+      this.bgImage.setDisplaySize(roomPxW, roomPxH);
+      this.bgImage.setDepth(-1);
+      this.bgImage.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+
+      this.frame = this.scene.add.graphics();
+      const border = 3;
+      this.frame.lineStyle(border, 0xc8a84a, 0.8);
+      this.frame.strokeRect(-border, -border, roomPxW + border * 2, roomPxH + border * 2);
+      this.frame.lineStyle(1, 0x2a2020, 0.9);
+      this.frame.strokeRect(0, 0, roomPxW, roomPxH);
+      this.frame.setDepth(0);
+    } else {
+      this.show(roomKey, widthTiles, heightTiles, tileSize);
+    }
+  }
+
   destroy(): void {
     if (this.bgImage) {
       this.bgImage.destroy();

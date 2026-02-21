@@ -15,6 +15,7 @@ export class WebSocketClient {
 
     this.ws.onopen = () => {
       console.log('[WS] Connected to bridge');
+      this.listeners.get('ws:connected')?.forEach(fn => fn({}));
     };
 
     this.ws.onmessage = (event) => {
@@ -31,6 +32,7 @@ export class WebSocketClient {
 
     this.ws.onclose = () => {
       console.log('[WS] Disconnected, reconnecting...');
+      this.listeners.get('ws:disconnected')?.forEach(fn => fn({}));
       setTimeout(() => this.connect(), this.reconnectDelay);
     };
 
