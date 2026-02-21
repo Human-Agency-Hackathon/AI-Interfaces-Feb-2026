@@ -28,6 +28,7 @@ export class GameScene extends Phaser.Scene {
   private mapObjectSprites: MapObjectSprite[] = [];
   private thoughtBubble!: ThoughtBubble;
   private objects: MapObject[] = [];
+  private currentMapDimensions: { width: number; height: number } | null = null;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -40,10 +41,11 @@ export class GameScene extends Phaser.Scene {
 
     this.wsClient.on('world:state', (msg) => {
       const state = msg as unknown as WorldStateMessage;
-      // Only render map once
       if (!this.mapRenderer) {
+        // First render — create map renderer and camera
         this.mapRenderer = new MapRenderer(this, state.map);
         this.mapRenderer.render();
+        this.currentMapDimensions = { width: state.map.width, height: state.map.height };
 
         // Create camera controller with actual map dimensions
         this.cameraController = new CameraController(
@@ -53,7 +55,7 @@ export class GameScene extends Phaser.Scene {
           state.map.tile_size,
         );
 
-        // Snap to oracle, then pan down to reveal nav doors at map bottom
+        // Snap camera to oracle
         const oracle = state.agents.find((a) => a.agent_id === 'oracle');
         const tileSize = state.map.tile_size;
         if (oracle) {
@@ -62,15 +64,20 @@ export class GameScene extends Phaser.Scene {
             oracle.y * tileSize + tileSize / 2,
           );
         }
-        // Pan down after a short delay to show nav doors near the map bottom
-        const navDoor = state.objects.find(o => o.type === 'nav_door');
-        if (navDoor) {
-          this.time.delayedCall(900, () => {
-            this.cameraController?.panTo(
-              navDoor.x * tileSize + tileSize / 2,
-              navDoor.y * tileSize + tileSize / 2,
-            );
-          });
+      } else {
+        // Subsequent world:state — reload tilemap (e.g. new agent room added)
+        this.mapRenderer.loadMap(state.map);
+        // Update camera bounds if map dimensions changed
+        if (
+          state.map.width !== this.currentMapDimensions?.width ||
+          state.map.height !== this.currentMapDimensions?.height
+        ) {
+          this.cameras.main.setBounds(
+            0, 0,
+            state.map.width * state.map.tile_size,
+            state.map.height * state.map.tile_size,
+          );
+          this.currentMapDimensions = { width: state.map.width, height: state.map.height };
         }
       }
 
