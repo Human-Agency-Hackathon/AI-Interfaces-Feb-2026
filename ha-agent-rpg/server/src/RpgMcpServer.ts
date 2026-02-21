@@ -123,6 +123,22 @@ export function createRpgMcpServer(agentId: string, toolHandler: CustomToolHandl
           return makeResult(result.result);
         },
       ),
+
+      tool(
+        'SealChamber',
+        'Signal that you have completed your work for this stage. Call this when your stage output is fully posted and you are ready for the process to advance.',
+        {
+          summary: z.string().describe('One sentence describing what you produced'),
+        },
+        async (args) => {
+          const result = await toolHandler.handleToolCall({
+            tool_name: 'SealChamber',
+            tool_input: args as Record<string, unknown>,
+            agent_id: agentId,
+          });
+          return makeResult(result.result);
+        },
+      ),
     ],
   });
 }
@@ -180,6 +196,22 @@ export function createBrainstormMcpServer(agentId: string, toolHandler: CustomTo
         async (args) => {
           const result = await toolHandler.handleToolCall({
             tool_name: 'CompleteStage',
+            tool_input: args as Record<string, unknown>,
+            agent_id: agentId,
+          });
+          return makeResult(result.result);
+        },
+      ),
+
+      tool(
+        'SealChamber',
+        'Signal that you have completed your work for this stage. Call this when your stage output is fully posted and you are ready for the process to advance.',
+        {
+          summary: z.string().describe('One sentence describing what you produced'),
+        },
+        async (args) => {
+          const result = await toolHandler.handleToolCall({
+            tool_name: 'SealChamber',
             tool_input: args as Record<string, unknown>,
             agent_id: agentId,
           });

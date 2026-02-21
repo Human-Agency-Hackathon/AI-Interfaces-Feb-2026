@@ -8,7 +8,7 @@
  *   knowledge:updated — vault updated with new insight / expertise
  *   quest:claimed     — quest assigned to an agent
  *   quest:completed   — quest marked done
- *   stage:complete    — agent signals the current stage is done
+ *   stage:complete    — agent signals the current stage is done (CompleteStage or SealChamber)
  */
 
 import { EventEmitter } from 'node:events';
@@ -75,6 +75,9 @@ export class CustomToolHandler extends EventEmitter {
 
       case 'CompleteStage':
         return this.handleCompleteStage(agent_id, tool_input);
+
+      case 'SealChamber':
+        return this.handleSealChamber(agent_id, tool_input);
 
       default:
         return { result: { error: `Unknown tool: ${tool_name}` } };
@@ -255,5 +258,20 @@ export class CustomToolHandler extends EventEmitter {
     });
 
     return { result: { acknowledged: true, message: 'Stage completion signal sent.' } };
+  }
+
+  private handleSealChamber(
+    agentId: string,
+    input: Record<string, unknown>,
+  ): CustomToolResult {
+    const { summary } = input as { summary: string };
+
+    this.emit('stage:complete', {
+      agentId,
+      summary,
+      artifacts: {},
+    });
+
+    return { result: { acknowledged: true, message: 'Chamber sealed. Stage advancement triggered.' } };
   }
 }
