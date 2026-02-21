@@ -5,7 +5,7 @@
 | Name | Area(s) | Notes |
 |------|---------|-------|
 | Ida | Visual Design / Presentation | Skinning, splash page, public-facing styles, presentation strategy |
-| Jeff | | |
+| Jeff | Brainstorming Process Design | Defining the brainstorming methodology: stages, agent roles, orchestration logic |
 | Pratham | Agent Memory / Persistence | Working on Redis agent memory |
 | Behrang | Core Engine / Agent Orchestration | Getting core working, rooms represent agents, agent orchestration |
 | Ken | Project Management / Process Design | PM, workflows, process definitions for orchestrator and agents |
@@ -96,25 +96,57 @@ These are working and merged on `main`:
 | 10 | Update shared protocol types for process events | Behrang | TODO | New message types: `process:start`, `stage:advance`, `stage:complete`, `condition:evaluated`, `branch:taken`, `idea:proposed`, `idea:voted`. Deprecate or remove repo-specific messages (`link:repo`, `repo:ready`, `realm:*`). Update `shared/protocol.ts` first, then server and client types. |
 | 11 | End-to-end integration: problem input -> process loads -> agents spawn -> brainstorm runs -> output | Behrang | TODO | The full happy path for the new flow. Enter a problem, watch agents appear in their rooms, brainstorm through stages, follow conditionals, produce a final synthesis. |
 
+### High Priority: Brainstorming Process Design (Jeff)
+
+> Jeff defines the methodology: what does "brainstorming" actually mean as a structured, multi-agent process? This is the intellectual backbone that Behrang's engine executes. The output is a process definition (stages, roles, transitions, conditionals) that the orchestrator follows. Each stage spawns specific agent roles with distinct thinking styles.
+
+**Brainstorming stages and the thinking modes they require:**
+
+| Stage | Thinking Mode | Purpose |
+|-------|--------------|---------|
+| Problem Framing | Analytical | Break the problem down, define scope, identify constraints |
+| Divergent Thinking | Creative/Generative | Generate as many ideas as possible without judgment |
+| Precedent Research | Investigative | Find existing solutions, analogies, prior art |
+| Convergent Thinking | Evaluative | Cluster, combine, and narrow ideas into candidates |
+| Fact Checking | Critical/Analytical | Verify claims, check feasibility, identify assumptions |
+| Pushback / Red Team | Adversarial | Stress-test ideas, find weaknesses, argue the opposite |
+| Prioritization | Strategic | Rank candidates by impact, feasibility, effort |
+| Review / Synthesis | Integrative | Combine the best elements into a coherent proposal |
+| Presentation | Communicative | Package the output for the human audience |
+
+| # | Task | Owner | Status | Notes |
+|---|------|-------|--------|-------|
+| 12 | Define the brainstorming stage sequence and flow | Jeff | TODO | Document the ordered stages a brainstorming session moves through. Which stages are required vs optional? Which can run in parallel? Where are the decision points that branch the flow? Output: a stage-by-stage flowchart with entry/exit criteria for each. |
+| 13 | Define agent roles and their thinking styles | Jeff | TODO | Each stage spawns agents with specific personas. e.g. Divergent stage gets a "Wild Ideator" and a "Cross-Pollinator"; Pushback stage gets a "Devil's Advocate" and a "Pragmatist." For each role: name, personality traits, reasoning style, what they optimize for, what they ignore. These become the system prompt personas Behrang wires into SystemPromptBuilder. |
+| 14 | Define stage transition rules and conditionals | Jeff | TODO | What triggers moving from one stage to the next? Options: time limit, idea count threshold, agent consensus, human approval, or automatic after N turns. Some transitions are conditional: e.g. if fact-checking finds major flaws, loop back to divergent thinking. Define the rules for each transition. |
+| 15 | Design the Divergent Thinking stage | Jeff | TODO | The generative phase. How many agents? What are their prompts? How do they avoid groupthink (e.g. agents don't see each other's ideas until the stage ends)? What's the output format (list of ideas with brief rationale)? When does it end (time, count, saturation)? |
+| 16 | Design the Precedent Research stage | Jeff | TODO | Agents search for existing solutions, analogies from other domains, and prior art. What sources can they draw from (web search, provided context, their own training data)? How do they report findings? How does this feed into the next stage? |
+| 17 | Design the Convergent Thinking stage | Jeff | TODO | Takes the raw ideas from divergent + research and clusters/combines them. Agent role: "Synthesizer" who groups related ideas, "Connector" who finds combinations. Output: a shorter list of refined candidate ideas. Needs a defined format so prioritization can consume it. |
+| 18 | Design the Fact Checking and Pushback stages | Jeff | TODO | Two related but distinct stages. Fact Checking: verify claims, check feasibility, flag assumptions. Pushback/Red Team: actively argue against each candidate, find failure modes, identify risks. Define how harshly agents push back, what counts as a "kill" vs a "flag." Output: annotated candidates with risk/confidence scores. |
+| 19 | Design the Prioritization stage | Jeff | TODO | Takes annotated candidates and ranks them. What criteria? (impact, feasibility, novelty, effort, risk). Single agent with a scoring rubric, or multiple agents that vote? Define the ranking mechanism and output format (ordered list with scores and rationale). |
+| 20 | Design the Review and Presentation stages | Jeff | TODO | Review: a final synthesis agent combines the top-ranked ideas into a coherent proposal. Presentation: format the output for the human; clear structure, key recommendations, supporting evidence, acknowledged risks. Define what the final deliverable looks like. |
+| 21 | Write the first complete process template (JSON) | Jeff | TODO | Take all the above designs and encode them as a concrete process definition in the schema Behrang defines (task #1). This is the first runnable brainstorming template. Needs: stage list, agent roles per stage, transition rules, conditional branches, output formats. This is what gets loaded when a user starts a session. |
+| 22 | Define how human intervention points work | Jeff | TODO | At which stages can/should the human jump in? Options: approve stage transitions, inject their own ideas, redirect the brainstorm, kill a line of thinking, ask for more depth on a topic. Define the interaction model between the watching human and the running process. |
+
 ### High Priority: Polish & Stability
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 12 | Client-side tests | | TODO | At minimum: scene lifecycle, WebSocket message handling, panel rendering |
-| 13 | Error handling for process loading and agent failures | | TODO | User-facing error messages in the client |
-| 14 | Graceful handling when agent SDK session disconnects or errors | | TODO | Reconnection, error state in UI |
-| 15 | Loading states during process initialization | | TODO | Progress indicator or spinner in client |
+| 23 | Client-side tests | | TODO | At minimum: scene lifecycle, WebSocket message handling, panel rendering |
+| 24 | Error handling for process loading and agent failures | | TODO | User-facing error messages in the client |
+| 25 | Graceful handling when agent SDK session disconnects or errors | | TODO | Reconnection, error state in UI |
+| 26 | Loading states during process initialization | | TODO | Progress indicator or spinner in client |
 
 ### Medium Priority: Visual & UX
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 16 | Skin the game: replace colored rectangles with real pixel art characters | Ida | In Progress | Agent roles need distinct sprites that match brainstorming personas |
-| 17 | Splash page and public-facing presentation styles | Ida | In Progress | How we present Agent Dungeon externally; landing page, branding |
-| 18 | Improve tile map aesthetics (dungeon tileset) | Ida | TODO | Current map is functional but basic |
-| 19 | Sound effects and ambient audio | | TODO | Movement, dialogue open/close, skill effects, background music |
-| 20 | Onboarding tutorial or hints for first-time users | | TODO | Explain what they're looking at, how to interact |
-| 21 | Responsive layout or at minimum handle window resize gracefully | | TODO | Currently 640x480 fixed |
+| 27 | Skin the game: replace colored rectangles with real pixel art characters | Ida | In Progress | Agent roles need distinct sprites that match brainstorming personas |
+| 28 | Splash page and public-facing presentation styles | Ida | In Progress | How we present Agent Dungeon externally; landing page, branding |
+| 29 | Improve tile map aesthetics (dungeon tileset) | Ida | TODO | Current map is functional but basic |
+| 30 | Sound effects and ambient audio | | TODO | Movement, dialogue open/close, skill effects, background music |
+| 31 | Onboarding tutorial or hints for first-time users | | TODO | Explain what they're looking at, how to interact |
+| 32 | Responsive layout or at minimum handle window resize gracefully | | TODO | Currently 640x480 fixed |
 
 ### Medium Priority: Redis Agent Memory (Pratham)
 
@@ -132,34 +164,33 @@ These are working and merged on `main`:
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 22 | Define a storage adapter interface | Pratham | TODO | Create a `StorageAdapter` interface (or set of interfaces) with `load()`, `save()`, `get()`, `set()`, `append()` methods that both JSON-file and Redis implementations can satisfy. All five modules above should code against this interface, not directly against `fs` or `redis`. This lets the rest of the codebase stay unchanged while the backend swaps out. |
-| 23 | Set up Redis client and connection management | Pratham | TODO | Add `ioredis` (or `redis`) package. Create a singleton Redis client with connection config (host, port, auth), error handling, reconnection logic, and graceful shutdown. Needs to work in dev (local Redis or Docker) and potentially prod. Add a `docker-compose.yml` or document the local Redis setup. |
-| 24 | Migrate KnowledgeVault to Redis | Pratham | TODO | Key design: `agent:{agentId}:knowledge` as a Redis hash (expertise, role, realm) + `agent:{agentId}:insights` as a list + `agent:{agentId}:task_history` as a list of JSON strings. Must keep the same public API (`getKnowledge()`, `addInsight()`, `incrementExpertise()`, etc.) so AgentSessionManager and CustomToolHandler don't change. With brainstorming pivot: `files_analyzed` and `realm_knowledge` may become `ideas_contributed` and `topic_knowledge`. Coordinate with Behrang on schema. |
-| 25 | Migrate FindingsBoard to Redis | Pratham | TODO | Key design: `session:{sessionId}:findings` as a Redis sorted set (score = timestamp) or list. Findings are small JSON objects. `addFinding()` -> `RPUSH` or `ZADD`, `getRecent()` -> `LRANGE` or `ZREVRANGE`. With brainstorming pivot: findings become "ideas" or "proposals"; the data shape may change. Keep the interface stable. |
-| 26 | Migrate WorldStatePersistence to Redis | Pratham | TODO | Key design: `session:{sessionId}:state` as a single JSON blob (`SET`/`GET`). Could also break into sub-keys if the state gets large. With the process-driven pivot, this stores process state (current stage, branch history, agent outputs) rather than repo state. Coordinate with Behrang on what WorldState looks like after the pivot. |
-| 27 | Migrate RealmRegistry to Redis | Pratham | TODO | Key design: `sessions` as a Redis hash where each field is a session ID and the value is a JSON entry. `listRealms()` -> `HVALS`, `getRealm()` -> `HGET`, `saveRealm()` -> `HSET`. With the pivot, "realms" become brainstorming sessions. The registry shape stays similar; the content changes. |
-| 28 | Migrate TranscriptLogger to Redis Streams (or keep on disk) | Pratham | TODO | Decision needed: transcript logs are append-only and can get large. Redis Streams (`XADD`) are a natural fit and enable real-time replay, but storage cost is higher than JSONL files. Alternative: keep transcripts on disk, only move hot state to Redis. If using Streams: `transcript:{agentId}` stream with JSON message payloads. |
-| 29 | Update tests to work with Redis | Pratham | TODO | Existing tests (KnowledgeVault, FindingsBoard, WorldStatePersistence, RealmRegistry, CustomToolHandler) use temp directories and JSON files. Need either: (a) mock the storage adapter in unit tests, or (b) use a test Redis instance (testcontainers, or `redis-memory-server`). Integration tests should hit real Redis. |
-| 30 | Wire up Redis adapter in BridgeServer and AgentSessionManager | Pratham | TODO | BridgeServer currently instantiates all persistence modules with file paths. Swap to Redis-backed implementations. AgentSessionManager creates KnowledgeVaults on agent spawn; needs to use the Redis version. This is the integration point where everything comes together. |
-| 31 | Redis pub/sub for real-time agent events (stretch) | Pratham | TODO | Stretch goal: use Redis pub/sub channels for agent-to-agent communication or for broadcasting findings/ideas to all connected clients. Could replace or augment the WebSocket broadcast for certain event types. Evaluate whether this adds value over the existing WebSocket hub. |
+| 33 | Define a storage adapter interface | Pratham | TODO | Create a `StorageAdapter` interface (or set of interfaces) with `load()`, `save()`, `get()`, `set()`, `append()` methods that both JSON-file and Redis implementations can satisfy. All five modules above should code against this interface, not directly against `fs` or `redis`. This lets the rest of the codebase stay unchanged while the backend swaps out. |
+| 34 | Set up Redis client and connection management | Pratham | TODO | Add `ioredis` (or `redis`) package. Create a singleton Redis client with connection config (host, port, auth), error handling, reconnection logic, and graceful shutdown. Needs to work in dev (local Redis or Docker) and potentially prod. Add a `docker-compose.yml` or document the local Redis setup. |
+| 35 | Migrate KnowledgeVault to Redis | Pratham | TODO | Key design: `agent:{agentId}:knowledge` as a Redis hash (expertise, role, realm) + `agent:{agentId}:insights` as a list + `agent:{agentId}:task_history` as a list of JSON strings. Must keep the same public API (`getKnowledge()`, `addInsight()`, `incrementExpertise()`, etc.) so AgentSessionManager and CustomToolHandler don't change. With brainstorming pivot: `files_analyzed` and `realm_knowledge` may become `ideas_contributed` and `topic_knowledge`. Coordinate with Behrang on schema. |
+| 36 | Migrate FindingsBoard to Redis | Pratham | TODO | Key design: `session:{sessionId}:findings` as a Redis sorted set (score = timestamp) or list. Findings are small JSON objects. `addFinding()` -> `RPUSH` or `ZADD`, `getRecent()` -> `LRANGE` or `ZREVRANGE`. With brainstorming pivot: findings become "ideas" or "proposals"; the data shape may change. Keep the interface stable. |
+| 37 | Migrate WorldStatePersistence to Redis | Pratham | TODO | Key design: `session:{sessionId}:state` as a single JSON blob (`SET`/`GET`). Could also break into sub-keys if the state gets large. With the process-driven pivot, this stores process state (current stage, branch history, agent outputs) rather than repo state. Coordinate with Behrang on what WorldState looks like after the pivot. |
+| 38 | Migrate RealmRegistry to Redis | Pratham | TODO | Key design: `sessions` as a Redis hash where each field is a session ID and the value is a JSON entry. `listRealms()` -> `HVALS`, `getRealm()` -> `HGET`, `saveRealm()` -> `HSET`. With the pivot, "realms" become brainstorming sessions. The registry shape stays similar; the content changes. |
+| 39 | Migrate TranscriptLogger to Redis Streams (or keep on disk) | Pratham | TODO | Decision needed: transcript logs are append-only and can get large. Redis Streams (`XADD`) are a natural fit and enable real-time replay, but storage cost is higher than JSONL files. Alternative: keep transcripts on disk, only move hot state to Redis. If using Streams: `transcript:{agentId}` stream with JSON message payloads. |
+| 40 | Update tests to work with Redis | Pratham | TODO | Existing tests (KnowledgeVault, FindingsBoard, WorldStatePersistence, RealmRegistry, CustomToolHandler) use temp directories and JSON files. Need either: (a) mock the storage adapter in unit tests, or (b) use a test Redis instance (testcontainers, or `redis-memory-server`). Integration tests should hit real Redis. |
+| 41 | Wire up Redis adapter in BridgeServer and AgentSessionManager | Pratham | TODO | BridgeServer currently instantiates all persistence modules with file paths. Swap to Redis-backed implementations. AgentSessionManager creates KnowledgeVaults on agent spawn; needs to use the Redis version. This is the integration point where everything comes together. |
+| 42 | Redis pub/sub for real-time agent events (stretch) | Pratham | TODO | Stretch goal: use Redis pub/sub channels for agent-to-agent communication or for broadcasting findings/ideas to all connected clients. Could replace or augment the WebSocket broadcast for certain event types. Evaluate whether this adds value over the existing WebSocket hub. |
 
 ### Medium Priority: Agent Intelligence
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 32 | Design brainstorming agent role prompts (Devil's Advocate, Synthesizer, etc.) | | TODO | Each role needs a distinct personality, reasoning style, and behavioral pattern |
-| 33 | Agent conversation/collaboration: agents that respond to and build on each other's ideas | | TODO | Agents need to reference, critique, and extend other agents' outputs |
-| 34 | Token budget management to control API costs | | TODO | Server tracks settings but enforcement may need work |
+| 43 | Agent conversation/collaboration: agents that respond to and build on each other's ideas | | TODO | Agents need to reference, critique, and extend other agents' outputs |
+| 44 | Token budget management to control API costs | | TODO | Server tracks settings but enforcement may need work |
 
 ### Lower Priority: Features & Extensions
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 35 | Manual mode: player injects ideas directly into the brainstorm | | TODO | Mode selector exists, but manual input flow needs reworking for brainstorming |
-| 36 | Supervised mode: agents propose ideas, player approves/redirects | | TODO | Approval UI needed |
-| 37 | Process template library: prebuilt brainstorming workflows users can pick from | | TODO | e.g. "Six Thinking Hats", "SCAMPER", "Design Sprint", custom |
-| 38 | Export session: save brainstorming output as a structured report | | TODO | Transcript logs exist but need a synthesis/export format |
-| 39 | Dashboard view: summary of ideas generated, votes, stages completed | | TODO | Aggregate view beyond the in-game panels |
+| 45 | Manual mode: player injects ideas directly into the brainstorm | | TODO | Mode selector exists, but manual input flow needs reworking for brainstorming |
+| 46 | Supervised mode: agents propose ideas, player approves/redirects | | TODO | Approval UI needed |
+| 47 | Process template library: prebuilt brainstorming workflows users can pick from | | TODO | e.g. "Six Thinking Hats", "SCAMPER", "Design Sprint", custom |
+| 48 | Export session: save brainstorming output as a structured report | | TODO | Transcript logs exist but need a synthesis/export format |
+| 49 | Dashboard view: summary of ideas generated, votes, stages completed | | TODO | Aggregate view beyond the in-game panels |
 
 ---
 
