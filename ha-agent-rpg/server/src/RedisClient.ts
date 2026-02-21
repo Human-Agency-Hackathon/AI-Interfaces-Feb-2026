@@ -2,6 +2,7 @@ import Redis from 'ioredis';
 
 let client: Redis | null = null;
 let available: boolean | null = null;
+let jsonModeLogged = false;
 
 export function getRedisClient(): Redis {
   if (!client) {
@@ -26,10 +27,22 @@ export function getRedisClient(): Redis {
 }
 
 /**
- * Checks whether a Redis server is reachable.
- * Result is cached for the lifetime of the process.
+ * Checks whether Redis should be used for persistence.
+ *
+ * Redis is opt-in: set STORAGE_BACKEND=redis to enable it.
+ * Default is json so CI and teammates without Redis work out of the box.
+ * When STORAGE_BACKEND=redis, attempts a real connection and caches the result.
  */
 export async function isRedisAvailable(): Promise<boolean> {
+  // Redis is opt-in — skip connection entirely unless explicitly requested.
+  if (process.env.STORAGE_BACKEND !== 'redis') {
+    if (!jsonModeLogged) {
+      jsonModeLogged = true;
+      console.log('[Redis] STORAGE_BACKEND is not "redis" — using JSON file persistence (set STORAGE_BACKEND=redis to enable Redis)');
+    }
+    return false;
+  }
+
   if (available !== null) return available;
 
   try {
