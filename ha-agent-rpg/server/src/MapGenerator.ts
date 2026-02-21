@@ -1,6 +1,7 @@
 import type { TileMapData, MapObject, Quest, MapNode } from './types.js';
 import type { RepoData, RepoTreeEntry } from './RepoAnalyzer.js';
 import type { ProcessDefinition } from './ProcessTemplates.js';
+import { BiomeGenerator } from './BiomeGenerator.js';
 
 // ---------- Constants ----------
 
@@ -1068,5 +1069,48 @@ export class MapGenerator {
     });
 
     return { ...base, objects: themedObjects };
+  }
+
+  // ================================================================
+  // Fog-of-War map generation
+  // ================================================================
+
+  /**
+   * Generate a 120×120 fog-of-war overworld with biome terrain and fort positions.
+   * Oracle fort at center (60,60); agent forts radially placed at FORT_RADIUS.
+   */
+  generateFogMap(agentIds: string[]): {
+    map: TileMapData;
+    fortPositions: Map<string, { x: number; y: number }>;
+    biomeMap: number[][];
+  } {
+    const MAP_W = 120;
+    const MAP_H = 120;
+    const CENTER_X = 60;
+    const CENTER_Y = 60;
+    const FORT_RADIUS = 35;
+
+    // Calculate fort positions
+    const fortPositions = new Map<string, { x: number; y: number }>();
+    fortPositions.set('oracle', { x: CENTER_X, y: CENTER_Y });
+
+    const radialPositions = BiomeGenerator.getFortRadialPositions(
+      CENTER_X, CENTER_Y, FORT_RADIUS, agentIds.length
+    );
+    for (let i = 0; i < agentIds.length; i++) {
+      fortPositions.set(agentIds[i], radialPositions[i]);
+    }
+
+    // Generate biome terrain
+    const { tiles, biomeMap } = BiomeGenerator.generate(MAP_W, MAP_H, fortPositions);
+
+    const map: TileMapData = {
+      width: MAP_W,
+      height: MAP_H,
+      tile_size: TILE_SIZE,
+      tiles,
+    };
+
+    return { map, fortPositions, biomeMap };
   }
 }

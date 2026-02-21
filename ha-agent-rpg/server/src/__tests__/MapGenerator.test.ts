@@ -394,3 +394,56 @@ describe('generateFolderMap()', () => {
     expect(back).toBeUndefined();
   });
 });
+
+describe('generateFogMap()', () => {
+  const mapGen = new MapGenerator();
+
+  it('returns a 120x120 map', () => {
+    const result = mapGen.generateFogMap(['agent_1', 'agent_2']);
+    expect(result.map.width).toBe(120);
+    expect(result.map.height).toBe(120);
+    expect(result.map.tiles.length).toBe(120);
+  });
+
+  it('returns fort positions for oracle + all agents', () => {
+    const result = mapGen.generateFogMap(['agent_1', 'agent_2']);
+    expect(result.fortPositions.has('oracle')).toBe(true);
+    expect(result.fortPositions.has('agent_1')).toBe(true);
+    expect(result.fortPositions.has('agent_2')).toBe(true);
+  });
+
+  it('places oracle at center (60, 60)', () => {
+    const result = mapGen.generateFogMap(['agent_1']);
+    const oraclePos = result.fortPositions.get('oracle');
+    expect(oraclePos).toEqual({ x: 60, y: 60 });
+  });
+
+  it('returns a biomeMap of same dimensions', () => {
+    const result = mapGen.generateFogMap(['agent_1']);
+    expect(result.biomeMap.length).toBe(120);
+    expect(result.biomeMap[0].length).toBe(120);
+  });
+
+  it('all tile values are valid (0-10)', () => {
+    const result = mapGen.generateFogMap(['a1', 'a2', 'a3']);
+    for (let y = 0; y < 120; y++) {
+      for (let x = 0; x < 120; x++) {
+        const t = result.map.tiles[y][x];
+        expect(t).toBeGreaterThanOrEqual(0);
+        expect(t).toBeLessThanOrEqual(10);
+      }
+    }
+  });
+
+  it('handles 0 agents (oracle only)', () => {
+    const result = mapGen.generateFogMap([]);
+    expect(result.fortPositions.size).toBe(1);
+    expect(result.map.width).toBe(120);
+  });
+
+  it('handles 8 agents (maximum radial positions)', () => {
+    const agents = Array.from({ length: 8 }, (_, i) => `agent_${i}`);
+    const result = mapGen.generateFogMap(agents);
+    expect(result.fortPositions.size).toBe(9);
+  });
+});
