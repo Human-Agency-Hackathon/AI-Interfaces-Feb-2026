@@ -42,7 +42,7 @@ import { RealmRegistry } from './RealmRegistry.js';
 import { WorldStatePersistence } from './WorldStatePersistence.js';
 import { GitHelper } from './GitHelper.js';
 import { PROCESS_TEMPLATES, DEEP_BRAINSTORM, type ProcessDefinition, type StageDefinition } from './ProcessTemplates.js';
-import { ProcessController } from './ProcessController.js';
+import { ProcessController, type ProcessControllerDelegate } from './ProcessController.js';
 import { redisPubSub } from './RedisPubSub.js';
 
 // Agent colors — auto-assigned in spawn order
@@ -346,6 +346,54 @@ export class BridgeServer {
     });
   }
 
+  /**
+   * Build the ProcessControllerDelegate that bridges ProcessController
+   * back to BridgeServer's subsystems.
+   */
+  private createProcessDelegate(): ProcessControllerDelegate {
+    return {
+      dismissStageAgents: async (stage: StageDefinition) => {
+        for (const roleId of stage.roles) {
+          await this.sessionManager.dismissAgent(roleId);
+          this.worldState.removeAgent(roleId);
+          this.broadcast({ type: 'agent:left', agent_id: roleId });
+        }
+      },
+      spawnStageAgents: async (tpl: ProcessDefinition, idx: number, prob: string) => {
+        await this.spawnProcessAgents(tpl, idx, prob);
+      },
+      broadcast: (msg) => this.broadcast(msg as unknown as ServerMessage),
+      saveArtifact: (stageId, artifactId, content) => {
+        this.worldState.setArtifact(stageId, artifactId, content);
+      },
+      onStageAdvanced: (completedStageId, artifacts) => {
+        this.worldState.advanceStage(completedStageId, artifacts);
+      },
+      onProcessCompleted: (finalStageId, artifacts) => {
+        this.worldState.completeProcess(finalStageId, artifacts);
+      },
+      sendFollowUp: async (agentId, prompt) => {
+        await this.sessionManager.sendFollowUp(agentId, prompt);
+      },
+    };
+  }
+
+  /** Wire movement-bias listener onto a ProcessController. */
+  private wireProcessControllerEvents(pc: ProcessController): void {
+    pc.on('stage:started', (event: any) => {
+      const stageId: string = event.stageId ?? '';
+      const divergent = ['divergent_thinking', 'precedent_research'];
+      const convergent = ['convergent_thinking', 'fact_checking', 'pushback'];
+      if (divergent.some(s => stageId.includes(s))) {
+        this.movementBias = 'outward';
+      } else if (convergent.some(s => stageId.includes(s))) {
+        this.movementBias = 'inward';
+      } else {
+        this.movementBias = 'neutral';
+      }
+    });
+  }
+
   // ── Brainstorming Process ──
 
   private async handleStartProcess(ws: WebSocket, msg: StartProcessMessage): Promise<void> {
@@ -405,49 +453,11 @@ export class BridgeServer {
       this.gamePhase = 'playing';
 
       // Create process controller with delegate callbacks
-      this.processController = new ProcessController({
-        dismissStageAgents: async (stage: StageDefinition) => {
-          for (const roleId of stage.roles) {
-            await this.sessionManager.dismissAgent(roleId);
-            this.worldState.removeAgent(roleId);
-            this.broadcast({ type: 'agent:left', agent_id: roleId });
-          }
-        },
-        spawnStageAgents: async (tpl: ProcessDefinition, idx: number, prob: string) => {
-          await this.spawnProcessAgents(tpl, idx, prob);
-        },
-        broadcast: (msg) => this.broadcast(msg as unknown as ServerMessage),
-        saveArtifact: (stageId, artifactId, content) => {
-          this.worldState.setArtifact(stageId, artifactId, content);
-        },
-        onStageAdvanced: (completedStageId, artifacts) => {
-          this.worldState.advanceStage(completedStageId, artifacts);
-        },
-        onProcessCompleted: (finalStageId, artifacts) => {
-          this.worldState.completeProcess(finalStageId, artifacts);
-        },
-        sendFollowUp: async (agentId, prompt) => {
-          await this.sessionManager.sendFollowUp(agentId, prompt);
-        },
-      });
+      this.processController = new ProcessController(this.createProcessDelegate());
+      this.wireProcessControllerEvents(this.processController);
 
       // Spawn the first stage's agents
       await this.spawnProcessAgents(template, 0, msg.problem);
-
-      // Listen for stage transitions to update movement bias
-      this.processController.on('stage:started', (event: any) => {
-        const stageId: string = event.stageId ?? '';
-        const divergent = ['divergent_thinking', 'precedent_research'];
-        const convergent = ['convergent_thinking', 'fact_checking', 'pushback'];
-
-        if (divergent.some(s => stageId.includes(s))) {
-          this.movementBias = 'outward';
-        } else if (convergent.some(s => stageId.includes(s))) {
-          this.movementBias = 'inward';
-        } else {
-          this.movementBias = 'neutral';
-        }
-      });
 
       // Start stage tracking after agents are spawned
       this.processController.start(msg.problem, template);
