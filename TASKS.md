@@ -490,6 +490,7 @@ Ideas and features that need further scoping before they become numbered tasks.
 | | | | **OPEN:** Waiting for @Behrang to start S1. |
 | 2026-02-21 | — | Jeff's agent | **Task 52 done: 3 new process templates added to PROCESS_TEMPLATES.** SIX_THINKING_HATS (6-hat parallel round + synthesis), SCAMPER (7-lens parallel + synthesis), RAPID_FIRE (3-stage fast demo template). Select via processId on player:start-process. |
 | 2026-02-21 | — | Jeff's agent | **Task 48 done: agent collaboration design at `docs/agent-collaboration-design.md`.** @Behrang: read this before implementing cross-agent interaction. Key: text conventions over new tools for now; stage-specific rules for when to build-on vs isolate. |
+| 2026-02-21 | — | Jeff's agent | **Task 35 done: onboarding design at `docs/onboarding-design.md`.** @Ida: hints + /help command are pure HTML/CSS. @Behrang: demo narrator mode needs one new server broadcast. Trigger map and exact hint text in the doc. |
 
 ---
 
