@@ -57,26 +57,26 @@ export class BootScene extends Phaser.Scene {
     const variants: {
       dark: number[][];
       light: number[][];
-      blades: number[][];
-      flowers: Array<[number, number, number]>;
+      cracks: number[][];
+      speckles: Array<[number, number]>;
     }[] = [
       {
         dark: [[2, 3, 5, 4], [18, 14, 6, 5], [8, 22, 4, 3], [26, 6, 4, 4]],
         light: [[10, 1, 4, 3], [22, 18, 3, 4], [4, 12, 3, 5], [28, 26, 4, 3]],
-        blades: [[5, 6], [11, 2], [19, 10], [27, 4], [3, 18], [15, 24], [23, 16], [9, 28]],
-        flowers: [[10, 8, 0xffee66], [24, 22, 0xff8866]],
+        cracks: [[5, 6, 1, 3], [19, 10, 3, 1], [27, 20, 1, 4], [12, 26, 4, 1]],
+        speckles: [[10, 8], [24, 22], [3, 18], [15, 4]],
       },
       {
         dark: [[6, 5, 5, 4], [20, 2, 4, 5], [12, 18, 5, 3], [0, 26, 6, 4]],
         light: [[14, 8, 3, 4], [26, 14, 4, 3], [2, 20, 5, 4], [18, 28, 3, 3]],
-        blades: [[3, 4], [13, 10], [21, 6], [29, 14], [7, 20], [17, 26], [25, 2], [11, 16]],
-        flowers: [[6, 20, 0xee88ff], [22, 6, 0xffee66]],
+        cracks: [[3, 4, 1, 3], [21, 8, 4, 1], [13, 22, 1, 3], [25, 16, 3, 1]],
+        speckles: [[6, 20], [22, 6], [9, 12], [28, 28]],
       },
       {
         dark: [[4, 8, 4, 5], [16, 0, 5, 4], [24, 16, 6, 3], [10, 24, 4, 4]],
         light: [[0, 4, 3, 4], [20, 10, 4, 3], [8, 18, 5, 4], [28, 24, 3, 3]],
-        blades: [[7, 2], [15, 8], [23, 12], [1, 16], [9, 22], [19, 28], [27, 6], [13, 14]],
-        flowers: [[18, 14, 0x88bbff]],
+        cracks: [[7, 2, 1, 4], [23, 12, 3, 1], [1, 20, 1, 3], [15, 28, 4, 1]],
+        speckles: [[18, 14], [4, 6], [26, 24], [12, 2]],
       },
     ];
 
@@ -84,41 +84,30 @@ export class BootScene extends Phaser.Scene {
       const g = this.add.graphics();
       const d = variants[v];
 
-      // Base green
-      g.fillStyle(0x4a8a5a, 1);
+      // Base dungeon stone
+      g.fillStyle(0x2a2244, 1);
       g.fillRect(0, 0, 32, 32);
 
-      // Darker patches
-      g.fillStyle(0x3a7a49, 1);
+      // Darker stone patches
+      g.fillStyle(0x221a38, 1);
       for (const [x, y, w, h] of d.dark) g.fillRect(x, y, w, h);
 
-      // Lighter patches
-      g.fillStyle(0x5a9a6a, 1);
+      // Lighter stone patches
+      g.fillStyle(0x332a50, 1);
       for (const [x, y, w, h] of d.light) g.fillRect(x, y, w, h);
 
-      // Grass blades — dark 1px stems
-      g.fillStyle(0x2a6a39, 1);
-      for (const [x, y] of d.blades) {
-        g.fillRect(x, y, 1, 2);
-        g.fillRect(x + 1, y + 1, 1, 1);
-      }
+      // Mortar cracks
+      g.fillStyle(0x1e1830, 0.7);
+      for (const [x, y, w, h] of d.cracks) g.fillRect(x, y, w, h);
 
-      // Tiny flowers
-      for (const [fx, fy, fc] of d.flowers) {
-        g.fillStyle(fc, 1);
-        g.fillRect(fx, fy, 2, 2);
-        // Flower center dot
-        g.fillStyle(0xffffff, 0.6);
-        g.fillRect(fx, fy, 1, 1);
+      // Mineral speckles
+      g.fillStyle(0x3d3358, 0.4);
+      for (const [sx, sy] of d.speckles) {
+        g.fillRect(sx, sy, 1, 1);
       }
-
-      // Dirt specks
-      g.fillStyle(0x7a6a4a, 0.35);
-      g.fillRect((8 + v * 9) % 30, (20 + v * 5) % 30, 2, 1);
-      g.fillRect((22 + v * 4) % 30, (10 + v * 7) % 30, 1, 2);
 
       // Subtle tile edge
-      g.lineStyle(1, 0x000000, 0.06);
+      g.lineStyle(1, 0x000000, 0.08);
       g.strokeRect(0, 0, 32, 32);
 
       g.generateTexture(`tile-grass-${v}`, 32, 32);
@@ -134,14 +123,14 @@ export class BootScene extends Phaser.Scene {
     const g = this.add.graphics();
     const S = 32;
 
-    // Base stone
-    g.fillStyle(0x6a6a7a, 1);
+    // Base dungeon stone
+    g.fillStyle(0x3d3350, 1);
     g.fillRect(0, 0, S, S);
 
     const brickH = 8;
     const brickW = 16;
     const mortar = 1;
-    const brickColors = [0x6e6e7e, 0x626272, 0x747484];
+    const brickColors = [0x3a3050, 0x342a48, 0x42385a];
 
     for (let row = 0; row < 4; row++) {
       const offX = (row % 2) * (brickW / 2);
@@ -162,12 +151,12 @@ export class BootScene extends Phaser.Scene {
         g.fillRect(cx, by, cw, bh);
 
         // Light edge (top + left)
-        g.fillStyle(0x8a8a9a, 0.5);
+        g.fillStyle(0x4a4068, 0.5);
         g.fillRect(cx, by, cw, 1);
         g.fillRect(cx, by, 1, bh);
 
         // Dark edge (bottom + right)
-        g.fillStyle(0x4a4a5a, 0.5);
+        g.fillStyle(0x2a2240, 0.5);
         g.fillRect(cx, by + bh - 1, cw, 1);
         const right = bx + bw - 1;
         if (right >= 0 && right < S) {
@@ -176,18 +165,18 @@ export class BootScene extends Phaser.Scene {
       }
 
       // Horizontal mortar
-      g.fillStyle(0x3a3a4a, 1);
+      g.fillStyle(0x1e1830, 1);
       g.fillRect(0, ry, S, mortar);
     }
 
     // Cracks
-    g.fillStyle(0x4a4a5a, 0.6);
+    g.fillStyle(0x2a2240, 0.6);
     g.fillRect(12, 5, 1, 3);
     g.fillRect(26, 18, 2, 1);
     g.fillRect(5, 25, 1, 2);
 
     // Top shadow
-    g.fillStyle(0x2a2a3a, 0.3);
+    g.fillStyle(0x141020, 0.3);
     g.fillRect(0, 0, S, 2);
 
     g.generateTexture('tile-wall', S, S);
@@ -204,18 +193,18 @@ export class BootScene extends Phaser.Scene {
       const S = 32;
 
       // Deep water base
-      g.fillStyle(0x2a5a9a, 1);
+      g.fillStyle(0x1a3a6a, 1);
       g.fillRect(0, 0, S, S);
 
       // Mid-tone wave bands
-      g.fillStyle(0x3a6aaa, 0.6);
+      g.fillStyle(0x2a5a94, 0.6);
       for (let y = 0; y < S; y += 4) {
         const waveOff = Math.sin((y + frame * 4) * 0.3) * 3;
         g.fillRect(Math.floor(waveOff) + 2, y, S - 4, 2);
       }
 
       // Wave crests
-      g.fillStyle(0x5a8acc, 0.55);
+      g.fillStyle(0x3a6aaa, 0.55);
       const crests = [
         [4 + frame * 3, 6], [18 - frame * 2, 14],
         [8 + frame, 22], [24 + frame * 2, 28],
@@ -227,7 +216,7 @@ export class BootScene extends Phaser.Scene {
       }
 
       // Specular highlights
-      g.fillStyle(0x8abaee, 0.5);
+      g.fillStyle(0x4a8acc, 0.5);
       g.fillRect((10 + frame * 8) % 30, 4, 2, 1);
       g.fillRect((22 - frame * 4 + 32) % 30, 18, 2, 1);
       g.fillRect((6 + frame * 6) % 30, 26, 3, 1);
@@ -238,7 +227,7 @@ export class BootScene extends Phaser.Scene {
       g.fillRect((26 - frame * 3 + 32) % 28, 24, 3, 1);
 
       // Depth at bottom
-      g.fillStyle(0x1a4a8a, 0.3);
+      g.fillStyle(0x0a2a5a, 0.3);
       g.fillRect(0, S - 2, S, 2);
 
       g.generateTexture(`tile-water-${frame}`, S, S);
@@ -254,8 +243,8 @@ export class BootScene extends Phaser.Scene {
     const g = this.add.graphics();
     const S = 32;
 
-    // Stone frame
-    g.fillStyle(0x5a5a6a, 1);
+    // Stone frame (dungeon stone)
+    g.fillStyle(0x3d3358, 1);
     g.fillRect(0, 0, S, S);
 
     // Wooden panel
@@ -321,34 +310,34 @@ export class BootScene extends Phaser.Scene {
     const g = this.add.graphics();
     const S = 32;
 
-    // Base
-    g.fillStyle(0x5a7a6a, 1);
+    // Base dungeon stone
+    g.fillStyle(0x2a2244, 1);
     g.fillRect(0, 0, S, S);
 
     // Four slabs with slight color variation
-    g.fillStyle(0x5e7e6e, 1);
+    g.fillStyle(0x2e2648, 1);
     g.fillRect(1, 1, 13, 13);
-    g.fillStyle(0x567466, 1);
+    g.fillStyle(0x281e40, 1);
     g.fillRect(18, 1, 13, 13);
-    g.fillStyle(0x5a7868, 1);
+    g.fillStyle(0x2c2446, 1);
     g.fillRect(1, 18, 13, 13);
-    g.fillStyle(0x5c7c6c, 1);
+    g.fillStyle(0x2a2042, 1);
     g.fillRect(18, 18, 13, 13);
 
     // Grout cross
-    g.fillStyle(0x4a6a5a, 1);
+    g.fillStyle(0x1e1830, 1);
     g.fillRect(0, 15, S, 2);
     g.fillRect(15, 0, 2, S);
 
     // Cracks
-    g.fillStyle(0x4a6a5a, 0.5);
+    g.fillStyle(0x1e1830, 0.5);
     g.fillRect(4, 6, 5, 1);
     g.fillRect(22, 10, 1, 4);
     g.fillRect(8, 22, 3, 1);
     g.fillRect(24, 24, 4, 1);
 
     // Speckles
-    g.fillStyle(0x6a8a7a, 0.4);
+    g.fillStyle(0x3d3358, 0.4);
     g.fillRect(3, 3, 1, 1);
     g.fillRect(10, 9, 1, 1);
     g.fillRect(20, 5, 1, 1);
@@ -356,7 +345,7 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(7, 24, 1, 1);
 
     // Edge highlights
-    g.fillStyle(0x6a8a7a, 0.3);
+    g.fillStyle(0x3d3358, 0.3);
     g.fillRect(1, 1, 13, 1);
     g.fillRect(18, 1, 13, 1);
     g.fillRect(1, 18, 13, 1);
@@ -525,32 +514,32 @@ export class BootScene extends Phaser.Scene {
 
   private generateTreeTile(): void {
     const g = this.add.graphics();
-    // Grass base
-    g.fillStyle(0x3a7d2c); g.fillRect(0, 0, 32, 32);
+    // Dark forest ground
+    g.fillStyle(0x1a3318); g.fillRect(0, 0, 32, 32);
     // Tree trunk
-    g.fillStyle(0x5c3a1e); g.fillRect(13, 16, 6, 12);
+    g.fillStyle(0x3a2a14); g.fillRect(13, 16, 6, 12);
     // Canopy (dark green circle)
-    g.fillStyle(0x2d6b1f); g.fillCircle(16, 12, 10);
+    g.fillStyle(0x1a4a18); g.fillCircle(16, 12, 10);
     // Canopy highlight
-    g.fillStyle(0x4a9e3a); g.fillCircle(14, 9, 5);
+    g.fillStyle(0x2d6b1f); g.fillCircle(14, 9, 5);
     // Leaf detail
-    g.fillStyle(0x3d8c2e); g.fillCircle(19, 13, 4);
+    g.fillStyle(0x245a20); g.fillCircle(19, 13, 4);
     g.generateTexture('tile-tree', 32, 32);
     g.destroy();
   }
 
   private generateHillTile(): void {
     const g = this.add.graphics();
-    // Grass base
-    g.fillStyle(0x5a8f3c); g.fillRect(0, 0, 32, 32);
+    // Rocky base
+    g.fillStyle(0x5a5040); g.fillRect(0, 0, 32, 32);
     // Hill mound
-    g.fillStyle(0x7aaa55);
+    g.fillStyle(0x6a5a48);
     g.fillTriangle(0, 28, 16, 8, 32, 28);
     // Hill highlight
-    g.fillStyle(0x8dbe66);
+    g.fillStyle(0x7a6a58);
     g.fillTriangle(4, 26, 14, 12, 20, 26);
-    // Grass tufts on hill
-    g.fillStyle(0x4a7d30);
+    // Scrub grass tufts
+    g.fillStyle(0x4a5a30);
     g.fillRect(10, 22, 2, 4); g.fillRect(20, 20, 2, 5);
     g.generateTexture('tile-hill', 32, 32);
     g.destroy();
@@ -558,15 +547,18 @@ export class BootScene extends Phaser.Scene {
 
   private generateSandTile(): void {
     const g = this.add.graphics();
-    g.fillStyle(0xd4b96a); g.fillRect(0, 0, 32, 32);
+    g.fillStyle(0xc8a85a); g.fillRect(0, 0, 32, 32);
     // Sand texture dots
-    g.fillStyle(0xc4a85a);
+    g.fillStyle(0xb89848);
     for (let i = 0; i < 8; i++) {
       g.fillRect((i * 7 + 3) % 30, (i * 11 + 5) % 30, 2, 2);
     }
     // Light sand patches
-    g.fillStyle(0xe0c878);
+    g.fillStyle(0xd8b868);
     g.fillRect(5, 12, 6, 3); g.fillRect(20, 22, 5, 3);
+    // Darker wet patches
+    g.fillStyle(0xa08840, 0.5);
+    g.fillRect(2, 24, 8, 4); g.fillRect(22, 4, 6, 3);
     g.generateTexture('tile-sand', 32, 32);
     g.destroy();
   }
@@ -574,15 +566,15 @@ export class BootScene extends Phaser.Scene {
   private generatePathTile(): void {
     const g = this.add.graphics();
     // Dirt base
-    g.fillStyle(0x8b7355); g.fillRect(0, 0, 32, 32);
+    g.fillStyle(0x7a6048); g.fillRect(0, 0, 32, 32);
     // Worn center (lighter)
-    g.fillStyle(0x9e866a); g.fillRect(4, 0, 24, 32);
+    g.fillStyle(0x9a8060); g.fillRect(4, 0, 24, 32);
     // Gravel dots
-    g.fillStyle(0x7a6548);
+    g.fillStyle(0x6a5038);
     g.fillRect(8, 5, 2, 2); g.fillRect(18, 15, 3, 2);
     g.fillRect(12, 25, 2, 2); g.fillRect(22, 8, 2, 3);
-    // Edge grass tufts
-    g.fillStyle(0x5a8f3c);
+    // Edge scrub
+    g.fillStyle(0x4a5a30);
     g.fillRect(0, 10, 3, 4); g.fillRect(29, 20, 3, 4);
     g.generateTexture('tile-path', 32, 32);
     g.destroy();
@@ -591,16 +583,17 @@ export class BootScene extends Phaser.Scene {
   private generateLavaTile(): void {
     const g = this.add.graphics();
     // Dark rock base
-    g.fillStyle(0x2a1a0e); g.fillRect(0, 0, 32, 32);
+    g.fillStyle(0x1a1010); g.fillRect(0, 0, 32, 32);
     // Lava glow
-    g.fillStyle(0xff4400); g.fillRect(4, 4, 24, 24);
+    g.fillStyle(0xcc3300); g.fillRect(4, 4, 24, 24);
     // Hot center
-    g.fillStyle(0xff8800); g.fillRect(8, 8, 16, 16);
+    g.fillStyle(0xff6600); g.fillRect(8, 8, 16, 16);
     // Brightest core
     g.fillStyle(0xffcc00); g.fillRect(12, 12, 8, 8);
     // Dark crust patches
-    g.fillStyle(0x3a1a0a);
+    g.fillStyle(0x2a1008);
     g.fillRect(6, 6, 4, 3); g.fillRect(20, 18, 5, 4);
+    g.fillRect(14, 2, 6, 3); g.fillRect(2, 20, 4, 5);
     g.generateTexture('tile-lava', 32, 32);
     g.destroy();
   }
@@ -643,7 +636,7 @@ export class BootScene extends Phaser.Scene {
   private generateFortTextures(): void {
     // Stage 1: Campfire (2x2 = 64x64)
     const g1 = this.add.graphics();
-    g1.fillStyle(0x3a3a3a); g1.fillRect(0, 0, 64, 64);
+    g1.fillStyle(0x2a2244); g1.fillRect(0, 0, 64, 64);
     g1.fillStyle(0x5c3a1e); // logs
     g1.fillRect(16, 40, 32, 8);
     g1.fillRect(22, 36, 20, 8);
@@ -656,7 +649,7 @@ export class BootScene extends Phaser.Scene {
 
     // Stage 2: Tent (3x3 = 96x96)
     const g2 = this.add.graphics();
-    g2.fillStyle(0x3a7d2c); g2.fillRect(0, 0, 96, 96);
+    g2.fillStyle(0x2a2244); g2.fillRect(0, 0, 96, 96);
     g2.fillStyle(0x8b6e4e); // tent body
     g2.fillTriangle(48, 12, 12, 80, 84, 80);
     g2.fillStyle(0x7a5e3e); // tent shadow
@@ -668,7 +661,7 @@ export class BootScene extends Phaser.Scene {
 
     // Stage 3: Hut (4x4 = 128x128)
     const g3 = this.add.graphics();
-    g3.fillStyle(0x3a7d2c); g3.fillRect(0, 0, 128, 128);
+    g3.fillStyle(0x2a2244); g3.fillRect(0, 0, 128, 128);
     g3.fillStyle(0x6b5030); // walls
     g3.fillRect(24, 48, 80, 56);
     g3.fillStyle(0x8b4513); // roof
@@ -682,11 +675,11 @@ export class BootScene extends Phaser.Scene {
 
     // Stage 4: Tower (5x5 = 160x160)
     const g4 = this.add.graphics();
-    g4.fillStyle(0x3a7d2c); g4.fillRect(0, 0, 160, 160);
-    g4.fillStyle(0x666677); // stone tower
+    g4.fillStyle(0x2a2244); g4.fillRect(0, 0, 160, 160);
+    g4.fillStyle(0x3d3358); // stone tower
     g4.fillRect(48, 24, 64, 112);
     // Battlements
-    g4.fillStyle(0x777788);
+    g4.fillStyle(0x4a4068);
     for (let i = 0; i < 4; i++) {
       g4.fillRect(48 + i * 20, 16, 12, 16);
     }
@@ -700,17 +693,17 @@ export class BootScene extends Phaser.Scene {
 
     // Stage 5: Fort (6x6 = 192x192)
     const g5 = this.add.graphics();
-    g5.fillStyle(0x3a7d2c); g5.fillRect(0, 0, 192, 192);
+    g5.fillStyle(0x2a2244); g5.fillRect(0, 0, 192, 192);
     // Outer wall
-    g5.fillStyle(0x555566); g5.fillRect(16, 16, 160, 160);
+    g5.fillStyle(0x3d3358); g5.fillRect(16, 16, 160, 160);
     // Interior
-    g5.fillStyle(0x444455); g5.fillRect(32, 32, 128, 128);
+    g5.fillStyle(0x2a2240); g5.fillRect(32, 32, 128, 128);
     // Corner towers
-    g5.fillStyle(0x666677);
+    g5.fillStyle(0x4a4068);
     g5.fillRect(8, 8, 28, 28);    g5.fillRect(156, 8, 28, 28);
     g5.fillRect(8, 156, 28, 28);  g5.fillRect(156, 156, 28, 28);
     // Keep (central building)
-    g5.fillStyle(0x777788); g5.fillRect(64, 48, 64, 80);
+    g5.fillStyle(0x564a72); g5.fillRect(64, 48, 64, 80);
     // Gate
     g5.fillStyle(0x3a2a1a); g5.fillRect(80, 136, 32, 40);
     // Banner pole
