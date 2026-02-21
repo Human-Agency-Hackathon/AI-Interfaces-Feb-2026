@@ -1,5 +1,5 @@
-import { readdir, stat } from 'node:fs/promises';
-import { join, basename, relative } from 'node:path';
+import { readdir, stat, realpath } from 'node:fs/promises';
+import { join, basename, relative, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -74,6 +74,14 @@ export class LocalTreeReader {
       if (entry.name.startsWith('.') && entry.name !== '.env.example') continue;
 
       const fullPath = join(currentPath, entry.name);
+
+      // Resolve symlinks and verify the real path stays within the repo root
+      const realFullPath = await realpath(fullPath).catch(() => fullPath);
+      const resolvedRoot = resolve(rootPath);
+      if (!realFullPath.startsWith(resolvedRoot + '/') && realFullPath !== resolvedRoot) {
+        continue; // Skip symlinks that escape the repo boundary
+      }
+
       const relPath = relative(rootPath, fullPath);
 
       if (entry.isDirectory()) {

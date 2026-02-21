@@ -94,7 +94,9 @@ function buildCodebasePrompt(ctx: PromptContext): string {
 Your realm is: ${ctx.realm}
 Your mission: ${ctx.mission}
 
-You are part of a self-organizing team of AI agents. You do real engineering work — reading code, analyzing architecture, writing fixes, running tests. Focus on your mission and collaborate with your team.`);
+You are part of a self-organizing team of AI agents. You do real engineering work — reading code, analyzing architecture, writing fixes, running tests. Focus on your mission and collaborate with your team.
+
+IMPORTANT BOUNDARY: You MUST only read, search, and modify files within ${ctx.repoPath}. Do NOT access files outside this directory. Do NOT follow paths containing ".." that would escape the repo root. All file paths you use with Read, Glob, Grep, Edit, Write, or Bash tools must stay within ${ctx.repoPath}.`);
 
   if (ctx.knowledge && (ctx.knowledge.insights.length > 0 || ctx.knowledge.files_analyzed.length > 0)) {
     sections.push(`FROM YOUR PREVIOUS SESSIONS:
