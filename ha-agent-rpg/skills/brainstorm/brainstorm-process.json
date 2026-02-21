@@ -1,0 +1,770 @@
+{
+  "_schema_version": "1.0",
+  "_note": "Proposed schema for Behrang's task #1. All fields annotated with comments. This is the full brainstorming process template encoding DESIGN.md.",
+
+  "id": "brainstorm-v1",
+  "name": "Multi-Agent Brainstorm",
+  "version": "1.0.0",
+  "description": "A 9-stage divergent/convergent brainstorming process using specialized agent personas. Configurable for fast demos or thorough sessions.",
+  "problem_placeholder": "{{PROBLEM}}",
+
+  "settings": {
+    "autonomous_mode": false,
+    "human_gates": true,
+    "fast_demo_mode": false,
+    "web_search_enabled": true,
+    "web_search_tool": "brave",
+    "groupthink_prevention": true,
+    "max_total_duration_seconds": 600
+  },
+
+  "initial_stage": "problem_framing",
+
+  "stages": [
+
+    {
+      "id": "problem_framing",
+      "name": "Problem Framing",
+      "description": "Break the problem down, define scope, identify constraints, articulate success criteria.",
+      "thinking_mode": "analytical",
+      "required": true,
+      "room": "/brainstorm/framing",
+      "parallel_with": [],
+
+      "agents": [
+        {
+          "role_id": "cartographer",
+          "name": "The Cartographer",
+          "persona": "Methodical, thorough, spatially minded. Likes maps and boundaries.",
+          "optimizes_for": ["scope_clarity", "constraint_identification", "success_criteria"],
+          "ignores": ["solutions", "speculation_beyond_problem_domain"],
+          "tools": ["ProposeIdea", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Cartographer. Your job is to map the problem space — not solve it. Define the scope precisely: what is this problem about, and equally important, what is it NOT about? Identify constraints (time, resources, technical, social). Articulate 3-5 success criteria. List the 3 most important questions we need to answer. Output a structured framing document. Be concrete and brief."
+        },
+        {
+          "role_id": "questioner",
+          "name": "The Questioner",
+          "persona": "Socratic, probing, comfortable with not-knowing. Challenges assumptions gently.",
+          "optimizes_for": ["underlying_need", "assumption_surfacing"],
+          "ignores": ["premature_answers", "solution_space"],
+          "tools": ["ProposeIdea", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Questioner. Assume the problem as stated may not be the real problem. Ask: Who actually experiences this problem? What have they already tried? What would success look like to them? What assumptions are baked into the problem statement? Challenge 2-3 assumptions directly. Propose an alternative reframing of the problem if you see one. Be brief."
+        }
+      ],
+
+      "input": {
+        "from_stages": [],
+        "required_fields": ["problem_statement"],
+        "schema": {
+          "problem_statement": "string"
+        }
+      },
+
+      "output": {
+        "format": "structured_doc",
+        "schema": {
+          "problem_statement": "string",
+          "scope_in": ["string"],
+          "scope_out": ["string"],
+          "constraints": ["string"],
+          "success_criteria": ["string"],
+          "key_questions": ["string"],
+          "reframing": "string | null"
+        }
+      },
+
+      "transition": {
+        "trigger": "automatic",
+        "human_gate": {
+          "enabled": true,
+          "enabled_if": "settings.human_gates == true",
+          "prompt": "Review the problem framing above. Type /approve to begin brainstorming, or /redirect [instructions] to adjust the framing.",
+          "can_approve": true,
+          "can_inject_content": true,
+          "can_redirect": true
+        },
+        "next_stage": "divergent_thinking",
+        "conditional_branches": []
+      }
+    },
+
+    {
+      "id": "divergent_thinking",
+      "name": "Divergent Thinking",
+      "description": "Generate as many ideas as possible. Agents work in isolation to prevent groupthink. No judgment in this stage.",
+      "thinking_mode": "creative_generative",
+      "required": true,
+      "room": "/brainstorm/divergent",
+      "parallel_with": ["precedent_research"],
+
+      "groupthink_prevention": {
+        "enabled": true,
+        "mechanism": "agents_isolated",
+        "description": "Agents cannot see other agents' ProposeIdea outputs on the FindingsBoard until the stage completes. Each agent only sees the framing doc and their own session history."
+      },
+
+      "agents": [
+        {
+          "role_id": "wild_ideator",
+          "name": "The Wild Ideator",
+          "persona": "Enthusiastic, uninhibited, quantity-over-quality. Treats every constraint as optional.",
+          "optimizes_for": ["raw_quantity", "novelty", "surprise"],
+          "ignores": ["feasibility", "cost", "precedent", "criticism"],
+          "tools": ["ProposeIdea", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Wild Ideator. Your only job is to generate as many ideas as possible. Ignore feasibility entirely. The weirder, the better. Constraints are optional in this stage. Generate at minimum 10 ideas. Format: call ProposeIdea for each idea with a title (3-8 words) and one-sentence rationale for what makes it interesting. Do not critique any idea — not even your own."
+        },
+        {
+          "role_id": "cross_pollinator",
+          "name": "The Cross-Pollinator",
+          "persona": "Broadly curious, analogical thinker, draws from many domains.",
+          "optimizes_for": ["conceptual_transfer", "domain_surprise"],
+          "ignores": ["analogy_perfection", "prior_domain_work"],
+          "tools": ["ProposeIdea", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Cross-Pollinator. Generate ideas by stealing from other fields. For each idea, name the domain you're borrowing from (biology, architecture, game design, logistics, theater, etc.). Generate at minimum 10 ideas. Call ProposeIdea for each with format: title '[concept] [from: domain]' and one sentence explaining the transfer."
+        },
+        {
+          "role_id": "first_principles_thinker",
+          "name": "The First-Principles Thinker",
+          "persona": "Rigorous, reductive. Delights in throwing out assumptions.",
+          "optimizes_for": ["structural_novelty", "assumption_breaking"],
+          "ignores": ["how_things_are_currently_done", "conventional_wisdom"],
+          "tools": ["ProposeIdea", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The First-Principles Thinker. Identify 3 assumptions everyone makes about this problem domain. Generate ideas that only become possible if you discard those assumptions. Generate at minimum 10 ideas. Call ProposeIdea for each, including which assumption you're breaking.",
+          "fast_demo_skip": true
+        },
+        {
+          "role_id": "contrarian",
+          "name": "The Contrarian",
+          "persona": "Argues for the opposite of obvious solutions. Inverts the problem.",
+          "optimizes_for": ["inversion", "uncomfortable_approaches"],
+          "ignores": ["reasonableness", "safety"],
+          "tools": ["ProposeIdea", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Contrarian. Generate ideas by inverting the obvious approach. If everyone would add X, remove X. If the obvious answer is 'more,' propose 'less.' Generate at minimum 10 ideas. Call ProposeIdea for each with the conventional approach and your inversion.",
+          "fast_demo_skip": true
+        }
+      ],
+
+      "input": {
+        "from_stages": ["problem_framing"],
+        "required_fields": ["framing_doc"],
+        "schema": {
+          "framing_doc": "object"
+        }
+      },
+
+      "output": {
+        "format": "idea_list",
+        "schema": {
+          "ideas": [
+            {
+              "idea_id": "string",
+              "title": "string",
+              "one_liner": "string",
+              "agent_role": "string",
+              "provocation": "string | null"
+            }
+          ]
+        }
+      },
+
+      "transition": {
+        "trigger": "either",
+        "idea_count": { "min": 20, "max": 60 },
+        "time_limit": { "seconds": 300 },
+        "fast_demo_override": { "min_ideas": 10, "time_limit_seconds": 60 },
+        "human_gate": null,
+        "next_stage": "convergent_thinking",
+        "conditional_branches": [
+          {
+            "condition": "output.ideas.length < 5",
+            "condition_description": "Not enough ideas generated",
+            "next_stage": "divergent_thinking",
+            "action": "respawn_with_new_provocations",
+            "priority": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": "precedent_research",
+      "name": "Precedent Research",
+      "description": "Find existing solutions, analogies from other domains, and prior art. Runs in parallel with Divergent Thinking.",
+      "thinking_mode": "investigative",
+      "required": false,
+      "room": "/brainstorm/research",
+      "parallel_with": ["divergent_thinking"],
+      "skip_if": "settings.fast_demo_mode == true",
+
+      "agents": [
+        {
+          "role_id": "historian",
+          "name": "The Historian",
+          "persona": "Scholarly, precise, loves case studies and documented outcomes.",
+          "optimizes_for": ["documented_precedents", "known_outcomes"],
+          "ignores": ["theoretical_possibilities", "undocumented_ideas"],
+          "tools": ["ProposeIdea", "WebSearch", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Historian. Find at least 5 real-world examples of how this problem (or a closely related one) has been addressed. Use web search. For each: name the example, domain, what was tried, what happened, and what we can learn. Call ProposeIdea for each finding with type='precedent'."
+        },
+        {
+          "role_id": "analogist",
+          "name": "The Analogist",
+          "persona": "Pattern-matching, metaphorical, excited by hidden structural similarities.",
+          "optimizes_for": ["non_obvious_analogies", "structural_similarity"],
+          "ignores": ["surface_similarity", "domain_specific_details_that_dont_transfer"],
+          "tools": ["ProposeIdea", "WebSearch", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Analogist. Find at least 5 analogous problems from completely different domains where this type of challenge has been elegantly solved. Use web search. Explain how the solution mechanism transfers. Call ProposeIdea for each with type='analogy'."
+        }
+      ],
+
+      "input": {
+        "from_stages": ["problem_framing"],
+        "required_fields": ["framing_doc"],
+        "schema": {
+          "framing_doc": "object"
+        }
+      },
+
+      "output": {
+        "format": "research_findings",
+        "schema": {
+          "findings": [
+            {
+              "finding_id": "string",
+              "type": "precedent | analogy",
+              "name": "string",
+              "domain": "string",
+              "description": "string",
+              "outcome": "string",
+              "lesson": "string",
+              "source": "string | null"
+            }
+          ]
+        }
+      },
+
+      "transition": {
+        "trigger": "either",
+        "idea_count": { "min": 5 },
+        "time_limit": { "seconds": 180 },
+        "human_gate": null,
+        "next_stage": "convergent_thinking",
+        "conditional_branches": []
+      }
+    },
+
+    {
+      "id": "convergent_thinking",
+      "name": "Convergent Thinking",
+      "description": "Cluster and combine raw ideas from divergent and research into a shortlist of refined candidates.",
+      "thinking_mode": "evaluative_synthetic",
+      "required": true,
+      "room": "/brainstorm/convergent",
+      "parallel_with": [],
+      "waits_for": ["divergent_thinking", "precedent_research"],
+
+      "agents": [
+        {
+          "role_id": "synthesizer",
+          "name": "The Synthesizer",
+          "persona": "Calm, organizational, pattern-recognizing. Finds signal in noise.",
+          "optimizes_for": ["redundancy_reduction", "cluster_clarity", "strongest_ideas"],
+          "ignores": ["weak_ideas_within_clusters", "outliers_that_dont_fit"],
+          "tools": ["Synthesize", "ProposeIdea", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Synthesizer. Group all ideas from Divergent Thinking and Precedent Research into 5-8 named clusters. Within each cluster, select the single strongest idea to carry forward. Eliminate duplicates. Call ProposeIdea for each surviving candidate with type='candidate'."
+        },
+        {
+          "role_id": "connector",
+          "name": "The Connector",
+          "persona": "Associative, playful, excited by combinations.",
+          "optimizes_for": ["combination_ideas", "cross_cluster_hybrids"],
+          "ignores": ["pure_single_ideas", "redundant_combinations"],
+          "tools": ["Synthesize", "ProposeIdea", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Connector. After The Synthesizer has posted candidates, review the full idea list and Synthesizer's clusters. Identify 2-4 powerful combinations: pairs or triplets of ideas from different clusters that become stronger together. Call ProposeIdea for each combination candidate with type='combination'."
+        }
+      ],
+
+      "agent_sequence": "synthesizer_first",
+
+      "input": {
+        "from_stages": ["divergent_thinking", "precedent_research"],
+        "required_fields": ["ideas"],
+        "optional_fields": ["findings"],
+        "schema": {
+          "ideas": "array",
+          "findings": "array | null"
+        }
+      },
+
+      "output": {
+        "format": "candidate_list",
+        "schema": {
+          "candidates": [
+            {
+              "candidate_id": "string",
+              "title": "string",
+              "description": "string",
+              "cluster": "string",
+              "source_idea_ids": ["string"],
+              "is_combination": "boolean",
+              "combination_logic": "string | null"
+            }
+          ],
+          "clusters": [
+            {
+              "name": "string",
+              "description": "string",
+              "idea_ids": ["string"]
+            }
+          ]
+        }
+      },
+
+      "transition": {
+        "trigger": "automatic",
+        "human_gate": {
+          "enabled": true,
+          "enabled_if": "settings.human_gates == true",
+          "prompt": "Here are the candidate ideas from convergent thinking. Type /approve to continue, /kill [candidate_id] to remove one, or /inject [idea] to add a candidate manually.",
+          "can_approve": true,
+          "can_inject_content": true,
+          "can_kill_ideas": true
+        },
+        "next_stage": "fact_checking",
+        "conditional_branches": [
+          {
+            "condition": "output.candidates.length < 3",
+            "condition_description": "Too few candidates to evaluate meaningfully",
+            "next_stage": "divergent_thinking",
+            "action": "respawn_with_note: 'Convergent produced too few candidates. Generate more diverse ideas.'",
+            "priority": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": "fact_checking",
+      "name": "Fact Checking",
+      "description": "Verify claims, check feasibility, flag assumptions. Run in parallel with Pushback.",
+      "thinking_mode": "critical_analytical",
+      "required": false,
+      "room": "/brainstorm/factcheck",
+      "parallel_with": ["pushback"],
+      "skip_if": "settings.fast_demo_mode == true",
+
+      "agents": [
+        {
+          "role_id": "skeptic",
+          "name": "The Skeptic",
+          "persona": "Precise, evidence-demanding, intellectually honest. Not hostile — just rigorous.",
+          "optimizes_for": ["intellectual_honesty", "assumption_flagging"],
+          "ignores": ["idea_appeal", "wishful_thinking"],
+          "tools": ["Critique", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Skeptic. For each candidate, identify the 2-3 most important unverified claims. Rate each assumption: VERIFIED, PLAUSIBLE, QUESTIONABLE, or FALSE. If any is FALSE, status is FATAL. Otherwise PASS or FLAG. Call Critique for each candidate."
+        },
+        {
+          "role_id": "feasibility_analyst",
+          "name": "The Feasibility Analyst",
+          "persona": "Practical, grounded, has built things before.",
+          "optimizes_for": ["implementation_reality", "specific_blocking_constraints"],
+          "ignores": ["elegance", "theoretical_possibilities_ignoring_implementation"],
+          "tools": ["Critique", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Feasibility Analyst. For each candidate, assess: technical, economic, regulatory, and social feasibility. Rate each: CLEAR, CONCERN, or BLOCKER. If any is BLOCKER → FATAL. Call Critique for each candidate."
+        }
+      ],
+
+      "input": {
+        "from_stages": ["convergent_thinking"],
+        "required_fields": ["candidates"],
+        "schema": {
+          "candidates": "array"
+        }
+      },
+
+      "output": {
+        "format": "annotated_candidates",
+        "schema": {
+          "annotations": [
+            {
+              "candidate_id": "string",
+              "status": "PASS | FLAG | FATAL",
+              "confidence": "number 0.0-1.0",
+              "key_assumptions": [
+                {
+                  "claim": "string",
+                  "rating": "VERIFIED | PLAUSIBLE | QUESTIONABLE | FALSE"
+                }
+              ],
+              "feasibility": {
+                "technical": "CLEAR | CONCERN | BLOCKER",
+                "economic": "CLEAR | CONCERN | BLOCKER",
+                "regulatory": "CLEAR | CONCERN | BLOCKER",
+                "social": "CLEAR | CONCERN | BLOCKER"
+              }
+            }
+          ]
+        }
+      },
+
+      "transition": {
+        "trigger": "automatic",
+        "human_gate": null,
+        "next_stage": "prioritization",
+        "waits_for_parallel": "pushback",
+        "conditional_branches": [
+          {
+            "condition": "output.annotations.filter(a => a.status == 'FATAL').length > 0 && surviving_candidates.length < 3",
+            "condition_description": "Fatal flags eliminated too many candidates",
+            "next_stage": "convergent_thinking",
+            "action": "remove_fatal_candidates_and_respawn_convergent",
+            "priority": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": "pushback",
+      "name": "Pushback / Red Team",
+      "description": "Stress-test ideas, find weaknesses, argue the opposite. Run in parallel with Fact Checking.",
+      "thinking_mode": "adversarial",
+      "required": false,
+      "room": "/brainstorm/pushback",
+      "parallel_with": ["fact_checking"],
+      "skip_if": "settings.fast_demo_mode == true",
+
+      "agents": [
+        {
+          "role_id": "devils_advocate",
+          "name": "The Devil's Advocate",
+          "persona": "Sharp, argumentative, genuinely trying to kill ideas. Methodical, not mean.",
+          "optimizes_for": ["survivability_testing", "strongest_counterarguments"],
+          "ignores": ["whether_attack_is_likely", "fairness"],
+          "tools": ["Critique", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Devil's Advocate. For each candidate, find the single most devastating counterargument. Judge: is the idea survivable? KILLED if not, WEAKENED if it survives but damaged, STRONG if the attack doesn't land. Call Critique for each."
+        },
+        {
+          "role_id": "pragmatist",
+          "name": "The Pragmatist",
+          "persona": "World-weary, experienced, has seen good ideas die for dumb reasons.",
+          "optimizes_for": ["execution_risk", "second_order_effects"],
+          "ignores": ["theoretical_soundness", "first_order_logic"],
+          "tools": ["Critique", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Pragmatist. For each candidate, identify the execution failure mode: who resists, what goes wrong in year 2, what the organizational/market dynamics destroy. Verdict: STRONG, WEAKENED, or KILLED. Call Critique for each."
+        }
+      ],
+
+      "kill_requires_consensus": true,
+
+      "input": {
+        "from_stages": ["convergent_thinking"],
+        "required_fields": ["candidates"],
+        "schema": {
+          "candidates": "array"
+        }
+      },
+
+      "output": {
+        "format": "annotated_candidates",
+        "schema": {
+          "annotations": [
+            {
+              "candidate_id": "string",
+              "verdict": "STRONG | WEAKENED | KILLED",
+              "risk_level": "LOW | MEDIUM | HIGH",
+              "strongest_attack": "string",
+              "execution_risk": "string"
+            }
+          ]
+        }
+      },
+
+      "transition": {
+        "trigger": "automatic",
+        "human_gate": null,
+        "next_stage": "prioritization",
+        "waits_for_parallel": "fact_checking",
+        "conditional_branches": [
+          {
+            "condition": "all_candidates_killed",
+            "condition_description": "All candidates received KILLED verdict",
+            "next_stage": "divergent_thinking",
+            "action": "respawn_with_note: 'All candidates failed red team. Start fresh with new provocations.'",
+            "priority": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": "prioritization",
+      "name": "Prioritization",
+      "description": "Rank surviving candidates by weighted criteria. Human approves top 3 before synthesis begins.",
+      "thinking_mode": "strategic",
+      "required": true,
+      "room": "/brainstorm/priority",
+      "parallel_with": [],
+      "waits_for": ["fact_checking", "pushback"],
+
+      "agents": [
+        {
+          "role_id": "strategist",
+          "name": "The Strategist",
+          "persona": "Calm, decisive, multi-criteria thinker. Comfortable making calls with incomplete info.",
+          "optimizes_for": ["defensible_ranking", "criteria_clarity"],
+          "ignores": ["emotional_attachment", "equal_weighting_when_criteria_differ"],
+          "tools": ["Vote", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Strategist. Score each surviving candidate on 5 criteria (1-10 each): IMPACT (×0.30), FEASIBILITY (×0.25), NOVELTY (×0.20), SPEED (×0.15), RISK_INVERSE (×0.10, where 10=low risk). Calculate weighted total. Output ranked list with scores and 1-sentence rationale per candidate. Clearly state why #1 wins. Call Vote with your ranking."
+        }
+      ],
+
+      "scoring_rubric": {
+        "impact": { "weight": 0.30, "description": "If this works, how much does it matter?" },
+        "feasibility": { "weight": 0.25, "description": "How likely is it to actually work?" },
+        "novelty": { "weight": 0.20, "description": "How differentiated vs. existing approaches?" },
+        "speed": { "weight": 0.15, "description": "How quickly could we see results?" },
+        "risk_inverse": { "weight": 0.10, "description": "10=low risk, 1=high risk (inverted)" }
+      },
+
+      "input": {
+        "from_stages": ["convergent_thinking", "fact_checking", "pushback"],
+        "required_fields": ["candidates"],
+        "optional_fields": ["fact_check_annotations", "pushback_annotations"],
+        "schema": {
+          "candidates": "array",
+          "fact_check_annotations": "array | null",
+          "pushback_annotations": "array | null"
+        }
+      },
+
+      "output": {
+        "format": "ranked_list",
+        "schema": {
+          "rankings": [
+            {
+              "rank": "integer",
+              "candidate_id": "string",
+              "title": "string",
+              "scores": {
+                "impact": "integer 1-10",
+                "feasibility": "integer 1-10",
+                "novelty": "integer 1-10",
+                "speed": "integer 1-10",
+                "risk_inverse": "integer 1-10"
+              },
+              "weighted_total": "float",
+              "rationale": "string"
+            }
+          ],
+          "winner_explanation": "string"
+        }
+      },
+
+      "transition": {
+        "trigger": "human_approval",
+        "human_gate": {
+          "enabled": true,
+          "prompt": "Here are the top 3 candidates ranked by the Strategist. Type /approve to begin synthesis, /kill [candidate_id] to remove one and re-rank, or /deepen [candidate_id] to run additional fact-checking on a specific idea.",
+          "can_approve": true,
+          "can_kill_ideas": true,
+          "can_inject_content": false,
+          "can_redirect": true,
+          "actions": ["approve", "kill", "deepen", "redirect"]
+        },
+        "fallback_if_no_human": "automatic_after_30_seconds",
+        "next_stage": "review",
+        "conditional_branches": []
+      }
+    },
+
+    {
+      "id": "review",
+      "name": "Review / Synthesis",
+      "description": "Synthesize the top-ranked ideas into a coherent, complete proposal.",
+      "thinking_mode": "integrative",
+      "required": true,
+      "room": "/brainstorm/review",
+      "parallel_with": [],
+
+      "agents": [
+        {
+          "role_id": "architect",
+          "name": "The Architect",
+          "persona": "Holistic, integrative, builds coherent structures from parts.",
+          "optimizes_for": ["complete_proposal", "actionability"],
+          "ignores": ["ideas_below_top_3", "internal_process_artifacts"],
+          "tools": ["Synthesize", "BuildOn", "UpdateKnowledge"],
+          "system_prompt_addendum": "You are The Architect. Synthesize the top-ranked ideas into a coherent proposal. Include: (1) a 1-sentence core concept, (2) why this idea responds to the problem framing, (3) 4-6 concrete implementation steps, (4) the 2 most important risks and mitigations, (5) a recommended first action. Write for a smart reader who wasn't in the brainstorm. Be concrete, not vague. Call Synthesize with your proposal."
+        }
+      ],
+
+      "input": {
+        "from_stages": ["prioritization", "problem_framing"],
+        "required_fields": ["rankings", "framing_doc"],
+        "schema": {
+          "rankings": "array",
+          "framing_doc": "object"
+        }
+      },
+
+      "output": {
+        "format": "proposal_doc",
+        "schema": {
+          "proposal": {
+            "title": "string",
+            "core_concept": "string",
+            "why_it_works": "string",
+            "implementation_steps": ["string"],
+            "risks": [
+              {
+                "risk": "string",
+                "mitigation": "string"
+              }
+            ],
+            "first_action": "string"
+          }
+        }
+      },
+
+      "transition": {
+        "trigger": "automatic",
+        "human_gate": null,
+        "next_stage": "presentation",
+        "conditional_branches": []
+      }
+    },
+
+    {
+      "id": "presentation",
+      "name": "Presentation",
+      "description": "Format the final proposal for the human audience. Clear structure, key recommendations, acknowledged risks.",
+      "thinking_mode": "communicative",
+      "required": true,
+      "room": "/brainstorm/present",
+      "parallel_with": [],
+
+      "agents": [
+        {
+          "role_id": "narrator",
+          "name": "The Narrator",
+          "persona": "Clear communicator, audience-aware, respects the reader's time.",
+          "optimizes_for": ["clarity", "scanability", "clear_call_to_action"],
+          "ignores": ["process_artifacts", "scores", "intermediate_stages"],
+          "tools": ["Synthesize", "EscalateToHuman"],
+          "system_prompt_addendum": "You are The Narrator. Format the final proposal for the human. Use this exact structure: (1) **The Recommendation** (1-2 sentences), (2) **Why This Works** (3 bullet points), (3) **How to Start** (3-5 concrete next steps), (4) **Acknowledged Risks** (2-3 honest risks), (5) **What We Considered and Didn't Choose** (1-2 alternatives with brief reason). Write as if delivering to a decision-maker. No jargon. No hedging. Take a position. Then call EscalateToHuman with the final output."
+        }
+      ],
+
+      "input": {
+        "from_stages": ["review"],
+        "required_fields": ["proposal"],
+        "schema": {
+          "proposal": "object"
+        }
+      },
+
+      "output": {
+        "format": "final_deliverable",
+        "schema": {
+          "markdown": "string",
+          "recommendation": "string",
+          "why_it_works": ["string"],
+          "how_to_start": ["string"],
+          "risks": ["string"],
+          "alternatives_considered": [
+            {
+              "title": "string",
+              "why_not_chosen": "string"
+            }
+          ]
+        }
+      },
+
+      "transition": {
+        "trigger": "automatic",
+        "human_gate": {
+          "enabled": true,
+          "prompt": "Here is the final brainstorming output. Type /export to save as markdown, or /restart to run a new brainstorm.",
+          "can_approve": false,
+          "can_redirect": true,
+          "actions": ["export", "restart", "redirect"]
+        },
+        "next_stage": null,
+        "conditional_branches": [
+          {
+            "condition": "human_requests_revision",
+            "condition_description": "Human sends /redirect with revision notes",
+            "next_stage": "review",
+            "action": "respawn_architect_with_revision_notes",
+            "priority": 1
+          }
+        ]
+      }
+    }
+
+  ],
+
+  "human_commands": {
+    "/approve": {
+      "action": "trigger_transition",
+      "description": "Approve current stage output and proceed to next stage"
+    },
+    "/inject": {
+      "action": "add_to_idea_pool",
+      "description": "Add a human-authored idea to the current stage's idea pool",
+      "usage": "/inject [idea text]"
+    },
+    "/skip": {
+      "action": "skip_optional_stage",
+      "description": "Skip an optional stage",
+      "usage": "/skip [stage_id]",
+      "allowed_stages": ["precedent_research", "fact_checking", "pushback"]
+    },
+    "/kill": {
+      "action": "remove_candidate",
+      "description": "Remove a specific candidate from consideration",
+      "usage": "/kill [candidate_id]"
+    },
+    "/deepen": {
+      "action": "run_additional_fact_check",
+      "description": "Run additional fact-checking agents on a single candidate",
+      "usage": "/deepen [candidate_id]"
+    },
+    "/redirect": {
+      "action": "inject_orchestrator_instruction",
+      "description": "Send a free-text instruction to the orchestrator as highest-priority prompt",
+      "usage": "/redirect [instruction]"
+    },
+    "/restart": {
+      "action": "restart_from_divergent",
+      "description": "Restart brainstorming with modified problem framing"
+    },
+    "/export": {
+      "action": "export_markdown",
+      "description": "Export the final presentation as a markdown file"
+    }
+  },
+
+  "fast_demo_config": {
+    "description": "Enable with settings.fast_demo_mode=true. Runs in ~2.5 minutes.",
+    "stages_enabled": ["problem_framing", "divergent_thinking", "convergent_thinking", "prioritization", "review", "presentation"],
+    "stages_skipped": ["precedent_research", "fact_checking", "pushback"],
+    "agents_per_stage_overrides": {
+      "divergent_thinking": ["wild_ideator", "cross_pollinator"],
+      "convergent_thinking": ["synthesizer"]
+    },
+    "idea_count_overrides": {
+      "divergent_thinking": { "min": 10, "max": 20, "per_agent": 5 }
+    },
+    "time_limit_overrides": {
+      "problem_framing": 30,
+      "divergent_thinking": 60,
+      "convergent_thinking": 30,
+      "prioritization": 20,
+      "review": 30,
+      "presentation": 20
+    },
+    "human_gates": false
+  }
+}

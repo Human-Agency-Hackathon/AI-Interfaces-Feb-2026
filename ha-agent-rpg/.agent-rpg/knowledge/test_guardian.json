@@ -3,9 +3,13 @@
   "agent_name": "Test Guardian",
   "role": "Client-Side Testing Specialist",
   "realm": "/client",
-  "expertise": {},
+  "expertise": {
+    "Testing": 1
+  },
   "realm_knowledge": {},
-  "insights": [],
+  "insights": [
+    "happy-dom is a better test environment choice than jsdom for modern ESM-based projects. It's faster, lighter, and has better ESM compatibility. The switch from jsdom to happy-dom in Vitest configuration resolved ERR_REQUIRE_ESM errors in html-encoding-sniffer dependency."
+  ],
   "task_history": [],
   "files_analyzed": []
 }

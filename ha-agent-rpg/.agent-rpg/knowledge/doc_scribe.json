@@ -3,9 +3,13 @@
   "agent_name": "Doc Scribe",
   "role": "Technical Documentation Expert",
   "realm": "/docs",
-  "expertise": {},
+  "expertise": {
+    "Documentation": 1
+  },
   "realm_knowledge": {},
-  "insights": [],
+  "insights": [
+    "Successfully updated root README.md to reflect current Claude Agent SDK architecture. Replaced outdated turn-based system references (TurnManager, turn:start protocol) with accurate descriptions of AgentSessionManager, EventTranslator, MCP tools, and hierarchical navigation. Quick Start now correctly instructs users to set ANTHROPIC_API_KEY and use /summon commands instead of obsolete agent.py approach."
+  ],
   "task_history": [],
   "files_analyzed": []
 }
