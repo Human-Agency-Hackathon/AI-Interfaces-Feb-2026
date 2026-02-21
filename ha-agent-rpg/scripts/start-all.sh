@@ -56,6 +56,25 @@ cd "$PROJECT_DIR" && npm install
 echo ""
 echo "=== Starting Redis (port 6379) ==="
 REDIS_PID=""
+# Auto-install Redis if not present
+if ! command -v redis-server &>/dev/null; then
+  if command -v brew &>/dev/null; then
+    echo "  redis-server not found — installing via Homebrew..."
+    brew install redis
+  elif command -v apt-get &>/dev/null; then
+    echo "  redis-server not found — installing via apt-get..."
+    sudo apt-get install -y redis-server
+  elif command -v yum &>/dev/null; then
+    echo "  redis-server not found — installing via yum..."
+    sudo yum install -y redis
+  else
+    echo "  redis-server not found and no supported package manager detected."
+    echo "  Please install Redis manually: https://redis.io/docs/install/"
+    echo "  Falling back to JSON persistence (STORAGE_BACKEND=json)"
+    export STORAGE_BACKEND=json
+  fi
+fi
+
 if command -v redis-server &>/dev/null; then
   # Check if Redis is already running
   if redis-cli ping &>/dev/null 2>&1; then
@@ -68,14 +87,11 @@ if command -v redis-server &>/dev/null; then
       echo "  Redis started (PID $REDIS_PID)"
     else
       echo "  Warning: Redis failed to start — server will fall back to JSON persistence"
+      export STORAGE_BACKEND=json
     fi
   fi
   export STORAGE_BACKEND=redis
   echo "  STORAGE_BACKEND=redis"
-else
-  echo "  redis-server not found — install with: brew install redis"
-  echo "  Falling back to JSON persistence (STORAGE_BACKEND=json)"
-  export STORAGE_BACKEND=json
 fi
 
 echo ""
