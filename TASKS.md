@@ -428,6 +428,7 @@ interface ITranscriptLogger {
 | 52 | Process template library: prebuilt brainstorming workflows users can pick from | | TODO | e.g. "Six Thinking Hats", "SCAMPER", "Design Sprint", custom |
 | 53 | Export session: save brainstorming output as a structured report | | TODO | Transcript logs exist but need a synthesis/export format |
 | 54 | Dashboard view: summary of ideas generated, votes, stages completed | | TODO | Aggregate view beyond the in-game panels |
+| 55 | Click agent to see history | | TODO | Clicking an agent sprite in the game client should open a panel showing that agent's history: findings posted, conversation transcript, actions taken, role/persona info. Needs a click handler on `AgentSprite`, a new UI panel (or reuse DialogueLog filtered to that agent), and a server message to request agent history data. |
 
 ---
 
@@ -463,6 +464,18 @@ Ideas and features that need further scoping before they become numbered tasks.
 | 2026-02-21 | Jeff's agent | @Ken: Confirming Ken's gap analysis is exactly right. Also flagging `docs/BRAINSTORM-E2E.md` — Behrang wrote it and it contains ready-to-paste code for a parallel orchestrator-driven approach (Gap 1: parent-child spawn tracking, Gap 2: all-children-idle notification, Gap 3: `player:start-brainstorm` entry point). Ken's items 1-4 are the ProcessController path. The E2E doc is the orchestrator-driven path. They're complementary; Ken's items are higher priority for the structured demo. |
 | 2026-02-21 | Jeff's agent | @Behrang: Ken's 9 items are the priority list. On top of those — `docs/BRAINSTORM-E2E.md` (which you wrote) has parallel-track code ready to paste for parent-child spawn tracking and the all-children-idle wakeup. Once Ken's items 1-4 land, that doc's gaps are the next layer. Great work getting all tasks 1-11 done. |
 | 2026-02-21 | Behrang | Fixed server log noise: (1) `BridgeServer.close()` now sends a proper WS close frame (1001) instead of `terminate()` so Python agents disconnect cleanly — no more `ConnectionClosedError`; (2) `index.ts` filters the SDK's internal "Operation aborted" unhandled rejection (expected when `AbortController` fires mid-session). Also ran `npm install` to pick up Pratham's `ioredis` dep — build is clean. Next: Ken's items 1-4 (DEEP_BRAINSTORM default, parallel turns, artifact threading, rich personas). |
+| 2026-02-21 | Ken | **@Pratham: Scoping Redis work. We don't need Redis for everything; just for how agents talk to each other.** |
+| | | **What IS needed (your PR #2 FindingsBoard migration was the right call):** |
+| | | 1. **FindingsBoard on Redis** — Already done (PR #2, merged). This is the shared board where agents post ideas during brainstorming. It's the core inter-agent communication channel. Good work. |
+| | | 2. **Add a JSON fallback for FindingsBoard.** Right now Redis is a hard dependency with no fallback. If a teammate doesn't have Redis running, the server crashes on startup. Add a `STORAGE_BACKEND=redis|json` env var (default `json`) so the JSON file backend still works. Redis is opt-in, not required. The old `FindingsBoard` code that used `fs/promises` should still be available as the default. |
+| | | 3. **Redis pub/sub for agent-to-agent notifications (task 47, stretch).** This is the high-value Redis use case: when an agent posts a finding, other agents could be notified via pub/sub instead of polling. This would directly solve our "all-children-idle notification" gap (see `docs/BRAINSTORM-E2E.md` Gap 2). Not needed for v1 but this is where Redis really shines. |
+| | | **What is NOT needed right now:** |
+| | | - KnowledgeVault on Redis (tasks 40) — agents are short-lived in brainstorming; per-agent memory isn't critical |
+| | | - WorldStatePersistence on Redis (task 42) — brainstorm sessions don't need persistence across restarts |
+| | | - RealmRegistry on Redis (task 43) — small registry, JSON is fine |
+| | | - TranscriptLogger on Redis (task 44) — keep on disk, append-only JSONL is perfectly fine |
+| | | - Interface abstraction layer (task 38) — nice to have but not blocking anything right now |
+| | | **TL;DR:** Your FindingsBoard migration was the right thing. Priority now is: (1) add JSON fallback so Redis isn't required, (2) if you have time, look at pub/sub for real-time agent notifications. Skip the other persistence migrations for now. |
 
 ---
 
