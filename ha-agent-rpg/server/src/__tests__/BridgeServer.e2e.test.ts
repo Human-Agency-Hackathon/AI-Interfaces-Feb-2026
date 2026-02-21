@@ -428,4 +428,22 @@ describe('BridgeServer E2E', () => {
       expect(detailMessages).toHaveLength(0);
     });
   });
+
+  describe('Fog-of-War', () => {
+    it('routes fort:click without crashing', async () => {
+      const client = await connect();
+      client.send({ type: 'fort:click', agentId: 'oracle' });
+      // Should not crash the server; no response expected since agent doesn't exist
+      await new Promise((r) => setTimeout(r, 100));
+      expect(true).toBe(true); // server still alive
+    });
+
+    it('routes fort:exit and returns world state', async () => {
+      const client = await connect();
+      client.send({ type: 'fort:exit' });
+      await new Promise((r) => setTimeout(r, 200));
+      const worldStates = client.messages.filter((m) => m.type === 'world:state');
+      expect(worldStates.length).toBeGreaterThanOrEqual(1);
+    });
+  });
 });

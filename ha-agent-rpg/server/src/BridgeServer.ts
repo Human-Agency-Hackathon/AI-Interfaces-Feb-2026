@@ -21,6 +21,9 @@ import type {
   SpectatorInfo,
   SpectatorRegisterMessage,
   SpectatorCommandMessage,
+  FortClickMessage,
+  FortViewMessage,
+  FortUpdateMessage,
 } from './types.js';
 import { WorldState } from './WorldState.js';
 import { RepoAnalyzer, type RepoData } from './RepoAnalyzer.js';
@@ -222,6 +225,12 @@ export class BridgeServer {
         break;
       case 'spectator:command':
         this.handleSpectatorCommand(ws, msg as unknown as SpectatorCommandMessage);
+        break;
+      case 'fort:click':
+        this.handleFortClick(msg as unknown as FortClickMessage, ws);
+        break;
+      case 'fort:exit':
+        this.handleFortExit(ws);
         break;
       default:
         this.send(ws, { type: 'error', message: `Unknown message type: ${msg.type}` });
@@ -1236,6 +1245,19 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
             }
           }
 
+          // Fog reveal: reveal tiles around the agent's new position
+          const newlyRevealed = this.worldState.revealTiles(obj.x, obj.y, 5);
+          if (newlyRevealed.length > 0) {
+            this.broadcast({
+              type: 'fog:reveal',
+              tiles: newlyRevealed,
+              agentId,
+            } as ServerMessage);
+          }
+
+          // Convert walked tile to path
+          this.worldState.convertToPath(obj.x, obj.y);
+
           this.broadcast({
             type: 'action:result',
             turn_id: 0,
@@ -1464,6 +1486,55 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
   // ── Helpers ──
 
   /** Build a world:state message that includes the current spectator list. */
+  // ── Fog-of-War handlers ──────────────────────────
+
+  private handleFortClick(msg: FortClickMessage, ws: WebSocket): void {
+    const agent = this.worldState.agents.get(msg.agentId);
+    if (!agent) return;
+
+    const ROOM_IMAGES = [
+      'room-throne', 'room-forge', 'room-library', 'room-armory',
+      'room-dungeon-cell', 'room-greenhouse', 'room-alchemy-lab', 'room-summoning-chamber'
+    ];
+    const roomImage = msg.agentId === 'oracle'
+      ? 'room-throne'
+      : ROOM_IMAGES[this.hashString(msg.agentId) % ROOM_IMAGES.length];
+
+    const response: FortViewMessage = {
+      type: 'fort:view',
+      agentId: msg.agentId,
+      roomImage,
+      agentInfo: agent,
+    };
+    this.send(ws, response);
+  }
+
+  private handleFortExit(ws: WebSocket): void {
+    this.send(ws, this.buildWorldStateMessage());
+  }
+
+  updateFortStage(agentId: string, stage: 1 | 2 | 3 | 4 | 5): void {
+    this.worldState.setFortStage(agentId, stage);
+    const pos = this.worldState.getFortPosition(agentId);
+    if (pos) {
+      this.broadcast({
+        type: 'fort:update',
+        agentId,
+        stage,
+        position: pos,
+      } as FortUpdateMessage);
+    }
+  }
+
+  private hashString(str: string): number {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = (h * 0x01000193) >>> 0;
+    }
+    return h;
+  }
+
   private buildWorldStateMessage(): ServerMessage {
     const snapshot = this.worldState.getSnapshot();
     const spectators = Array.from(this.spectatorInfo.values());
