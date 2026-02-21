@@ -38,8 +38,14 @@ The orchestrator. Owns all state, enforces all rules, and manages agent lifecycl
 | `AgentSessionManager.ts` | Spawns and manages Claude Agent SDK sessions. One long-running session per agent. Handles knowledge loading, system prompt injection, follow-up messages. |
 | `RpgMcpServer.ts` | Custom MCP server exposing 6 RPG tools to agents (SummonAgent, RequestHelp, PostFindings, UpdateKnowledge, ClaimQuest, CompleteQuest). |
 | `CustomToolHandler.ts` | Executes the 6 MCP tools. Emits events that BridgeServer listens to for side effects (spawning, broadcasting, quest state). |
-| `SystemPromptBuilder.ts` | Builds dynamic system prompts per agent, including identity, knowledge vault contents, team roster, findings board, and current task. |
+| `SystemPromptBuilder.ts` | Builds dynamic system prompts per agent. Two modes: codebase exploration (original) and process-aware brainstorming (via `processContext`). Injects stage context, persona, prior artifacts, and co-participant info. |
 | `EventTranslator.ts` | Converts Claude Agent SDK streaming messages into RPG events (move, speak, think, emote, activity, skill_effect). Maintains per-agent text buffers. |
+
+#### Process Management
+
+| File | Responsibility |
+|------|---------------|
+| `ProcessController.ts` | Manages stage lifecycle for structured multi-agent processes. Tracks turn counts per stage, evaluates completion criteria (turn count or explicit signal), advances stages by dismissing/spawning agents via delegate callbacks to BridgeServer. Emits `stage:started`, `stage:completed`, and `process:completed` events. |
 
 #### Repository Analysis & Map Generation
 
@@ -289,6 +295,74 @@ sequenceDiagram
     Prompt->>Disk: Load {agentId}.json
     Disk-->>Prompt: Previous expertise + insights
     Prompt->>Agent: Injected into system prompt
+```
+
+---
+
+## Skills / Process Templates (`ha-agent-rpg/skills/`)
+
+Skills are structured multi-agent workflows that run on top of the core agent infrastructure. Each skill is a directory containing a human-readable design doc, a playbook, and a machine-readable process template.
+
+### Brainstorm Skill (`skills/brainstorm/`)
+
+A 9-stage divergent-then-convergent ideation process using 15 specialized agent personas. The `ProcessController` on the server drives execution; `brainstorm-process.json` is the template it reads.
+
+```mermaid
+graph TD
+    A["Problem Framing<br/>(Cartographer + Questioner)"] --> B["Divergent Thinking<br/>(4 ideators, isolated)"]
+    A --> C["Precedent Research<br/>(Historian + Analogist)"]
+    B --> D["Convergent Thinking<br/>(Synthesizer + Connector)"]
+    C --> D
+    D --> E["Fact Checking<br/>(Skeptic + Feasibility Analyst)"]
+    D --> F["Pushback / Red Team<br/>(Devil's Advocate + Pragmatist)"]
+    E --> G["Prioritization<br/>(Strategist)"]
+    F --> G
+    G -->|"human approval gate"| H["Review / Synthesis<br/>(Architect)"]
+    H --> I["Presentation<br/>(Narrator)"]
+```
+
+**Key design features:**
+- **Groupthink prevention**: Divergent agents are isolated; they cannot see each other's output until the stage completes.
+- **Fast demo mode** (`fast_demo_mode: true`): Skips Precedent Research, Fact Checking, and Pushback; reduces to 2 ideators with 5 ideas each. Completes in ~2.5 min.
+- **Human intervention**: Commands (`/approve`, `/inject`, `/skip`, `/kill`, `/deepen`, `/redirect`, `/restart`, `/export`) let the human direct the process at defined intervention points.
+- **Conditional branching**: If all candidates are killed in Pushback, loops back to Divergent. If too many are eliminated in Fact Checking, loops back to Convergent.
+- **Rooms as realms**: Each stage assigns agents to realm paths (e.g. `/brainstorm/framing`, `/brainstorm/divergent`) so they appear in distinct rooms in the Phaser client.
+
+### Brainstorm Process Flow
+
+```mermaid
+sequenceDiagram
+    participant Human
+    participant Bridge as BridgeServer
+    participant PC as ProcessController
+    participant Agents as Stage Agents
+
+    Human->>Bridge: Start brainstorm (problem statement)
+    Bridge->>PC: start(problem, template)
+    PC->>Bridge: spawnStageAgents(stage 0: Framing)
+    Bridge->>Agents: Spawn Cartographer + Questioner
+    Agents-->>Bridge: PostFindings (framing doc)
+    PC->>PC: Stage complete → advance
+    PC->>Bridge: dismissStageAgents(Framing)
+    PC->>Bridge: spawnStageAgents(stage 1: Divergent)
+    Bridge->>Agents: Spawn 4 ideators (isolated)
+    Agents-->>Bridge: PostFindings (40 ideas)
+    PC->>PC: Stage complete → advance
+    Note over PC,Agents: Continues through Convergent → Fact Check/Pushback → Prioritization
+    PC->>Human: Human approval gate at Prioritization
+    Human->>Bridge: /approve
+    Note over PC,Agents: Review → Presentation → Final deliverable
+    PC-->>Bridge: process:completed
+```
+
+### Skill File Structure
+
+```
+skills/
+└── brainstorm/
+    ├── SKILL.md                   # Playbook: invocation, phase flow, timing budget
+    ├── DESIGN.md                  # Full methodology: 15 agent personas, transition rules, output schemas
+    └── brainstorm-process.json    # Machine-readable process template (770 lines)
 ```
 
 ---

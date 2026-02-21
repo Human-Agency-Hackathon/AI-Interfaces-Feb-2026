@@ -16,6 +16,7 @@ AI-Interfaces-Feb-2026/
 │   ├── server/src/          # Bridge server (TypeScript, WebSocket, port 3001)
 │   ├── client/src/          # Phaser 3 game client (TypeScript, Vite, port 5173)
 │   ├── agent/               # Python sample agents
+│   ├── skills/              # Process skill definitions (brainstorm, etc.)
 │   └── scripts/             # start-all.sh launcher
 └── CLAUDE.md                # This file
 ```
@@ -95,8 +96,32 @@ This is a hackathon. Commit and push early and often. Do not accumulate large ch
 - `BridgeServer.ts` is the central orchestrator (~1000 lines). It routes messages, manages game phases, and wires up event listeners between subsystems.
 - Agent sessions are managed by `AgentSessionManager.ts` using the Claude Agent SDK `query()` function.
 - Custom MCP tools (SummonAgent, RequestHelp, PostFindings, UpdateKnowledge, ClaimQuest, CompleteQuest) are defined in `RpgMcpServer.ts` and executed by `CustomToolHandler.ts`.
+- `ProcessController.ts` manages stage lifecycle for structured multi-agent processes (brainstorming). It tracks turn counts, evaluates completion criteria, and advances stages via a delegate pattern (BridgeServer owns spawning/dismissing).
+- `SystemPromptBuilder.ts` builds dynamic system prompts per agent. Supports two modes: codebase exploration prompts (original) and process-aware prompts (brainstorming) via a `processContext` field.
 - Persistence uses JSON files in `.agent-rpg/` directories (knowledge vaults, findings board, transcript logs).
 - Map generation is lazy: `MapGenerator` only creates tile data for a folder when an agent first visits it.
+
+### Skills / Process Templates
+
+Skills are structured multi-agent workflows defined in `skills/`. Each skill is a self-contained directory with:
+- `SKILL.md` -- The playbook: how to invoke, phase flow, agent missions, timing budget
+- `DESIGN.md` -- Full methodology: stage sequences, agent roles/personas, transition rules, output schemas
+- `brainstorm-process.json` -- Machine-readable process template encoding the design
+
+The **brainstorm skill** (`skills/brainstorm/`) is the first process skill. It runs a 9-stage divergent-then-convergent ideation session:
+
+```
+Problem Framing → Divergent Thinking (parallel with Precedent Research)
+    → Convergent Thinking → Fact Checking (parallel with Pushback)
+    → Prioritization [human gate] → Review → Presentation
+```
+
+Key details:
+- 15 agent personas across 9 stages, each with distinct thinking styles and system prompt addendums
+- Configurable: fast demo mode (~3 min, 6 stages) or thorough mode (~8-10 min, all 9 stages)
+- Human intervention via commands: `/approve`, `/inject`, `/skip`, `/kill`, `/deepen`, `/redirect`, `/restart`, `/export`
+- Groupthink prevention: divergent agents are isolated and cannot see each other's output until the stage ends
+- `ProcessController` on the server drives stage transitions; `brainstorm-process.json` is the template it executes
 
 ### Client Patterns
 
