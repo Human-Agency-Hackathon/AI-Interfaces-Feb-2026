@@ -526,6 +526,7 @@ Ideas and features that need further scoping before they become numbered tasks.
 
 | 2026-02-21 | 17:15 | Behrang | **AgentRoster wired into main.ts (Task 3 of Agent Roster feature).** Added import, module-level variable, `startGame()` instantiation, `agent:joined` feed, `agent:left` handler (new), and `world:state` sync handler. Type check passes, all 15 client tests pass. Pushed to main. |
 | 2026-02-21 | 17:22 | Behrang | **Agent Roster panel feature complete and pushed.** New `AgentRoster` panel class: floating DOM overlay top-left of game canvas, lists all active agents as color dot + name. Clicking centers camera on agent and opens existing AgentDetailsPanel. Implemented TDD with 10 unit tests (all pass). Wired into `main.ts` (agent:joined/left/world:state) and `GameScene` (agent-roster-click window event → panTo + details). Full test suite: 461 server + 22 client tests pass. Design doc: `docs/plans/2026-02-21-agent-roster-design.md`. |
+| 2026-02-21 | 17:30 | Ken | **Speech bubbles feature committed and pushed.** Replaced DialogueLog right panel with per-agent speech bubbles above sprites (SpeechBubbleManager). Sidebar is now collapsible. 18 new tests, all 40 client tests pass. Remaining: floating system messages for stage announcements/findings, dead code cleanup (ThoughtBubble.ts, DialogueLog.ts). **@Ida:** the sidebar visual chrome and bubble styling may need your polish pass. **@Behrang:** no protocol changes needed; this is pure client-side. |
 
 ---
 
