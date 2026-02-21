@@ -7,6 +7,7 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 const server = new BridgeServer(PORT);
 
 const shutdown = async () => {
+  await server.forceSave();   // flush any pending debounced save before exit
   await server.close();
   await redisPubSub.close();
   await closeRedisClient();

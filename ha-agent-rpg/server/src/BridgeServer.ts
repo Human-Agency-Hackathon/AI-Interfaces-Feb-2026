@@ -86,6 +86,8 @@ export class BridgeServer {
   private spectatorSockets = new Map<string, WebSocket>();        // spectatorId → socket
   private spectatorInfo = new Map<string, SpectatorInfo>();       // spectatorId → identity
   private processController: ProcessController | null = null;
+  private activeRealmId: string | null = null;  // set on link-repo or start-process
+  private saveTimer: NodeJS.Timeout | null = null;
   private movementBias: 'outward' | 'inward' | 'neutral' = 'neutral';
   private spawnParent = new Map<string, string>();       // childId → parentId
   private spawnChildren = new Map<string, Set<string>>(); // parentId → Set<childId>
@@ -358,19 +360,24 @@ export class BridgeServer {
           this.worldState.removeAgent(roleId);
           this.broadcast({ type: 'agent:left', agent_id: roleId });
         }
+        this.scheduleSave();
       },
       spawnStageAgents: async (tpl: ProcessDefinition, idx: number, prob: string) => {
         await this.spawnProcessAgents(tpl, idx, prob);
+        this.scheduleSave();
       },
       broadcast: (msg) => this.broadcast(msg as unknown as ServerMessage),
       saveArtifact: (stageId, artifactId, content) => {
         this.worldState.setArtifact(stageId, artifactId, content);
+        this.scheduleSave();
       },
       onStageAdvanced: (completedStageId, artifacts) => {
         this.worldState.advanceStage(completedStageId, artifacts);
+        this.scheduleSave();
       },
       onProcessCompleted: (finalStageId, artifacts) => {
         this.worldState.completeProcess(finalStageId, artifacts);
+        this.scheduleSave();
       },
       sendFollowUp: async (agentId, prompt) => {
         await this.sessionManager.sendFollowUp(agentId, prompt);
@@ -416,6 +423,7 @@ export class BridgeServer {
       // Use a stable working dir for persistence (same pattern as repo flow)
       const workDir = process.env.HOME ?? '/tmp';
       this.repoPath = workDir;
+      this.activeRealmId = `brainstorm_${Date.now()}`;
 
       // Fresh world state with process
       this.worldState = new WorldState();
@@ -628,6 +636,7 @@ export class BridgeServer {
 
       // Save realm to registry
       const realmId = this.realmRegistry.generateRealmId(localRepoPath);
+      this.activeRealmId = realmId;
       let gitInfo = { lastCommitSha: '', branch: 'main', remoteUrl: null as string | null };
       try {
         gitInfo = await GitHelper.getGitInfo(localRepoPath);
@@ -1097,6 +1106,38 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     return result;
   }
 
+  /** Debounced save — coalesces rapid events into a single write 1s later. */
+  private scheduleSave(): void {
+    if (!this.activeRealmId) return;
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => { void this.executeSave(); }, 1000);
+  }
+
+  private async executeSave(): Promise<void> {
+    if (!this.activeRealmId) return;
+    // Sync ProcessController turn counts into WorldState before saving
+    const currentState = this.worldState.getProcessState();
+    if (this.processController && currentState) {
+      this.worldState.setProcessState(this.processController.toJSON(currentState));
+    }
+    // Sync navigation state
+    this.worldState.navigationState = {
+      agentNavStacks: Object.fromEntries(this.agentNavStacks),
+      agentCurrentPath: Object.fromEntries(this.agentCurrentPath),
+    };
+    try {
+      await this.worldStatePersistence.save(this.activeRealmId, this.worldState);
+    } catch (err) {
+      console.error('[Bridge] Failed to save world state:', err);
+    }
+  }
+
+  /** Immediate save — used on graceful shutdown to flush any pending save. */
+  async forceSave(): Promise<void> {
+    if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
+    await this.executeSave();
+  }
+
   private async cleanupCurrentRealm(): Promise<void> {
     // Stop any running process controller before dismissing agents
     if (this.processController) {
@@ -1115,6 +1156,8 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     }
     this.agentColorIndex = 0;
     this.agentRoomPositions.clear();
+    if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
+    this.activeRealmId = null;
   }
 
   // ── Event Wiring ──
@@ -1239,6 +1282,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
           );
         }
       }
+      this.scheduleSave();
     });
 
     // Knowledge updated
