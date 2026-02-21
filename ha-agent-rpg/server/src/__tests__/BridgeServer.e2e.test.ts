@@ -336,4 +336,92 @@ describe('BridgeServer E2E', () => {
       expect(msg).toBeDefined();
     });
   });
+
+  describe('path traversal validation', () => {
+    it('rejects player:navigate-enter with ".." in path', async () => {
+      const client = await connect();
+      client.send({ type: 'player:link-repo', repo_url: '/tmp/test-repo' });
+      await client.waitForMessage((m) => m.type === 'world:state', 10_000);
+
+      client.send({ type: 'player:navigate-enter', target_path: '../../../etc' });
+      const error = await client.waitForMessage((m) => m.type === 'error');
+      expect(error.message).toContain('Invalid path');
+    });
+
+    it('rejects player:navigate-enter with absolute path', async () => {
+      const client = await connect();
+      client.send({ type: 'player:link-repo', repo_url: '/tmp/test-repo' });
+      await client.waitForMessage((m) => m.type === 'world:state', 10_000);
+
+      client.send({ type: 'player:navigate-enter', target_path: '/etc/passwd' });
+      const error = await client.waitForMessage((m) => m.type === 'error');
+      expect(error.message).toContain('Invalid path');
+    });
+
+    it('rejects player:navigate-enter with embedded ".." segments', async () => {
+      const client = await connect();
+      client.send({ type: 'player:link-repo', repo_url: '/tmp/test-repo' });
+      await client.waitForMessage((m) => m.type === 'world:state', 10_000);
+
+      client.send({ type: 'player:navigate-enter', target_path: 'src/../../secret' });
+      const error = await client.waitForMessage((m) => m.type === 'error');
+      expect(error.message).toContain('Invalid path');
+    });
+
+    it('allows valid relative path and returns map:change', async () => {
+      const client = await connect();
+      client.send({ type: 'player:link-repo', repo_url: '/tmp/test-repo' });
+      await client.waitForMessage((m) => m.type === 'world:state', 10_000);
+
+      client.send({ type: 'player:navigate-enter', target_path: 'src' });
+      const mapChange = await client.waitForMessage((m) => m.type === 'map:change');
+      expect(mapChange.path).toBe('src');
+      expect(mapChange.map).toBeDefined();
+    });
+  });
+
+  describe('player:get-agent-details', () => {
+    it('returns agent:details with correct shape for a registered agent', async () => {
+      const client = await connect();
+
+      // Register an external agent
+      client.send({
+        type: 'agent:register',
+        agent_id: 'test-agent-details',
+        name: 'Details Agent',
+        color: 0xff3300,
+      });
+      await client.waitForMessage((m) => m.type === 'agent:joined');
+
+      // Request agent details
+      client.send({
+        type: 'player:get-agent-details',
+        agent_id: 'test-agent-details',
+      });
+
+      const details = await client.waitForMessage((m) => m.type === 'agent:details');
+      expect(details.agent_id).toBe('test-agent-details');
+      expect(details.info).toBeDefined();
+      expect(details.info.name).toBe('Details Agent');
+      expect(details.knowledge).toBeDefined();
+      expect(typeof details.knowledge.expertise).toBe('object');
+      expect(Array.isArray(details.knowledge.insights)).toBe(true);
+      expect(Array.isArray(details.knowledge.task_history)).toBe(true);
+      expect(Array.isArray(details.findings)).toBe(true);
+    });
+
+    it('sends nothing for an unknown agent_id', async () => {
+      const client = await connect();
+
+      client.send({
+        type: 'player:get-agent-details',
+        agent_id: 'nonexistent-agent-xyz',
+      });
+
+      // Wait and verify no agent:details was received (silent ignore)
+      await new Promise((r) => setTimeout(r, 300));
+      const detailMessages = client.messages.filter((m) => m.type === 'agent:details');
+      expect(detailMessages).toHaveLength(0);
+    });
+  });
 });

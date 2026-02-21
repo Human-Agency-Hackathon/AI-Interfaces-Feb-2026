@@ -7,6 +7,7 @@ import type {
   PlayerCommandMessage,
   UpdateSettingsMessage,
   DismissAgentMessage,
+  GetAgentDetailsMessage,
   ListRealmsMessage,
   ResumeRealmMessage,
   RemoveRealmMessage,
@@ -190,6 +191,9 @@ export class BridgeServer {
       case 'player:dismiss-agent':
         this.handleDismissAgent(ws, msg as unknown as DismissAgentMessage);
         break;
+      case 'player:get-agent-details':
+        void this.handleGetAgentDetails(ws, msg as unknown as GetAgentDetailsMessage);
+        break;
       case 'player:list-realms':
         this.handleListRealms(ws);
         break;
@@ -243,6 +247,39 @@ export class BridgeServer {
     });
 
     console.log(`[Bridge] External agent registered: ${agent_id} (${name})`);
+  }
+
+  // ── Agent Details ──
+
+  private async handleGetAgentDetails(ws: WebSocket, msg: GetAgentDetailsMessage): Promise<void> {
+    const agentId = msg.agent_id;
+    const agentInfo = this.worldState.agents.get(agentId);
+    if (!agentInfo) {
+      return; // agent not found, silently ignore
+    }
+
+    const vault = this.sessionManager?.getVault(agentId);
+    const knowledge = vault ? vault.getKnowledge() : null;
+
+    const allFindings = await this.findingsBoard?.getAll() ?? [];
+    const agentFindings = allFindings.filter((f) => f.agent_id === agentId);
+
+    this.send(ws, {
+      type: 'agent:details',
+      agent_id: agentId,
+      info: agentInfo,
+      knowledge: knowledge ? {
+        expertise: knowledge.expertise,
+        insights: knowledge.insights,
+        task_history: knowledge.task_history,
+      } : { expertise: {}, insights: [], task_history: [] },
+      findings: agentFindings.map((f) => ({
+        id: f.id,
+        finding: f.finding,
+        severity: f.severity,
+        timestamp: f.timestamp,
+      })),
+    });
   }
 
   // ── Brainstorming Process ──
@@ -440,8 +477,12 @@ export class BridgeServer {
       // Extract quests from repo analysis (map is generated when oracle spawns)
       const { quests } = this.mapGenerator.generate(repoData);
 
+      // Build hierarchical map tree for folder navigation
+      const mapTree = this.mapGenerator.buildMapTree(repoData.tree);
+
       // Reset world state (map/objects will be set in spawnOracle)
       this.worldState = new WorldState();
+      this.worldState.setMapTree(mapTree);
       this.worldState.setQuests(quests);
 
       // Load quests
@@ -1196,6 +1237,12 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
       return;
     }
 
+    // Reject paths that attempt to escape the repo root
+    if (targetPath.includes('..') || targetPath.startsWith('/')) {
+      console.warn(`[BridgeServer] nav:enter blocked — path traversal attempt by ${agentId}: ${targetPath}`);
+      return;
+    }
+
     const node = this.worldState.getMapNode(targetPath);
     if (!node) return;
 
@@ -1267,6 +1314,12 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
 
   private handlePlayerNavigateEnter(ws: WebSocket, targetPath: string): void {
     if (this.gamePhase !== 'playing') return;
+
+    // Reject paths that attempt to escape the repo root
+    if (targetPath.includes('..') || targetPath.startsWith('/')) {
+      this.send(ws, { type: 'error', message: `Invalid path: ${targetPath}` });
+      return;
+    }
 
     const node = this.worldState.getMapNode(targetPath);
     if (!node) {

@@ -136,6 +136,11 @@ export interface SpectatorCommandMessage {
 }
 
 // ── Messages: Player → Server ──
+export interface GetAgentDetailsMessage {
+  type: 'player:get-agent-details';
+  agent_id: string;
+}
+
 export interface LinkRepoMessage {
   type: 'player:link-repo';
   repo_url: string;   // Local path (/path/to/repo) or GitHub URL
@@ -258,6 +263,24 @@ export interface KnowledgeLevelUpMessage {
   agent_id: string;
   area: string;
   new_level: number;
+}
+
+// Server -> Client: agent details response
+export interface AgentDetailsMessage {
+  type: 'agent:details';
+  agent_id: string;
+  info: AgentInfo;
+  knowledge: {
+    expertise: Record<string, number>;
+    insights: string[];
+    task_history: Array<{ task: string; outcome: string; timestamp: string }>;
+  };
+  findings: Array<{
+    id: string;
+    finding: string;
+    severity: 'low' | 'medium' | 'high';
+    timestamp: string;
+  }>;
 }
 
 export interface SessionSettings {
@@ -440,6 +463,7 @@ export type ClientMessage =
   | PlayerCommandMessage
   | UpdateSettingsMessage
   | DismissAgentMessage
+  | GetAgentDetailsMessage
   | ListRealmsMessage
   | ResumeRealmMessage
   | RemoveRealmMessage
@@ -459,6 +483,7 @@ export type ServerMessage =
   | SpawnRequestMessage
   | FindingsPostedMessage
   | KnowledgeLevelUpMessage
+  | AgentDetailsMessage
   | RealmListMessage
   | RealmRemovedMessage
   | MapChangeMessage

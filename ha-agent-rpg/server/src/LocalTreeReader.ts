@@ -1,4 +1,4 @@
-import { readdir, lstat } from 'node:fs/promises';
+import { readdir, stat, realpath } from 'node:fs/promises';
 import { join, basename, relative, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -76,9 +76,12 @@ export class LocalTreeReader {
 
       const fullPath = join(currentPath, entry.name);
 
-      // Skip symlinks — they can point outside the repo root
-      const entryStats = await lstat(fullPath);
-      if (entryStats.isSymbolicLink()) continue;
+      // Resolve symlinks and verify the real path stays within the repo root
+      const realFullPath = await realpath(fullPath).catch(() => fullPath);
+      const resolvedRoot = resolve(rootPath);
+      if (!realFullPath.startsWith(resolvedRoot + '/') && realFullPath !== resolvedRoot) {
+        continue; // Skip symlinks that escape the repo boundary
+      }
 
       const relPath = relative(rootPath, fullPath);
 
@@ -89,6 +92,7 @@ export class LocalTreeReader {
         tree.push({ path: relPath, type: 'tree' });
         await this.walkDir(rootPath, fullPath, tree, languages);
       } else if (entry.isFile()) {
+        const entryStats = await stat(fullPath);
         tree.push({ path: relPath, type: 'blob', size: entryStats.size });
 
         const ext = '.' + entry.name.split('.').pop()?.toLowerCase();
