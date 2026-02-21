@@ -269,6 +269,10 @@ export interface AgentDetailsMessage {
     severity: 'low' | 'medium' | 'high';
     timestamp: string;
   }>;
+  transcript: {
+    thoughts: Array<{ text: string; timestamp: string }>;
+    actions: Array<{ tool: string; input: string; timestamp: string }>;
+  };
 }
 
 export interface SessionSettings {
