@@ -1,0 +1,15 @@
+{
+  "agent_id": "test_guardian",
+  "agent_name": "Test Guardian",
+  "role": "Testing & Quality Assurance Specialist",
+  "realm": "/ha-agent-rpg/client",
+  "expertise": {
+    "Client Testing Strategy": 1
+  },
+  "realm_knowledge": {},
+  "insights": [
+    "## Client Codebase Architecture Patterns\n\n**Phaser 3 Scene Architecture:**\n- BootScene → GameScene pipeline (single transition)\n- UIScene runs parallel (active: true)\n- GameScene creates all systems in create() hook\n- Systems communicate via scene events (this.scene.events.emit)\n\n**Testing Challenges:**\n1. Phaser scenes require game instance - need mock game context\n2. Graphics texture generation (generateTexture) needs canvas\n3. Tween system requires time.addEvent - need mock timers\n4. Event-driven architecture - need spy/mock patterns\n\n**Key Dependencies:**\n- Phaser 3.87+ (game framework)\n- WebSocket (network layer)\n- DOM manipulation (panels use native DOM, not Phaser)\n- CustomEvents for cross-context communication\n\n**Test Strategy Priorities:**\n- Unit test pure logic (CameraController, WebSocketClient)\n- Integration test scene lifecycle with Phaser Test Runner\n- Mock WebSocket messages for GameScene tests\n- Snapshot test texture generation output\n- E2E test critical user flows (player movement, agent following)"
+  ],
+  "task_history": [],
+  "files_analyzed": []
+}

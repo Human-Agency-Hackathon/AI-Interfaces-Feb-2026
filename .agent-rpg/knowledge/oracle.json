@@ -1,0 +1,27 @@
+{
+  "agent_id": "oracle",
+  "agent_name": "The Oracle",
+  "role": "Oracle",
+  "realm": "/",
+  "expertise": {
+    "Architecture": 5,
+    "Technology Stack": 5,
+    "Testing & Quality": 4,
+    "Current Priorities": 4,
+    "Agent Systems": 5,
+    "Development Patterns": 4,
+    "Exploration Summary": 5
+  },
+  "realm_knowledge": {},
+  "insights": [
+    "Agent Dungeon is a JRPG-style visual interface for AI agent orchestration. Three-component architecture: Bridge Server (TypeScript/Node.js WebSocket hub), Phaser Client (browser game renderer), and Python Agents (WebSocket clients). Bridge server is single source of truth managing world state, agent sessions via Claude Agent SDK, and custom MCP tools.",
+    "Tech stack: TypeScript strict mode (ES2020), Claude Agent SDK v0.2.44, Phaser 3.87+, WebSockets, Vitest testing, GitHub Actions CI with Codecov. Shared protocol.ts is single source of truth for all WebSocket message types. Server has 19 source files, client has 23 source files. Total codebase includes comprehensive tests (209 passing server tests).",
+    "Test coverage: Server 68.13% statement coverage (209 tests, 14 files). Strong: FindingsBoard (100%), QuestManager (100%), WorldState (91.74%), CustomToolHandler (100%). Weak: BridgeServer.ts (36.61% - 1092 lines), RpgMcpServer.ts (7.14%). Client testing minimal - only 1 test file exists, marked TODO in CI.",
+    "High priority tasks from TASKS.md: (1) Room architecture refactor - agents get own rooms vs 1:1 folder mapping (In Progress - Behrang), (2) End-to-end flow validation, (3) Multi-agent orchestration with Oracle summoning specialists, (4) Claude SDK session verification with real API keys, (5) Client-side test coverage. Team: Ida (visual design), Jeff, Pratham (Redis migration), Behrang (core engine), Ken (PM).",
+    "Custom MCP tools for agents: SummonAgent, RequestHelp, PostFindings, UpdateKnowledge, ClaimQuest, CompleteQuest. Persistence layer uses JSON files in .agent-rpg/ directory (knowledge vaults, findings board, transcript logs). Pratham working on Redis migration. Hierarchical map generation with lazy loading from repo structure. Quests map from GitHub issues.",
+    "Documentation conventions: Authored for Obsidian, Mermaid for diagrams (prefer vertical TD orientation), no ASCII art. Protocol types in shared/protocol.ts synced to server/client types.ts. Server uses tsx watch mode for dev, tsc for builds. Client uses Vite. Programmatic texture generation - zero image asset files. Game canvas 640x480 with 32px tiles (20x15 grid).",
+    "Exploration completed: Agent Dungeon is a sophisticated, well-architected JRPG interface for AI agents. Core strengths: clean architecture, strong TypeScript practices, comprehensive server testing, innovative visual metaphor for agent work. Key weaknesses: client test coverage gap, BridgeServer low coverage (36.61%), ongoing room architecture refactor. Summoned specialists: Test Guardian (client tests), Code Sentinel (server coverage), Doc Scribe (documentation)."
+  ],
+  "task_history": [],
+  "files_analyzed": []
+}
