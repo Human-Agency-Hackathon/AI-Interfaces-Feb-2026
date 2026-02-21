@@ -60,7 +60,7 @@ The orchestrator. Owns all state, enforces all rules, and manages agent lifecycl
 | File | Responsibility |
 |------|---------------|
 | `QuestManager.ts` | Maps GitHub issues to quests. Manages lifecycle: open -> assigned -> in_progress -> done. Enforces valid state transitions. |
-| `FindingsBoard.ts` | Shared discovery board. Agents post findings; persisted as JSON. Surfaced in system prompts. |
+| `FindingsBoard.ts` | Shared discovery board. Agents post findings; persisted in Redis (list per session). Surfaced in system prompts. |
 | `KnowledgeVault.ts` | Per-agent persistent memory. Tracks expertise levels, insights, files analyzed, task history. Loaded into system prompt on spawn. |
 
 #### Persistence
@@ -70,8 +70,11 @@ The orchestrator. Owns all state, enforces all rules, and manages agent lifecycl
 | `RealmRegistry.ts` | Global registry of analyzed repos. SHA256 hash IDs. Enables "resume" for previously explored codebases. Stored at `~/.agent-rpg-global/`. |
 | `WorldStatePersistence.ts` | Serializes/deserializes full game state for realm resumption. |
 | `GitHelper.ts` | Git metadata helpers (remote URL, commit counts) for realm tracking. |
+| `RedisClient.ts` | Singleton `ioredis` client. Configurable via `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` env vars. Used by `FindingsBoard` for live, shared persistence. |
 
-#### Persistence File Layout
+#### Persistence Layout
+
+Findings are stored in **Redis** (one list per session, keyed by `session:<path>:findings`). All other runtime data uses JSON files:
 
 ```
 .agent-rpg/
@@ -79,13 +82,17 @@ The orchestrator. Owns all state, enforces all rules, and manages agent lifecycl
 │   ├── oracle.json              # Per-agent knowledge vault
 │   ├── test_guardian.json
 │   └── doc_scribe.json
-├── findings/
-│   └── board.json               # Shared findings board
 └── logs/
     ├── oracle/
     │   └── 2026-02-19.jsonl     # Daily transcript logs
     └── test_guardian/
         └── 2026-02-19.jsonl
+```
+
+Redis keys (requires a running Redis instance, defaults to `localhost:6379`):
+
+```
+session:<sanitized-path>:findings   # FindingsBoard — rpush on write, lrange on read
 ```
 
 ---

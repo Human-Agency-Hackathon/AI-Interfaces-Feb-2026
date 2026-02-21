@@ -96,7 +96,7 @@ This repo (`AI-Interfaces-Feb-2026`) is the umbrella for experiments in making A
 | Agent Runtime | Python 3, websockets, Anthropic SDK |
 | Custom Tools | MCP server (6 RPG-themed tools) |
 | Testing | Vitest, GitHub Actions |
-| Persistence | JSON files (.agent-rpg/ directory) |
+| Persistence | JSON files (.agent-rpg/ directory) + Redis (findings board) |
 
 ## Team
 
