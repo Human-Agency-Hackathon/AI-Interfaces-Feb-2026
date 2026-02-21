@@ -7,13 +7,20 @@ export class MapRenderer {
   private waterTiles: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
   private waterTimer: Phaser.Time.TimerEvent | null = null;
+  private backgroundMode = false;
 
   constructor(scene: Phaser.Scene, mapData: TileMapData) {
     this.scene = scene;
     this.mapData = mapData;
   }
 
+  /** When true, render() is a no-op — a RoomBackground image handles visuals. */
+  setBackgroundMode(enabled: boolean): void {
+    this.backgroundMode = enabled;
+  }
+
   render(): void {
+    if (this.backgroundMode) return;
     const { width, height, tile_size, tiles } = this.mapData;
 
     for (let y = 0; y < height; y++) {
