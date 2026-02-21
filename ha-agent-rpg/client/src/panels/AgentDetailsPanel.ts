@@ -81,6 +81,9 @@ export class AgentDetailsPanel {
       if (nameDiv) nameDiv.appendChild(roleDiv);
     }
 
+    // Skills section (expertise bars + tools list)
+    this.addSkillsSection(details.knowledge.expertise, details.tools);
+
     // Findings section
     this.addSection('Findings', details.findings.map(f => ({
       text: f.finding,
@@ -159,6 +162,101 @@ export class AgentDetailsPanel {
           div.appendChild(time);
         }
         body.appendChild(div);
+      }
+    }
+
+    section.appendChild(body);
+    this.container.appendChild(section);
+  }
+
+  private addSkillsSection(
+    expertise: Record<string, number>,
+    tools: string[],
+  ): void {
+    const section = document.createElement('div');
+    section.className = 'agent-details-section';
+
+    // Section header
+    const sectionHeader = document.createElement('div');
+    sectionHeader.className = 'agent-details-section-header';
+
+    const titleSpan = document.createElement('span');
+    const expertiseCount = Object.keys(expertise).length;
+    titleSpan.textContent = 'Skills (' + (expertiseCount + tools.length) + ')';
+    sectionHeader.appendChild(titleSpan);
+
+    const toggleSpan = document.createElement('span');
+    toggleSpan.className = 'agent-details-section-toggle';
+    toggleSpan.textContent = '\u25BC';
+    sectionHeader.appendChild(toggleSpan);
+
+    sectionHeader.addEventListener('click', () => {
+      section.classList.toggle('collapsed');
+    });
+    section.appendChild(sectionHeader);
+
+    const body = document.createElement('div');
+    body.className = 'agent-details-section-body';
+
+    // Expertise sub-section
+    const expertiseLabel = document.createElement('div');
+    expertiseLabel.className = 'agent-details-skills-subsection-label';
+    expertiseLabel.textContent = 'Expertise';
+    body.appendChild(expertiseLabel);
+
+    const entries = Object.entries(expertise).sort(([, a], [, b]) => b - a);
+    if (entries.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'agent-details-empty';
+      empty.textContent = 'No expertise yet';
+      body.appendChild(empty);
+    } else {
+      const maxLevel = entries[0][1]; // already sorted desc
+      for (const [area, level] of entries) {
+        const row = document.createElement('div');
+        row.className = 'agent-details-expertise-row';
+
+        const label = document.createElement('span');
+        label.className = 'agent-details-expertise-label';
+        label.textContent = area;
+        label.title = area;
+        row.appendChild(label);
+
+        const barContainer = document.createElement('div');
+        barContainer.className = 'agent-details-bar-container';
+        const barFill = document.createElement('div');
+        barFill.className = 'agent-details-bar-fill';
+        barFill.style.width = Math.round((level / maxLevel) * 100) + '%';
+        barContainer.appendChild(barFill);
+        row.appendChild(barContainer);
+
+        const levelSpan = document.createElement('span');
+        levelSpan.className = 'agent-details-expertise-level';
+        levelSpan.textContent = String(level);
+        row.appendChild(levelSpan);
+
+        body.appendChild(row);
+      }
+    }
+
+    // Tools sub-section
+    const toolsLabel = document.createElement('div');
+    toolsLabel.className = 'agent-details-skills-subsection-label';
+    toolsLabel.style.marginTop = '0.4rem';
+    toolsLabel.textContent = 'Tools';
+    body.appendChild(toolsLabel);
+
+    if (tools.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'agent-details-empty';
+      empty.textContent = 'No tools assigned';
+      body.appendChild(empty);
+    } else {
+      for (const toolName of tools) {
+        const item = document.createElement('div');
+        item.className = 'agent-details-tool-item';
+        item.textContent = toolName;
+        body.appendChild(item);
       }
     }
 
