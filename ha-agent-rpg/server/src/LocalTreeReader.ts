@@ -1,7 +1,8 @@
-import { readdir, stat } from 'node:fs/promises';
-import { join, basename, relative } from 'node:path';
+import { readdir, lstat } from 'node:fs/promises';
+import { join, basename, relative, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { isWithinRoot } from './PathSafety.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -74,19 +75,26 @@ export class LocalTreeReader {
       if (entry.name.startsWith('.') && entry.name !== '.env.example') continue;
 
       const fullPath = join(currentPath, entry.name);
+
+      // Skip symlinks — they can point outside the repo root
+      const entryStats = await lstat(fullPath);
+      if (entryStats.isSymbolicLink()) continue;
+
       const relPath = relative(rootPath, fullPath);
+
+      // Skip entries that resolve outside the root (path traversal protection)
+      if (relPath.startsWith('..') || !isWithinRoot(rootPath, fullPath)) continue;
 
       if (entry.isDirectory()) {
         tree.push({ path: relPath, type: 'tree' });
         await this.walkDir(rootPath, fullPath, tree, languages);
       } else if (entry.isFile()) {
-        const fileStat = await stat(fullPath);
-        tree.push({ path: relPath, type: 'blob', size: fileStat.size });
+        tree.push({ path: relPath, type: 'blob', size: entryStats.size });
 
         const ext = '.' + entry.name.split('.').pop()?.toLowerCase();
         const lang = LANG_EXTENSIONS[ext];
         if (lang) {
-          languages[lang] = (languages[lang] ?? 0) + fileStat.size;
+          languages[lang] = (languages[lang] ?? 0) + entryStats.size;
         }
       }
     }

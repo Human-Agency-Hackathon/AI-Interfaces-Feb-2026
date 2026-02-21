@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MapGenerator } from '../MapGenerator.js';
 import { makeRepoData } from './helpers/fixtures.js';
+import { STANDARD_BRAINSTORM } from '../ProcessTemplates.js';
 import type { MapNode } from '../types.js';
 
 describe('MapGenerator', () => {
@@ -175,6 +176,123 @@ describe('buildMapTree()', () => {
     const rootFiles = tree.children.filter(c => c.type === 'file');
     const labels = rootFiles.map(c => c.name);
     expect(labels).toContain('package.json');
+  });
+});
+
+describe('generateAgentMap()', () => {
+  const generator = new MapGenerator();
+
+  it('returns empty structures for empty agents array', () => {
+    const result = generator.generateAgentMap([]);
+    expect(result.map.width).toBe(60);
+    expect(result.map.height).toBe(50);
+    expect(result.objects).toHaveLength(0);
+    expect(Object.keys(result.agentPositions)).toHaveLength(0);
+  });
+
+  it('places a single oracle room when one agent is given', () => {
+    const result = generator.generateAgentMap([
+      { agentId: 'oracle', name: 'Oracle', role: 'Lead' },
+    ]);
+    expect(result.agentPositions.oracle).toBeDefined();
+    expect(result.objects.length).toBeGreaterThan(0);
+    // Should have sign, 2 docs, 1 file = 4 objects
+    expect(result.objects.length).toBe(4);
+  });
+
+  it('places oracle and sub-agent rooms', () => {
+    const result = generator.generateAgentMap([
+      { agentId: 'oracle', name: 'Oracle', role: 'Lead' },
+      { agentId: 'eng_1', name: 'Engineer', role: 'Backend' },
+      { agentId: 'eng_2', name: 'Tester', role: 'QA' },
+    ]);
+    expect(Object.keys(result.agentPositions)).toHaveLength(3);
+    expect(result.agentPositions.oracle).toBeDefined();
+    expect(result.agentPositions.eng_1).toBeDefined();
+    expect(result.agentPositions.eng_2).toBeDefined();
+  });
+
+  it('generates valid tile values', () => {
+    const result = generator.generateAgentMap([
+      { agentId: 'oracle', name: 'Oracle', role: 'Lead' },
+      { agentId: 'eng_1', name: 'Engineer', role: 'Backend' },
+    ]);
+    for (const row of result.map.tiles) {
+      for (const tile of row) {
+        expect(tile).toBeGreaterThanOrEqual(0);
+        expect(tile).toBeLessThanOrEqual(4);
+      }
+    }
+  });
+
+  it('creates sign objects with agent info', () => {
+    const result = generator.generateAgentMap([
+      { agentId: 'oracle', name: 'Oracle', role: 'Lead' },
+    ]);
+    const sign = result.objects.find(o => o.type === 'sign');
+    expect(sign).toBeDefined();
+    expect(sign!.label).toContain('Oracle');
+    expect(sign!.label).toContain('Lead');
+  });
+
+  it('creates corridor connections with door tiles', () => {
+    const result = generator.generateAgentMap([
+      { agentId: 'oracle', name: 'Oracle', role: 'Lead' },
+      { agentId: 'eng_1', name: 'Engineer', role: 'Backend' },
+    ]);
+    // Should have door tiles (value 3) connecting rooms
+    const doorCount = result.map.tiles.flat().filter(t => t === 3).length;
+    expect(doorCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it('handles maximum number of sub-agents (8)', () => {
+    const agents = [{ agentId: 'oracle', name: 'Oracle', role: 'Lead' }];
+    for (let i = 0; i < 8; i++) {
+      agents.push({ agentId: `agent_${i}`, name: `Agent ${i}`, role: 'Worker' });
+    }
+    const result = generator.generateAgentMap(agents);
+    expect(Object.keys(result.agentPositions)).toHaveLength(9);
+  });
+});
+
+describe('generateProcessStageMap()', () => {
+  const generator = new MapGenerator();
+
+  it('returns blank map for invalid stage index', () => {
+    const result = generator.generateProcessStageMap(STANDARD_BRAINSTORM, 99);
+    expect(result.objects).toHaveLength(0);
+    expect(Object.keys(result.agentPositions)).toHaveLength(0);
+  });
+
+  it('generates map for a valid stage', () => {
+    const result = generator.generateProcessStageMap(STANDARD_BRAINSTORM, 0);
+    expect(result.map.width).toBe(60);
+    expect(result.map.height).toBe(50);
+    expect(result.objects.length).toBeGreaterThan(0);
+    expect(Object.keys(result.agentPositions).length).toBeGreaterThan(0);
+  });
+
+  it('places rooms for stage role agents', () => {
+    // Stage 0 (ideation) has roles: facilitator, ideator
+    const result = generator.generateProcessStageMap(STANDARD_BRAINSTORM, 0);
+    expect(result.agentPositions.facilitator).toBeDefined();
+    expect(result.agentPositions.ideator).toBeDefined();
+  });
+
+  it('adds a stage banner sign at the top', () => {
+    const result = generator.generateProcessStageMap(STANDARD_BRAINSTORM, 0);
+    const banner = result.objects.find(o => o.id.startsWith('stage_banner_'));
+    expect(banner).toBeDefined();
+    expect(banner!.label).toContain('Ideation');
+    expect(banner!.metadata.stageId).toBe('ideation');
+  });
+
+  it('enriches sign labels with stage name', () => {
+    const result = generator.generateProcessStageMap(STANDARD_BRAINSTORM, 0);
+    const signs = result.objects.filter(o => o.type === 'sign' && !o.id.startsWith('stage_banner'));
+    signs.forEach(sign => {
+      expect(sign.label).toContain('Ideation');
+    });
   });
 });
 

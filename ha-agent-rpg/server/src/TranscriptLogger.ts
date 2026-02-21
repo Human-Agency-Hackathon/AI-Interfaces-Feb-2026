@@ -5,6 +5,7 @@
 
 import { appendFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { sanitizePathComponent } from './PathSafety.js';
 
 export class TranscriptLogger {
   private repoPath: string;
@@ -19,7 +20,8 @@ export class TranscriptLogger {
    * Append a message to an agent's transcript log.
    */
   async log(agentId: string, message: unknown): Promise<void> {
-    const dir = join(this.repoPath, '.agent-rpg', 'logs', agentId);
+    const safeAgentId = sanitizePathComponent(agentId);
+    const dir = join(this.repoPath, '.agent-rpg', 'logs', safeAgentId);
     const filePath = join(dir, `${this.dateStr}.jsonl`);
 
     try {

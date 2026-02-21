@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
+import { sanitizePathComponent } from './PathSafety.js';
 
 export interface AgentKnowledge {
   agent_id: string;
@@ -18,7 +19,8 @@ export class KnowledgeVault {
   private filePath: string;
 
   constructor(repoPath: string, agentId: string, defaults: Partial<AgentKnowledge>) {
-    this.filePath = join(repoPath, '.agent-rpg', 'knowledge', `${agentId}.json`);
+    const safeAgentId = sanitizePathComponent(agentId);
+    this.filePath = join(repoPath, '.agent-rpg', 'knowledge', `${safeAgentId}.json`);
     this.knowledge = {
       agent_id: agentId,
       agent_name: defaults.agent_name ?? agentId,

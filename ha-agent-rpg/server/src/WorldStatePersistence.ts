@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, rm, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { WorldState } from './WorldState.js';
+import { sanitizePathComponent } from './PathSafety.js';
 
 export class WorldStatePersistence {
   private baseDir: string;
@@ -10,14 +11,16 @@ export class WorldStatePersistence {
   }
 
   async save(realmId: string, worldState: WorldState): Promise<void> {
-    const dir = join(this.baseDir, realmId);
+    const safeRealmId = sanitizePathComponent(realmId);
+    const dir = join(this.baseDir, safeRealmId);
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, 'state.json'), worldState.toJSON());
   }
 
   async load(realmId: string): Promise<WorldState | null> {
     try {
-      const data = await readFile(join(this.baseDir, realmId, 'state.json'), 'utf-8');
+      const safeRealmId = sanitizePathComponent(realmId);
+      const data = await readFile(join(this.baseDir, safeRealmId, 'state.json'), 'utf-8');
       return WorldState.fromJSON(data);
     } catch {
       return null;
@@ -26,7 +29,8 @@ export class WorldStatePersistence {
 
   async exists(realmId: string): Promise<boolean> {
     try {
-      await access(join(this.baseDir, realmId, 'state.json'));
+      const safeRealmId = sanitizePathComponent(realmId);
+      await access(join(this.baseDir, safeRealmId, 'state.json'));
       return true;
     } catch {
       return false;
@@ -35,7 +39,8 @@ export class WorldStatePersistence {
 
   async remove(realmId: string): Promise<void> {
     try {
-      await rm(join(this.baseDir, realmId), { recursive: true, force: true });
+      const safeRealmId = sanitizePathComponent(realmId);
+      await rm(join(this.baseDir, safeRealmId), { recursive: true, force: true });
     } catch {
       // Ignore if directory doesn't exist
     }

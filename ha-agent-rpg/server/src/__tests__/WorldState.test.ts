@@ -272,6 +272,151 @@ describe('WorldState', () => {
   });
 });
 
+describe('Process State', () => {
+  let world: WorldState;
+
+  beforeEach(() => {
+    world = new WorldState();
+  });
+
+  function makeProcessState() {
+    return {
+      processId: 'test_process',
+      problem: 'How to build an agent?',
+      currentStageIndex: 0,
+      status: 'running' as const,
+      collectedArtifacts: {},
+      startedAt: new Date().toISOString(),
+    };
+  }
+
+  describe('setProcessState / getProcessState', () => {
+    it('starts with null process state', () => {
+      expect(world.getProcessState()).toBeNull();
+    });
+
+    it('sets and returns process state', () => {
+      const state = makeProcessState();
+      world.setProcessState(state);
+      expect(world.getProcessState()).toBe(state);
+    });
+  });
+
+  describe('advanceStage', () => {
+    it('increments currentStageIndex', () => {
+      world.setProcessState(makeProcessState());
+      world.advanceStage('stage_0', {});
+      expect(world.getProcessState()!.currentStageIndex).toBe(1);
+    });
+
+    it('records artifacts for the completed stage', () => {
+      world.setProcessState(makeProcessState());
+      world.advanceStage('stage_0', { idea_list: 'ideas here' });
+      expect(world.getProcessState()!.collectedArtifacts['stage_0']).toEqual({
+        idea_list: 'ideas here',
+      });
+    });
+
+    it('does nothing when processState is null', () => {
+      // Should not throw
+      world.advanceStage('stage_0', {});
+      expect(world.getProcessState()).toBeNull();
+    });
+
+    it('handles multiple stage advances', () => {
+      world.setProcessState(makeProcessState());
+      world.advanceStage('stage_0', { doc: 'first' });
+      world.advanceStage('stage_1', { doc: 'second' });
+      expect(world.getProcessState()!.currentStageIndex).toBe(2);
+      expect(Object.keys(world.getProcessState()!.collectedArtifacts)).toHaveLength(2);
+    });
+  });
+
+  describe('completeProcess', () => {
+    it('sets status to completed', () => {
+      world.setProcessState(makeProcessState());
+      world.completeProcess('final_stage', {});
+      expect(world.getProcessState()!.status).toBe('completed');
+    });
+
+    it('records completedAt timestamp', () => {
+      world.setProcessState(makeProcessState());
+      world.completeProcess('final_stage', {});
+      expect(world.getProcessState()!.completedAt).toBeTruthy();
+    });
+
+    it('records final stage artifacts', () => {
+      world.setProcessState(makeProcessState());
+      world.completeProcess('final_stage', { output: 'final result' });
+      expect(world.getProcessState()!.collectedArtifacts['final_stage']).toEqual({
+        output: 'final result',
+      });
+    });
+
+    it('does nothing when processState is null', () => {
+      world.completeProcess('stage', {});
+      expect(world.getProcessState()).toBeNull();
+    });
+  });
+
+  describe('setArtifact', () => {
+    it('stores a single artifact for a stage', () => {
+      world.setProcessState(makeProcessState());
+      world.setArtifact('ideation', 'idea_1', 'Build a chatbot');
+      expect(world.getProcessState()!.collectedArtifacts['ideation']['idea_1']).toBe(
+        'Build a chatbot',
+      );
+    });
+
+    it('creates the stage artifact map if it does not exist', () => {
+      world.setProcessState(makeProcessState());
+      world.setArtifact('new_stage', 'art_1', 'content');
+      expect(world.getProcessState()!.collectedArtifacts['new_stage']).toBeDefined();
+    });
+
+    it('appends to existing stage artifacts', () => {
+      world.setProcessState(makeProcessState());
+      world.setArtifact('ideation', 'idea_1', 'First idea');
+      world.setArtifact('ideation', 'idea_2', 'Second idea');
+      expect(Object.keys(world.getProcessState()!.collectedArtifacts['ideation'])).toHaveLength(2);
+    });
+
+    it('does nothing when processState is null', () => {
+      world.setArtifact('stage', 'art', 'content');
+      expect(world.getProcessState()).toBeNull();
+    });
+  });
+
+  describe('toJSON/fromJSON round-trip', () => {
+    it('round-trips process state', () => {
+      world.setProcessState(makeProcessState());
+      world.setArtifact('stage_0', 'doc', 'some content');
+      world.advanceStage('stage_0', { doc: 'some content' });
+
+      const ws2 = WorldState.fromJSON(world.toJSON());
+      const ps = ws2.getProcessState();
+      expect(ps).not.toBeNull();
+      expect(ps!.processId).toBe('test_process');
+      expect(ps!.currentStageIndex).toBe(1);
+      expect(ps!.collectedArtifacts['stage_0']).toEqual({ doc: 'some content' });
+    });
+
+    it('round-trips null process state', () => {
+      const ws2 = WorldState.fromJSON(world.toJSON());
+      expect(ws2.getProcessState()).toBeNull();
+    });
+
+    it('round-trips completed process state', () => {
+      world.setProcessState(makeProcessState());
+      world.completeProcess('final', { result: 'done' });
+
+      const ws2 = WorldState.fromJSON(world.toJSON());
+      expect(ws2.getProcessState()!.status).toBe('completed');
+      expect(ws2.getProcessState()!.completedAt).toBeTruthy();
+    });
+  });
+});
+
 function makeMapNode(path: string, children: MapNode[] = []): MapNode {
   return {
     path,

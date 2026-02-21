@@ -226,6 +226,59 @@ describe('CustomToolHandler', () => {
     });
   });
 
+  describe('CompleteStage', () => {
+    it('returns acknowledged result and emits stage:complete', async () => {
+      const emitted: any[] = [];
+      handler.on('stage:complete', (data) => emitted.push(data));
+
+      const result = await handler.handleToolCall({
+        tool_name: 'CompleteStage',
+        tool_input: { summary: 'Generated 10 ideas', artifacts: { idea_list: 'idea1, idea2' } },
+        agent_id: 'agent1',
+      });
+
+      expect(result.result.acknowledged).toBe(true);
+      expect(result.result.message).toContain('Stage completion');
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].agentId).toBe('agent1');
+      expect(emitted[0].summary).toBe('Generated 10 ideas');
+      expect(emitted[0].artifacts).toEqual({ idea_list: 'idea1, idea2' });
+    });
+
+    it('defaults artifacts to empty object when not provided', async () => {
+      const emitted: any[] = [];
+      handler.on('stage:complete', (data) => emitted.push(data));
+
+      await handler.handleToolCall({
+        tool_name: 'CompleteStage',
+        tool_input: { summary: 'Done' },
+        agent_id: 'agent1',
+      });
+
+      expect(emitted[0].artifacts).toEqual({});
+    });
+  });
+
+  describe('SealChamber', () => {
+    it('returns acknowledged result and emits stage:complete', async () => {
+      const emitted: any[] = [];
+      handler.on('stage:complete', (data) => emitted.push(data));
+
+      const result = await handler.handleToolCall({
+        tool_name: 'SealChamber',
+        tool_input: { summary: 'Chamber sealed with findings' },
+        agent_id: 'agent1',
+      });
+
+      expect(result.result.acknowledged).toBe(true);
+      expect(result.result.message).toContain('Chamber sealed');
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].agentId).toBe('agent1');
+      expect(emitted[0].summary).toBe('Chamber sealed with findings');
+      expect(emitted[0].artifacts).toEqual({});
+    });
+  });
+
   describe('unknown tool', () => {
     it('returns error for unrecognized tool name', async () => {
       const result = await handler.handleToolCall({
