@@ -45,6 +45,8 @@ export interface ProcessAgentContext {
   persona: string;
   /** Artifacts collected from all prior stages: stageId → artifactId → content */
   priorArtifacts: Record<string, Record<string, string>>;
+  /** Note injected when resuming a paused brainstorm session */
+  resumeNote?: string;
 }
 
 interface ActiveSession {

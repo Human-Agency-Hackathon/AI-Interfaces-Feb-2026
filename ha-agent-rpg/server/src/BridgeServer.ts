@@ -482,6 +482,7 @@ export class BridgeServer {
     template: ProcessDefinition,
     stageIndex: number,
     problem: string,
+    options?: { resumed?: boolean },
   ): Promise<void> {
     const stage = template.stages[stageIndex];
     if (!stage) return;
@@ -529,6 +530,9 @@ export class BridgeServer {
           totalStages: template.stages.length,
           persona: roleDef.persona,
           priorArtifacts,
+          ...(options?.resumed ? {
+            resumeNote: 'You are resuming a paused brainstorm session. Prior stage artifacts are available in your system prompt. Continue where the previous agents left off.',
+          } : {}),
         },
       });
     }
