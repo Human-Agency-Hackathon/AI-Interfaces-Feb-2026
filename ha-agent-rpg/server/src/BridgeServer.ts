@@ -272,6 +272,32 @@ export class BridgeServer {
     const allFindings = await this.findingsBoard?.getAll() ?? [];
     const agentFindings = allFindings.filter((f) => f.agent_id === agentId);
 
+    // Read and categorize transcript entries
+    const thoughts: Array<{ text: string; timestamp: string }> = [];
+    const actions: Array<{ tool: string; input: string; timestamp: string }> = [];
+
+    if (this.transcriptLogger) {
+      const entries = await this.transcriptLogger.readTranscript(agentId);
+      for (const entry of entries) {
+        const raw = entry.message as any;
+        if (!raw || typeof raw !== 'object') continue;
+
+        if (raw.type === 'assistant' && Array.isArray(raw.message?.content)) {
+          for (const block of raw.message.content) {
+            if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
+              thoughts.push({ text: block.text.trim(), timestamp: entry.timestamp });
+            } else if (block.type === 'tool_use') {
+              actions.push({
+                tool: block.name ?? 'unknown',
+                input: typeof block.input === 'string' ? block.input : JSON.stringify(block.input ?? {}),
+                timestamp: entry.timestamp,
+              });
+            }
+          }
+        }
+      }
+    }
+
     this.send(ws, {
       type: 'agent:details',
       agent_id: agentId,
@@ -287,6 +313,10 @@ export class BridgeServer {
         severity: f.severity,
         timestamp: f.timestamp,
       })),
+      transcript: {
+        thoughts: thoughts.slice(-50),
+        actions: actions.slice(-50),
+      },
     });
   }
 

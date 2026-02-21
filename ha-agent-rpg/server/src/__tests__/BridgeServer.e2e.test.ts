@@ -110,6 +110,7 @@ vi.mock('../LocalTreeReader.js', () => ({
 vi.mock('../TranscriptLogger.js', () => ({
   TranscriptLogger: class {
     async log() {}
+    async readTranscript() { return []; }
   },
 }));
 
@@ -408,6 +409,9 @@ describe('BridgeServer E2E', () => {
       expect(Array.isArray(details.knowledge.insights)).toBe(true);
       expect(Array.isArray(details.knowledge.task_history)).toBe(true);
       expect(Array.isArray(details.findings)).toBe(true);
+      expect(details.transcript).toBeDefined();
+      expect(Array.isArray(details.transcript.thoughts)).toBe(true);
+      expect(Array.isArray(details.transcript.actions)).toBe(true);
     });
 
     it('sends nothing for an unknown agent_id', async () => {
