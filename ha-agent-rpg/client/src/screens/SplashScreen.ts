@@ -1,34 +1,32 @@
-export class TitleScreen {
+export class SplashScreen {
   private container: HTMLElement;
   private onStart: () => void;
 
   constructor(onStart: () => void) {
-    this.container = document.getElementById('title-screen')!;
+    this.container = document.getElementById('splash-screen')!;
     this.onStart = onStart;
     this.render();
   }
 
   private render(): void {
-    // Clear container
     this.container.textContent = '';
 
-    // Build the panel
     const panel = document.createElement('div');
     panel.className = 'rpg-panel';
     panel.style.textAlign = 'center';
 
     // Top decorative divider
     const topDivider = document.createElement('div');
-    topDivider.className = 'title-divider';
-    topDivider.textContent = '- - - - - - - - - - - - - - - -';
+    topDivider.className = 'splash-divider';
+    topDivider.textContent = '\u2726 \u2726 \u2726';
     panel.appendChild(topDivider);
 
-    // Title logo
+    // Logo
     const logo = document.createElement('div');
-    logo.className = 'title-logo';
+    logo.className = 'splash-logo';
     const line1 = document.createTextNode('Agent');
     const br = document.createElement('br');
-    const line2 = document.createTextNode('RPG');
+    const line2 = document.createTextNode('Dungeon');
     logo.appendChild(line1);
     logo.appendChild(br);
     logo.appendChild(line2);
@@ -36,33 +34,33 @@ export class TitleScreen {
 
     // Tagline
     const tagline = document.createElement('div');
-    tagline.className = 'title-tagline';
-    tagline.textContent = 'Orchestrate AI agents. Ship your project.';
+    tagline.className = 'splash-tagline';
+    tagline.textContent = 'AI agents brainstorm your hardest problems';
     panel.appendChild(tagline);
 
     // Bottom decorative divider
     const bottomDivider = document.createElement('div');
-    bottomDivider.className = 'title-divider';
-    bottomDivider.textContent = '- - - - - - - - - - - - - - - -';
+    bottomDivider.className = 'splash-divider';
+    bottomDivider.textContent = '\u2726 \u2726 \u2726';
     panel.appendChild(bottomDivider);
 
-    // Button wrapper
+    // CTA button
     const btnWrap = document.createElement('div');
     btnWrap.style.display = 'flex';
     btnWrap.style.justifyContent = 'center';
 
     const btn = document.createElement('button');
     btn.className = 'rpg-btn rpg-btn-large';
-    btn.id = 'btn-begin-quest';
-    btn.textContent = 'Begin Quest';
+    btn.id = 'btn-enter-dungeon';
+    btn.textContent = 'Enter the Dungeon';
     btn.addEventListener('click', () => this.onStart());
     btnWrap.appendChild(btn);
     panel.appendChild(btnWrap);
 
     // Version
     const version = document.createElement('div');
-    version.className = 'title-version';
-    version.textContent = 'v0.2.0 \u2014 simulation mode';
+    version.className = 'splash-version';
+    version.textContent = 'v0.3.0';
     panel.appendChild(version);
 
     this.container.appendChild(panel);

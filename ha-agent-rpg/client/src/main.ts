@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { gameConfig } from './config';
 import { WebSocketClient } from './network/WebSocketClient';
-import { TitleScreen } from './screens/TitleScreen';
-import { RepoScreen } from './screens/RepoScreen';
-import { JoinScreen } from './screens/JoinScreen';
+import { SplashScreen } from './screens/SplashScreen';
+import { SetupScreen } from './screens/SetupScreen';
+import type { SetupIdentity } from './screens/SetupScreen';
 import { PromptBar } from './panels/PromptBar';
 import { MiniMap } from './panels/MiniMap';
 import { QuestLog } from './panels/QuestLog';
@@ -16,8 +16,6 @@ import type {
   AgentActivityMessage,
   FindingsPostedMessage,
   ErrorMessage,
-  RealmListMessage,
-  RealmRemovedMessage,
   MapNodeSummary,
   PlayerPresence,
   WorldStateMessage,
@@ -37,32 +35,29 @@ const ws = new WebSocketClient(`ws://${wsHost}:3001`);
 ws.connect();
 
 // ── Screen instances ──
-let titleScreen: TitleScreen;
-let repoScreen: RepoScreen;
+let splashScreen: SplashScreen;
+let setupScreen: SetupScreen;
 let gameStarted = false;
 
-// ── 1. Title Screen ──
-titleScreen = new TitleScreen(() => {
-  titleScreen.hide();
-  repoScreen.show();
-  ws.send({ type: 'player:list-realms' });
+// Identity collected from SetupScreen, passed into startGame
+let pendingIdentity: SetupIdentity | null = null;
+
+// ── 1. Splash Screen ──
+splashScreen = new SplashScreen(() => {
+  splashScreen.hide();
+  setupScreen.show();
 });
 
-// ── 2. Repo Screen (now the brainstorm problem input screen) ──
-repoScreen = new RepoScreen(
+// ── 2. Setup Screen (name + color + problem input) ──
+setupScreen = new SetupScreen(
   (problem: string) => {
-    repoScreen.showLoading();
+    pendingIdentity = setupScreen.getIdentity();
+    setupScreen.showLoading();
     ws.send({ type: 'player:start-process', problem });
   },
   () => {
-    repoScreen.hide();
-    titleScreen.show();
-  },
-  (realmId: string) => {
-    ws.send({ type: 'player:resume-realm', realm_id: realmId });
-  },
-  (realmId: string) => {
-    ws.send({ type: 'player:remove-realm', realm_id: realmId });
+    setupScreen.hide();
+    splashScreen.show();
   },
 );
 
@@ -72,7 +67,7 @@ repoScreen = new RepoScreen(
 ws.on('process:started', (msg) => {
   const data = msg as unknown as ProcessStartedMessage;
   console.log(`[Process] "${data.problem}" — stage: ${data.currentStageName}`);
-  startGame();
+  startGame(pendingIdentity ?? { name: 'Spectator', color: 0xc45a28 });
   // Set initial stage on progress bar after game starts
   if (stageProgressBar) {
     stageProgressBar.setInitialStage(data.currentStageName, data.totalStages);
@@ -85,7 +80,7 @@ ws.on('process:started', (msg) => {
 // Legacy flow: repo ready (kept for backwards compatibility during transition)
 ws.on('repo:ready', (_msg) => {
   const _data = _msg as unknown as RepoReadyMessage;
-  startGame();
+  startGame(pendingIdentity ?? { name: 'Spectator', color: 0xc45a28 });
 });
 
 // When an agent joins during gameplay
@@ -131,19 +126,7 @@ ws.on('stage:advanced', (msg) => {
 // Handle errors from server
 ws.on('error', (msg) => {
   const data = msg as unknown as ErrorMessage;
-  repoScreen.showError(data.message);
-});
-
-// Realm list received
-ws.on('realm:list', (msg) => {
-  const data = msg as unknown as RealmListMessage;
-  repoScreen.updateRealmList(data.realms);
-});
-
-// Realm removed confirmation
-ws.on('realm:removed', (_msg) => {
-  // Request updated list
-  ws.send({ type: 'player:list-realms' });
+  setupScreen.showError(data.message);
 });
 
 // Quest updates from world state
@@ -185,7 +168,6 @@ let phaserGame: Phaser.Game | null = null;
 let promptBar: PromptBar | null = null;
 let miniMap: MiniMap | null = null;
 let questLog: QuestLog | null = null;
-let joinScreen: JoinScreen | null = null;
 let stageProgressBar: StageProgressBar | null = null;
 
 // Spectator state
@@ -198,7 +180,7 @@ ws.on('spectator:welcome', (msg) => {
   const data = msg as unknown as SpectatorWelcomeMessage;
   mySpectatorId = data.spectator_id;
   // Full color arrives via spectator:joined broadcast — set partial identity for now
-  promptBar?.setSpectator({ spectator_id: data.spectator_id, name: data.name, color: 0x6a8aff });
+  promptBar?.setSpectator({ spectator_id: data.spectator_id, name: data.name, color: 0xc45a28 });
 });
 
 ws.on('spectator:joined', (msg) => {
@@ -264,13 +246,13 @@ function updateSpectatorList(): void {
 }
 
 // ── Start the Phaser game ──
-function startGame(): void {
+function startGame(identity: SetupIdentity): void {
   if (gameStarted) return;
   gameStarted = true;
 
   // Hide all onboarding screens
-  titleScreen.hide();
-  repoScreen.hide();
+  splashScreen.hide();
+  setupScreen.hide();
 
   // Show game viewport
   const viewport = document.getElementById('game-viewport')!;
@@ -351,15 +333,8 @@ function startGame(): void {
     },
   });
 
-  // Show join screen overlay — user enters name before commanding agents
-  if (joinScreen) {
-    joinScreen.destroy();
-  }
-  joinScreen = new JoinScreen(({ name, color }) => {
-    ws.send({ type: 'spectator:register', name, color });
-    // Server responds with spectator:welcome which triggers promptBar.setSpectator()
-  });
-  joinScreen.show();
+  // Auto-register as spectator using identity from SetupScreen
+  ws.send({ type: 'spectator:register', name: identity.name, color: identity.color });
 
   // Instantiate QuestLog
   questLog = new QuestLog('quest-log');
@@ -405,12 +380,6 @@ function stopGame(): void {
   viewport.style.display = 'none';
   viewport.classList.add('screen-hidden');
 
-  // Destroy join screen
-  if (joinScreen) {
-    joinScreen.destroy();
-    joinScreen = null;
-  }
-
   // Destroy PromptBar
   if (promptBar) {
     promptBar.destroy();
@@ -432,6 +401,7 @@ function stopGame(): void {
   // Reset spectator state
   mySpectatorId = null;
   connectedSpectators.clear();
+  pendingIdentity = null;
 
   // Hide quest log panel
   const questPanel = document.getElementById('quest-log');
@@ -454,6 +424,5 @@ function stopGame(): void {
 // Listen for quit request from PromptBar
 window.addEventListener('prompt-quit-game', () => {
   stopGame();
-  repoScreen.show();
-  ws.send({ type: 'player:list-realms' });
+  setupScreen.show();
 });

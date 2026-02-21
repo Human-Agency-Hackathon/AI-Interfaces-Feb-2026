@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Agent RPG</title>
+  <title>Agent Dungeon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
   <style>
     /* ── Reset & Base ── */
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: #0a0a1a;
-      color: #c8c8e8;
-      font-family: "Courier New", Courier, monospace;
+      background: #0a0810;
+      color: #e8dcd0;
+      font-family: "Cormorant Garamond", Georgia, serif;
       overflow-x: hidden;
       min-height: 100vh;
     }
@@ -28,10 +31,10 @@
 
     .screen-hidden { display: none !important; }
 
-    /* ── RPG Panel (shared box style) ── */
+    /* ── RPG Panel (shared box style — dungeon stone) ── */
     .rpg-panel {
-      background: #111128;
-      border: 3px double #2a2a5a;
+      background: #1e1830;
+      border: 1px solid #8a6a28;
       border-radius: 2px;
       padding: 2.5rem;
       max-width: 800px;
@@ -42,16 +45,18 @@
     .rpg-panel::before {
       content: '';
       position: absolute;
-      inset: 4px;
-      border: 1px solid #1a1a3a;
+      inset: 6px;
+      border: 1px solid rgba(184, 144, 56, 0.15);
       border-radius: 1px;
       pointer-events: none;
     }
 
     /* ── Typography ── */
     .screen-title {
+      font-family: "Cinzel", serif;
       font-size: 1.4rem;
-      color: #e8e8ff;
+      font-weight: 600;
+      color: #e8c868;
       text-align: center;
       margin-bottom: 0.5rem;
       letter-spacing: 0.15em;
@@ -59,69 +64,84 @@
     }
 
     .screen-subtitle {
-      font-size: 0.85rem;
-      color: #8888aa;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-style: italic;
+      font-weight: 400;
+      font-size: 1rem;
+      color: #d0c0a8;
       text-align: center;
       margin-bottom: 2rem;
+      line-height: 1.7;
     }
 
-    /* ── Title Screen Specifics ── */
-    .title-logo {
+    /* ── Splash Screen ── */
+    .splash-logo {
+      font-family: "Cinzel Decorative", "Cinzel", serif;
       font-size: 3.5rem;
-      color: #e8e8ff;
+      font-weight: 700;
+      color: #e8c868;
       text-align: center;
-      letter-spacing: 0.3em;
+      letter-spacing: 0.2em;
       text-transform: uppercase;
       text-shadow:
-        0 0 20px rgba(106, 138, 255, 0.5),
-        0 0 40px rgba(106, 138, 255, 0.2);
+        0 0 20px rgba(232, 160, 80, 0.5),
+        0 0 40px rgba(196, 90, 40, 0.25),
+        0 2px 4px rgba(0, 0, 0, 0.6);
       margin-bottom: 0.5rem;
-      line-height: 1.1;
+      line-height: 1.15;
     }
 
-    .title-tagline {
-      font-size: 0.95rem;
-      color: #8888aa;
+    .splash-tagline {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 1.15rem;
+      color: #d0c0a8;
       text-align: center;
       margin-bottom: 2.5rem;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
+      line-height: 1.7;
     }
 
-    .title-divider {
+    .splash-divider {
       text-align: center;
-      color: #2a2a5a;
-      font-size: 0.75rem;
-      letter-spacing: 0.5em;
+      color: #8a6a28;
+      font-family: "Cinzel", serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.4em;
       margin-bottom: 2.5rem;
       user-select: none;
     }
 
-    .title-version {
+    .splash-version {
+      font-family: "DM Mono", monospace;
       font-size: 0.7rem;
-      color: #555577;
+      font-weight: 300;
+      color: #564a72;
       text-align: center;
       margin-top: 2rem;
     }
 
-    /* ── Buttons ── */
+    /* ── Buttons (flame primary) ── */
     .rpg-btn {
-      background: #111128;
-      border: 2px solid #6a8aff;
-      color: #6a8aff;
-      font-family: "Courier New", Courier, monospace;
-      font-size: 1rem;
+      background: #1e1830;
+      border: 2px solid #c45a28;
+      color: #c45a28;
+      font-family: "Cinzel", serif;
+      font-size: 0.85rem;
+      font-weight: 600;
       padding: 0.8rem 2.5rem;
       cursor: pointer;
       letter-spacing: 0.15em;
       text-transform: uppercase;
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
       display: inline-block;
     }
 
     .rpg-btn:hover {
-      background: #6a8aff;
-      color: #0a0a1a;
-      box-shadow: 0 0 15px rgba(106, 138, 255, 0.4);
+      background: linear-gradient(135deg, #c45a28, #d87a3a);
+      color: #0a0810;
+      box-shadow: 0 0 20px rgba(196, 90, 40, 0.4);
     }
 
     .rpg-btn:active {
@@ -129,59 +149,62 @@
     }
 
     .rpg-btn:disabled {
-      border-color: #333355;
-      color: #333355;
+      border-color: #3d3358;
+      color: #3d3358;
       cursor: not-allowed;
       box-shadow: none;
-      background: #111128;
+      background: #1e1830;
     }
 
     .rpg-btn-large {
-      font-size: 1.2rem;
+      font-size: 1.05rem;
       padding: 1rem 3rem;
     }
 
     .rpg-btn-deploy {
-      background: #111128;
+      background: #1e1830;
       border-color: #44cc66;
       color: #44cc66;
     }
 
     .rpg-btn-deploy:hover {
       background: #44cc66;
-      color: #0a0a1a;
+      color: #0a0810;
       box-shadow: 0 0 15px rgba(68, 204, 102, 0.4);
     }
 
     .rpg-btn-deploy:disabled {
-      border-color: #333355;
-      color: #333355;
-      background: #111128;
+      border-color: #3d3358;
+      color: #3d3358;
+      background: #1e1830;
       box-shadow: none;
     }
 
     /* ── Back Link ── */
     .back-link {
-      color: #555577;
-      font-size: 0.8rem;
+      font-family: "Cinzel", serif;
+      color: #564a72;
+      font-size: 0.75rem;
+      font-weight: 400;
       cursor: pointer;
       margin-top: 1.5rem;
       text-align: center;
       letter-spacing: 0.1em;
+      text-transform: uppercase;
       transition: color 0.15s ease;
     }
 
     .back-link:hover {
-      color: #8888aa;
+      color: #d0c0a8;
     }
 
     /* ── Input Fields ── */
     .rpg-input {
-      background: #0a0a1a;
-      border: 2px solid #2a2a5a;
-      color: #e8e8ff;
-      font-family: "Courier New", Courier, monospace;
-      font-size: 0.9rem;
+      background: #141020;
+      border: 1px solid #3d3358;
+      color: #e8dcd0;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 1rem;
       padding: 0.7rem 1rem;
       width: 100%;
       outline: none;
@@ -189,23 +212,99 @@
     }
 
     .rpg-input::placeholder {
-      color: #444466;
+      color: #564a72;
     }
 
     .rpg-input:focus {
-      border-color: #6a8aff;
-      box-shadow: 0 0 8px rgba(106, 138, 255, 0.15);
+      border-color: #c45a28;
+      box-shadow: 0 0 8px rgba(196, 90, 40, 0.15);
     }
 
-    /* ── Repo Screen ── */
-    .repo-form {
-      display: flex;
-      gap: 0.75rem;
+    /* ── Setup Screen ── */
+    .setup-section {
       margin-bottom: 1.5rem;
     }
 
-    .repo-form .rpg-input {
-      flex: 1;
+    .setup-label {
+      display: block;
+      font-family: "Cinzel", serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #a89878;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.5rem;
+    }
+
+    .setup-textarea {
+      background: #141020;
+      border: 1px solid #3d3358;
+      color: #e8dcd0;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 1rem;
+      padding: 0.7rem 1rem;
+      width: 100%;
+      outline: none;
+      resize: vertical;
+      min-height: 5rem;
+      max-height: 12rem;
+      line-height: 1.7;
+      transition: border-color 0.15s ease;
+    }
+
+    .setup-textarea::placeholder {
+      color: #564a72;
+    }
+
+    .setup-textarea:focus {
+      border-color: #c45a28;
+      box-shadow: 0 0 8px rgba(196, 90, 40, 0.15);
+    }
+
+    .setup-color-row {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .setup-color-swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      cursor: pointer;
+      transition: transform 0.1s ease, border-color 0.1s ease;
+      outline: none;
+    }
+
+    .setup-color-swatch:hover {
+      transform: scale(1.1);
+    }
+
+    .setup-color-swatch.selected {
+      border-color: #e8c868;
+      transform: scale(1.15);
+    }
+
+    .setup-submit-row {
+      display: flex;
+      justify-content: center;
+      margin-top: 0.5rem;
+    }
+
+    /* ── Loading Overlay (in-place on setup screen) ── */
+    .setup-loading {
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+
+    .setup-loading-text {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-style: italic;
+      font-size: 1.15rem;
+      color: #d0c0a8;
+      margin-bottom: 1rem;
+      line-height: 1.7;
     }
 
     .loading-area {
@@ -214,168 +313,43 @@
     }
 
     .loading-dots {
-      color: #6a8aff;
-      font-size: 0.9rem;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      color: #e8a050;
+      font-size: 1rem;
       letter-spacing: 0.1em;
     }
 
     .error-text {
-      color: #ff5555;
-      font-size: 0.8rem;
+      color: #a83838;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.9rem;
       text-align: center;
       margin-top: 0.5rem;
     }
 
-    /* ── Agent Cards Grid ── */
-    .agent-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
+    /* ── Loading animation ── */
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
     }
 
-    .agent-card {
-      background: #0d0d22;
-      border: 2px solid #2a2a5a;
-      padding: 1rem;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      position: relative;
+    .loading-dots span {
+      animation: blink 1.2s infinite;
     }
 
-    .agent-card:hover {
-      border-color: #4a4a7a;
-    }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-    .agent-card.selected {
-      box-shadow: 0 0 12px rgba(106, 138, 255, 0.25);
-    }
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0810; }
+    ::-webkit-scrollbar-thumb { background: #3d3358; }
+    ::-webkit-scrollbar-thumb:hover { background: #564a72; }
 
-    .agent-card-name {
-      font-size: 0.95rem;
-      font-weight: bold;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 0.2rem;
-    }
-
-    .agent-card-role {
-      font-size: 0.7rem;
-      color: #666688;
-      margin-bottom: 0.6rem;
-    }
-
-    .agent-card-class {
-      display: inline-block;
-      font-size: 0.6rem;
-      padding: 0.15rem 0.5rem;
-      border: 1px solid;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 0.6rem;
-    }
-
-    .agent-card-skills {
-      font-size: 0.65rem;
-      color: #8888aa;
-      margin-bottom: 0.6rem;
-      line-height: 1.5;
-    }
-
-    .agent-card-skill-tag {
-      display: inline-block;
-      background: #16163a;
-      border: 1px solid #2a2a5a;
-      padding: 0.1rem 0.4rem;
-      margin: 0.1rem 0.15rem 0.1rem 0;
-      font-size: 0.6rem;
-      color: #9999bb;
-    }
-
-    /* ── Stat Bars ── */
-    .stat-row {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      margin-bottom: 0.2rem;
-    }
-
-    .stat-label {
-      font-size: 0.55rem;
-      color: #666688;
-      width: 2rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .stat-bar-bg {
-      flex: 1;
-      height: 6px;
-      background: #0a0a1a;
-      border: 1px solid #1a1a3a;
-      position: relative;
-    }
-
-    .stat-bar-fill {
-      height: 100%;
-      transition: width 0.3s ease;
-    }
-
-    .stat-value {
-      font-size: 0.55rem;
-      color: #555577;
-      width: 1.5rem;
-      text-align: right;
-    }
-
-    /* ── Cost ── */
-    .agent-card-cost {
-      font-size: 0.65rem;
-      color: #ccaa44;
-      margin-top: 0.5rem;
-      letter-spacing: 0.05em;
-    }
-
-    /* ── Selection Check ── */
-    .agent-card-check {
-      position: absolute;
-      top: 0.5rem;
-      right: 0.6rem;
-      font-size: 0.8rem;
-      opacity: 0;
-      transition: opacity 0.15s ease;
-    }
-
-    .agent-card.selected .agent-card-check {
-      opacity: 1;
-    }
-
-    /* ── Party Summary Bar ── */
-    .party-summary {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #1a1a3a;
-    }
-
-    .party-info {
-      font-size: 0.8rem;
-      color: #8888aa;
-    }
-
-    .party-cost {
-      font-size: 0.8rem;
-      color: #ccaa44;
-    }
-
-    .party-actions {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
+    /* ══════════════════════════════════════════════════
+       IN-GAME CSS — unchanged from here down.
+       Sidebar, chat bubbles, prompt bar, etc.
+       ══════════════════════════════════════════════════ */
 
     /* ── Game Viewport (post-onboarding) ── */
     #game-viewport {
@@ -408,25 +382,6 @@
       flex-direction: column;
       gap: 0.4rem;
     }
-
-    /* ── Loading animation ── */
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    .loading-dots span {
-      animation: blink 1.2s infinite;
-    }
-
-    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-    /* ── Scrollbar ── */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0a0a1a; }
-    ::-webkit-scrollbar-thumb { background: #2a2a5a; }
-    ::-webkit-scrollbar-thumb:hover { background: #3a3a6a; }
 
     /* ── Chat Bubbles ── */
     .chat-bubble {
@@ -736,149 +691,156 @@
       opacity: 0.3;
       cursor: default;
     }
-    /* ── Realm List ── */
-    .realm-list {
-      margin-top: 1.5rem;
-      border-top: 1px solid #1a1a3a;
-      padding-top: 1.5rem;
+
+    /* ── Agent Cards Grid ── */
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
     }
 
-    .realm-list-title {
-      font-size: 0.75rem;
-      color: #555577;
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-
-    .realm-card {
+    .agent-card {
       background: #0d0d22;
       border: 2px solid #2a2a5a;
       padding: 1rem;
-      margin-bottom: 0.75rem;
-      transition: border-color 0.15s ease;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
     }
 
-    .realm-card:hover {
+    .agent-card:hover {
       border-color: #4a4a7a;
     }
 
-    .realm-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 0.4rem;
+    .agent-card.selected {
+      box-shadow: 0 0 12px rgba(106, 138, 255, 0.25);
     }
 
-    .realm-card-name {
-      font-size: 0.9rem;
-      color: #e8e8ff;
+    .agent-card-name {
+      font-size: 0.95rem;
       font-weight: bold;
-      letter-spacing: 0.05em;
-    }
-
-    .realm-card-date {
-      font-size: 0.65rem;
-      color: #555577;
-    }
-
-    .realm-card-stats {
-      font-size: 0.7rem;
-      color: #8888aa;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       margin-bottom: 0.2rem;
     }
 
-    .realm-card-changes {
-      font-size: 0.65rem;
+    .agent-card-role {
+      font-size: 0.7rem;
+      color: #666688;
       margin-bottom: 0.6rem;
     }
 
-    .realm-card-changes-ok { color: #44cc66; }
-    .realm-card-changes-stale { color: #ccaa44; }
-    .realm-card-changes-unknown { color: #555577; }
-
-    .realm-card-actions {
-      display: flex;
-      gap: 0.5rem;
+    .agent-card-class {
+      display: inline-block;
+      font-size: 0.6rem;
+      padding: 0.15rem 0.5rem;
+      border: 1px solid;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
     }
 
-    .realm-btn {
+    .agent-card-skills {
       font-size: 0.65rem;
-      padding: 0.3rem 0.8rem;
-      letter-spacing: 0.08em;
+      color: #8888aa;
+      margin-bottom: 0.6rem;
+      line-height: 1.5;
     }
 
-    .realm-btn-danger {
-      border-color: #553333;
-      color: #aa5555;
+    .agent-card-skill-tag {
+      display: inline-block;
+      background: #16163a;
+      border: 1px solid #2a2a5a;
+      padding: 0.1rem 0.4rem;
+      margin: 0.1rem 0.15rem 0.1rem 0;
+      font-size: 0.6rem;
+      color: #9999bb;
     }
 
-    .realm-btn-danger:hover {
-      background: #553333;
-      color: #ff8888;
-      box-shadow: none;
-    }
-
-    /* ── Join Screen Overlay ── */
-    .join-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(10, 10, 26, 0.92);
+    /* ── Stat Bars ── */
+    .stat-row {
       display: flex;
       align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      backdrop-filter: blur(4px);
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
     }
 
-    .join-panel {
-      max-width: 480px;
-      width: 90%;
-    }
-
-    .join-label {
-      display: block;
-      font-size: 0.7rem;
+    .stat-label {
+      font-size: 0.55rem;
       color: #666688;
+      width: 2rem;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 0.5rem;
+      letter-spacing: 0.05em;
     }
 
-    .join-name-input {
-      margin-bottom: 1.25rem;
+    .stat-bar-bg {
+      flex: 1;
+      height: 6px;
+      background: #0a0a1a;
+      border: 1px solid #1a1a3a;
+      position: relative;
     }
 
-    .join-color-row {
+    .stat-bar-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .stat-value {
+      font-size: 0.55rem;
+      color: #555577;
+      width: 1.5rem;
+      text-align: right;
+    }
+
+    /* ── Cost ── */
+    .agent-card-cost {
+      font-size: 0.65rem;
+      color: #ccaa44;
+      margin-top: 0.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Selection Check ── */
+    .agent-card-check {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.6rem;
+      font-size: 0.8rem;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .agent-card.selected .agent-card-check {
+      opacity: 1;
+    }
+
+    /* ── Party Summary Bar ── */
+    .party-summary {
       display: flex;
-      gap: 0.5rem;
+      align-items: center;
+      justify-content: space-between;
       flex-wrap: wrap;
-      margin-bottom: 0.25rem;
+      gap: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #1a1a3a;
     }
 
-    .join-color-swatch {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 3px solid transparent;
-      cursor: pointer;
-      transition: transform 0.1s ease, border-color 0.1s ease;
-      outline: none;
+    .party-info {
+      font-size: 0.8rem;
+      color: #8888aa;
     }
 
-    .join-color-swatch:hover {
-      transform: scale(1.1);
+    .party-cost {
+      font-size: 0.8rem;
+      color: #ccaa44;
     }
 
-    .join-color-swatch.selected {
-      border-color: #fff;
-      transform: scale(1.15);
-    }
-
-    .join-btn {
-      margin-top: 1.5rem;
-      width: 100%;
+    .party-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
     }
 
     /* ── Stage announcement bubble (dialogue log) ── */
@@ -1015,12 +977,12 @@
 </head>
 <body>
 
-  <!-- Title Screen -->
-  <div id="title-screen" class="screen">
+  <!-- Splash Screen -->
+  <div id="splash-screen" class="screen">
   </div>
 
-  <!-- Repository Link Screen -->
-  <div id="repo-screen" class="screen screen-hidden">
+  <!-- Setup Screen (name + problem input) -->
+  <div id="setup-screen" class="screen screen-hidden">
   </div>
 
   <!-- Game Viewport (Phaser + Sidebar) -->
