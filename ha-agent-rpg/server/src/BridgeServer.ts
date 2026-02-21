@@ -36,8 +36,13 @@ import { FindingsBoard } from './FindingsBoard.js';
 import { LocalTreeReader, type LocalRepoData } from './LocalTreeReader.js';
 import { TranscriptLogger } from './TranscriptLogger.js';
 import { join } from 'node:path';
+import * as path from 'node:path';
 import { networkInterfaces } from 'node:os';
+import os from 'node:os';
+import crypto from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { promises as fsPromises } from 'node:fs';
+import { execFileNoThrow } from './utils/execFileNoThrow.js';
 import { RealmRegistry } from './RealmRegistry.js';
 import { WorldStatePersistence } from './WorldStatePersistence.js';
 import { GitHelper } from './GitHelper.js';
@@ -56,6 +61,35 @@ const AGENT_COLORS = [
   0x5ae8e8, // cyan
   0xff69b4, // pink
 ];
+
+/**
+ * Resolves a GitHub HTTPS URL or local absolute path to a local directory.
+ * - GitHub HTTPS URL: clones to a deterministic temp dir (skips if already cloned).
+ * - Local path: checks existence; throws if not found.
+ */
+export async function resolveRepoPath(repoInput: string): Promise<string> {
+  if (repoInput.startsWith('https://github.com/')) {
+    const hash = crypto.createHash('sha1').update(repoInput).digest('hex').slice(0, 8);
+    const cloneDir = path.join(os.tmpdir(), `agent-rpg-${hash}`);
+    try {
+      await fsPromises.stat(cloneDir);
+      // Already cloned — reuse
+    } catch {
+      const result = await execFileNoThrow('git', ['clone', '--depth', '1', repoInput, cloneDir]);
+      if (result.status !== 0) {
+        throw new Error(`git clone failed: ${result.stderr}`);
+      }
+    }
+    return cloneDir;
+  }
+
+  try {
+    await fsPromises.stat(repoInput);
+  } catch {
+    throw new Error(`Repo path not found: ${repoInput}`);
+  }
+  return repoInput;
+}
 
 export class BridgeServer {
   private wss: WebSocketServer;
@@ -525,14 +559,27 @@ export class BridgeServer {
   private async handleStartProcess(ws: WebSocket, msg: StartProcessMessage): Promise<void> {
     try {
       this.gamePhase = 'analyzing';
+
+      if (!msg.problem?.trim() && !msg.repoInput?.trim()) {
+        ws.send(JSON.stringify({ type: 'process:error', message: 'Provide a problem or a repo/folder path.' }));
+        this.gamePhase = 'onboarding';
+        return;
+      }
+
       await this.cleanupCurrentRealm();
 
       const template = PROCESS_TEMPLATES[msg.processId ?? DEEP_BRAINSTORM.id] ?? DEEP_BRAINSTORM;
       const firstStage = template.stages[0];
 
+      let resolvedRepoDir: string | null = null;
+      if (msg.repoInput?.trim()) {
+        resolvedRepoDir = await resolveRepoPath(msg.repoInput.trim());
+      }
+      const problem = msg.problem?.trim() || `Explore the codebase at: ${msg.repoInput}`;
+
       const processState: ProcessState = {
         processId: template.id,
-        problem: msg.problem,
+        problem,
         currentStageIndex: 0,
         status: 'running',
         collectedArtifacts: {},
@@ -540,7 +587,7 @@ export class BridgeServer {
       };
 
       // Use a stable working dir for persistence (same pattern as repo flow)
-      const workDir = process.env.HOME ?? '/tmp';
+      const workDir = resolvedRepoDir ?? process.env.HOME ?? '/tmp';
       this.repoPath = workDir;
       this.activeRealmId = `brainstorm_${Date.now()}`;
       this.realmRegistry.setLastActiveRealmId(this.activeRealmId);
@@ -590,7 +637,7 @@ export class BridgeServer {
       this.broadcast({
         type: 'process:started',
         processId: template.id,
-        problem: msg.problem,
+        problem,
         processName: template.name,
         currentStageId: firstStage.id,
         currentStageName: firstStage.name,
@@ -608,12 +655,12 @@ export class BridgeServer {
       this.wireProcessControllerEvents(this.processController);
 
       // Spawn the first stage's agents
-      await this.spawnProcessAgents(template, 0, msg.problem);
+      await this.spawnProcessAgents(template, 0, problem);
 
       // Start stage tracking after agents are spawned
-      this.processController.start(msg.problem, template);
+      this.processController.start(problem, template);
 
-      console.log(`[Bridge] Process started: "${msg.problem}" (template: ${template.id})`);
+      console.log(`[Bridge] Process started: "${problem}" (template: ${template.id})`);
     } catch (err) {
       this.gamePhase = 'onboarding';
       const message = err instanceof Error ? err.message : 'Failed to start process';

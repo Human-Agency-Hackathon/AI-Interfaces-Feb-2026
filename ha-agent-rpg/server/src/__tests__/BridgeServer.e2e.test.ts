@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import WebSocket from 'ws';
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { resolveRepoPath } from '../BridgeServer.js';
 
 // ── Module mocks (must be before imports of the module under test) ──
 
@@ -500,4 +504,51 @@ describe('BridgeServer E2E', () => {
       expect(state.agents).toBeDefined();
     });
   });
+  describe('resolveRepoPath', () => {
+    it('returns an existing local path as-is', async () => {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'test-repo-'));
+      const result = await resolveRepoPath(dir);
+      expect(result).toBe(dir);
+      await fs.rm(dir, { recursive: true });
+    });
+
+    it('throws for a non-existent local path', async () => {
+      await expect(resolveRepoPath('/tmp/nonexistent-path-xyz-123')).rejects.toThrow('not found');
+    });
+  });
+
+  describe('player:start-process with repoInput', () => {
+    it('uses provided local path and synthesizes problem', async () => {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'test-repo-'));
+      const client = await connect();
+
+      client.send({
+        type: 'player:start-process',
+        problem: '',
+        repoInput: dir,
+      });
+
+      const started = await client.waitForMessage(
+        (m: any) => m.type === 'process:started',
+        5000,
+      );
+      expect(started.problem).toBe(`Explore the codebase at: ${dir}`);
+      await fs.rm(dir, { recursive: true });
+    });
+
+    it('sends process:error when neither problem nor repoInput provided', async () => {
+      const client = await connect();
+
+      client.send({
+        type: 'player:start-process',
+        problem: '',
+      });
+
+      await client.waitForMessage(
+        (m: any) => m.type === 'process:error',
+        3000,
+      );
+    });
+  });
+
 });
