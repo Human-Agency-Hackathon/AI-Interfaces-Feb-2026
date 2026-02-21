@@ -91,6 +91,12 @@ export class BridgeServer {
   private movementBias: 'outward' | 'inward' | 'neutral' = 'neutral';
   private spawnParent = new Map<string, string>();       // childId → parentId
   private spawnChildren = new Map<string, Set<string>>(); // parentId → Set<childId>
+  // ── Fog-of-War state ──
+  private fogBiomeMap: number[][] | null = null;
+  private agentFortAssignments: Map<string, { x: number; y: number }> = new Map();
+  private movementIntervalId: ReturnType<typeof setInterval> | null = null;
+  private agentFindingsCounts: Map<string, number> = new Map();
+  private agentMovementTargets: Map<string, { x: number; y: number }> = new Map();
   private settings: SessionSettings = {
     max_agents: 5,
     token_budget_usd: 2.0,
@@ -356,6 +362,11 @@ export class BridgeServer {
     return {
       dismissStageAgents: async (stage: StageDefinition) => {
         for (const roleId of stage.roles) {
+          // In fog mode: upgrade fort to stage 5 (completed) before removing agent
+          if (this.fogBiomeMap) {
+            this.updateFortStage(roleId, 5);
+            this.agentMovementTargets.delete(roleId);
+          }
           await this.sessionManager.dismissAgent(roleId);
           this.worldState.removeAgent(roleId);
           this.broadcast({ type: 'agent:left', agent_id: roleId });
@@ -429,6 +440,23 @@ export class BridgeServer {
       this.worldState = new WorldState();
       this.worldState.setProcessState(processState);
 
+      // Generate fog-of-war overworld (120×120) with forts for all agents across all stages
+      const allRoleIds = [...new Set(template.stages.flatMap(s => s.roles))];
+      const fogResult = this.mapGenerator.generateFogMap(allRoleIds);
+      this.worldState.setMap(fogResult.map);
+      this.worldState.initFogMap(fogResult.map.width, fogResult.map.height);
+      this.fogBiomeMap = fogResult.biomeMap;
+      this.agentFortAssignments = fogResult.fortPositions;
+      // Set fort positions on worldState so updateFortStage can broadcast them
+      for (const [id, pos] of fogResult.fortPositions) {
+        this.worldState.setFortPosition(id, pos.x, pos.y);
+      }
+      // Reveal tiles around the Oracle center
+      const oracleRevealed = this.worldState.revealTiles(60, 60, 8);
+      if (oracleRevealed.length > 0) {
+        this.broadcast({ type: 'fog:reveal', tiles: oracleRevealed, agentId: 'oracle' } as ServerMessage);
+      }
+
       // Minimal infrastructure (no findings board / transcript logger yet for process flow)
       this.findingsBoard = new FindingsBoard(workDir);
       await this.findingsBoard.load();
@@ -492,18 +520,44 @@ export class BridgeServer {
       return { agentId: roleId, name: roleDef.name, role: roleDef.name };
     });
 
-    const result = this.mapGenerator.generateProcessStageMap(template, stageIndex);
-    this.worldState.setMap(result.map);
-    this.worldState.setObjects(result.objects);
-    this.eventTranslator.setObjects(result.objects);
+    const isFogMode = this.fogBiomeMap !== null;
 
-    for (const entry of agentEntries) {
-      const roleDef = template.roles.find((r) => r.id === entry.agentId)!;
-      const color = this.nextColor();
-      const pos = result.agentPositions[entry.agentId];
-      this.agentRoomPositions.set(entry.agentId, pos);
-      const agent = this.worldState.addAgent(entry.agentId, entry.name, color, entry.role, '/', pos);
-      this.broadcast({ type: 'agent:joined', agent });
+    if (!isFogMode) {
+      // Legacy room-based map generation (non-fog mode)
+      const result = this.mapGenerator.generateProcessStageMap(template, stageIndex);
+      this.worldState.setMap(result.map);
+      this.worldState.setObjects(result.objects);
+      this.eventTranslator.setObjects(result.objects);
+
+      for (const entry of agentEntries) {
+        const color = this.nextColor();
+        const pos = result.agentPositions[entry.agentId];
+        this.agentRoomPositions.set(entry.agentId, pos);
+        const agent = this.worldState.addAgent(entry.agentId, entry.name, color, entry.role, '/', pos);
+        this.broadcast({ type: 'agent:joined', agent });
+      }
+    } else {
+      // Fog-of-war mode: spawn agents at Oracle center (60,60), assign fort targets
+      this.eventTranslator.setObjects([]);
+      const ORACLE_X = 60, ORACLE_Y = 60;
+
+      for (const entry of agentEntries) {
+        const color = this.nextColor();
+        const pos = { x: ORACLE_X, y: ORACLE_Y };
+        this.agentRoomPositions.set(entry.agentId, pos);
+        const agent = this.worldState.addAgent(entry.agentId, entry.name, color, entry.role, '/', pos);
+        this.broadcast({ type: 'agent:joined', agent });
+
+        // Set initial fort stage (campfire) and assign movement target toward fort
+        this.updateFortStage(entry.agentId, 1);
+        const fortPos = this.agentFortAssignments.get(entry.agentId);
+        if (fortPos) {
+          this.agentMovementTargets.set(entry.agentId, fortPos);
+        }
+      }
+
+      // Start autonomous movement if not already running
+      this.startAutonomousMovement();
     }
 
     this.broadcast(this.buildWorldStateMessage());
@@ -1216,6 +1270,11 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     }
     this.agentColorIndex = 0;
     this.agentRoomPositions.clear();
+    this.stopAutonomousMovement();
+    this.fogBiomeMap = null;
+    this.agentFortAssignments.clear();
+    this.agentFindingsCounts.clear();
+    this.agentMovementTargets.clear();
     if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
     this.activeRealmId = null;
   }
@@ -1342,6 +1401,19 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
           );
         }
       }
+
+      // Fog-of-war: upgrade fort based on findings count
+      if (this.fogBiomeMap) {
+        const count = (this.agentFindingsCounts.get(data.agentId) ?? 0) + 1;
+        this.agentFindingsCounts.set(data.agentId, count);
+        const currentStage = this.worldState.getFortStage(data.agentId);
+        if (count === 1 && currentStage < 3) {
+          this.updateFortStage(data.agentId, 3);
+        } else if (count >= 3 && currentStage < 4) {
+          this.updateFortStage(data.agentId, 4);
+        }
+      }
+
       this.scheduleSave();
     });
 
@@ -1691,6 +1763,122 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     }
   }
 
+  // ── Autonomous Movement System (Fog-of-War) ──
+
+  private startAutonomousMovement(): void {
+    if (this.movementIntervalId) return;
+    this.movementIntervalId = setInterval(() => this.tickAgentMovement(), 2500);
+  }
+
+  private stopAutonomousMovement(): void {
+    if (this.movementIntervalId) {
+      clearInterval(this.movementIntervalId);
+      this.movementIntervalId = null;
+    }
+  }
+
+  private tickAgentMovement(): void {
+    for (const agent of this.worldState.agents.values()) {
+      const target = this.agentMovementTargets.get(agent.agent_id);
+      if (!target) continue;
+
+      const dx = target.x - agent.x;
+      const dy = target.y - agent.y;
+
+      // If agent reached target, pick a new wander target
+      if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+        // Fort arrival: upgrade to stage 2 (tent) if still at campfire
+        const fortPos = this.agentFortAssignments.get(agent.agent_id);
+        if (fortPos && Math.abs(agent.x - fortPos.x) <= 2 && Math.abs(agent.y - fortPos.y) <= 2) {
+          const currentStage = this.worldState.getFortStage(agent.agent_id);
+          if (currentStage < 2) {
+            this.updateFortStage(agent.agent_id, 2);
+          }
+        }
+        this.setWanderTarget(agent.agent_id);
+        continue;
+      }
+
+      // Step one tile toward target, preferring axis with larger delta
+      let stepX = 0;
+      let stepY = 0;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        stepX = dx > 0 ? 1 : -1;
+      } else {
+        stepY = dy > 0 ? 1 : -1;
+      }
+
+      const newX = agent.x + stepX;
+      const newY = agent.y + stepY;
+
+      // Check walkability; if blocked, try the other axis
+      if (!this.worldState.isWalkable(newX, newY)) {
+        if (stepX !== 0) {
+          stepX = 0;
+          stepY = dy > 0 ? 1 : (dy < 0 ? -1 : 0);
+        } else {
+          stepY = 0;
+          stepX = dx > 0 ? 1 : (dx < 0 ? -1 : 0);
+        }
+        const altX = agent.x + stepX;
+        const altY = agent.y + stepY;
+        if (!this.worldState.isWalkable(altX, altY)) {
+          this.setWanderTarget(agent.agent_id);
+          continue;
+        }
+        this.moveAgentOnFogMap(agent.agent_id, altX, altY);
+      } else {
+        this.moveAgentOnFogMap(agent.agent_id, newX, newY);
+      }
+    }
+  }
+
+  private moveAgentOnFogMap(agentId: string, x: number, y: number): void {
+    this.worldState.applyMove(agentId, x, y);
+
+    this.broadcast({
+      type: 'action:result',
+      turn_id: 0,
+      agent_id: agentId,
+      action: 'move',
+      params: { x, y },
+      success: true,
+    } as ServerMessage);
+
+    const newlyRevealed = this.worldState.revealTiles(x, y, 5);
+    if (newlyRevealed.length > 0) {
+      this.broadcast({
+        type: 'fog:reveal',
+        tiles: newlyRevealed,
+        agentId,
+      } as ServerMessage);
+    }
+
+    this.worldState.convertToPath(x, y);
+  }
+
+  private setWanderTarget(agentId: string): void {
+    const agent = this.worldState.agents.get(agentId);
+    if (!agent) return;
+
+    const fortPos = this.agentFortAssignments.get(agentId);
+    const ORACLE_X = 60, ORACLE_Y = 60;
+
+    if (this.movementBias === 'outward' && fortPos) {
+      this.agentMovementTargets.set(agentId, fortPos);
+    } else if (this.movementBias === 'inward') {
+      this.agentMovementTargets.set(agentId, { x: ORACLE_X, y: ORACLE_Y });
+    } else {
+      const center = fortPos ?? { x: agent.x, y: agent.y };
+      const wanderRadius = 8;
+      const wx = center.x + Math.floor(Math.random() * wanderRadius * 2) - wanderRadius;
+      const wy = center.y + Math.floor(Math.random() * wanderRadius * 2) - wanderRadius;
+      const clampedX = Math.max(1, Math.min(wx, (this.worldState.map?.width ?? 120) - 2));
+      const clampedY = Math.max(1, Math.min(wy, (this.worldState.map?.height ?? 120) - 2));
+      this.agentMovementTargets.set(agentId, { x: clampedX, y: clampedY });
+    }
+  }
+
   private hashString(str: string): number {
     let h = 0x811c9dc5;
     for (let i = 0; i < str.length; i++) {
@@ -1703,7 +1891,11 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
   private buildWorldStateMessage(): ServerMessage {
     const snapshot = this.worldState.getSnapshot();
     const spectators = Array.from(this.spectatorInfo.values());
-    return { ...snapshot, spectators };
+    return {
+      ...snapshot,
+      spectators,
+      ...(this.fogBiomeMap ? { biomeMap: this.fogBiomeMap } : {}),
+    };
   }
 
   private stripMapData(node: MapNode): MapNodeSummary {
@@ -1741,6 +1933,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
    */
   async close(): Promise<void> {
     console.log('[Bridge] Shutting down...');
+    this.stopAutonomousMovement();
 
     // Dismiss all active agent sessions
     if (this.sessionManager) {
