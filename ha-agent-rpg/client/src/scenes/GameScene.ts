@@ -102,12 +102,9 @@ export class GameScene extends Phaser.Scene {
             this.minimap.setBiomeMap((state as any).biomeMap);
           }
         } else {
-          // Diorama mode: room background
-          this.mapRenderer.setBackgroundMode(true);
+          // Diorama mode: tile-based rendering
+          this.mapRenderer.setBackgroundMode(false);
           this.mapRenderer.render();
-
-          this.roomBackground = new RoomBackground(this);
-          this.roomBackground.show('', state.map.width, state.map.height, state.map.tile_size);
 
           this.cameraController = new CameraController(
             this, state.map.width, state.map.height, state.map.tile_size,
@@ -203,12 +200,7 @@ export class GameScene extends Phaser.Scene {
         this.mapObjectSprites.forEach(s => s.destroy());
         this.mapObjectSprites = [];
 
-        // Swap room background image
-        this.roomBackground?.show(
-          data.path, data.map.width, data.map.height, data.map.tile_size,
-        );
-
-        // Update tile data (no-op visually in background mode, but keeps internal state)
+        // Update tile map with new room data
         if (this.mapRenderer) {
           this.mapRenderer.loadMap(data.map);
         }
