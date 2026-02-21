@@ -443,6 +443,37 @@ export interface IdeaVotedMessage {
   vote: 'up' | 'down';
 }
 
+// ── Fog-of-War messages ──────────────────────────────────────────────
+
+export interface FogRevealMessage {
+  type: 'fog:reveal';
+  tiles: { x: number; y: number }[];
+  agentId: string;
+}
+
+export interface FortUpdateMessage {
+  type: 'fort:update';
+  agentId: string;
+  stage: 1 | 2 | 3 | 4 | 5;
+  position: { x: number; y: number };
+}
+
+export interface FortViewMessage {
+  type: 'fort:view';
+  agentId: string;
+  roomImage: string;
+  agentInfo: AgentInfo;
+}
+
+export interface FortClickMessage {
+  type: 'fort:click';
+  agentId: string;
+}
+
+export interface FortExitMessage {
+  type: 'fort:exit';
+}
+
 // ── Union types ──
 export interface PlayerNavigateEnterMessage {
   type: 'player:navigate-enter';
@@ -474,7 +505,9 @@ export type ClientMessage =
   | PlayerMoveMessage
   | StartProcessMessage
   | SpectatorRegisterMessage
-  | SpectatorCommandMessage;
+  | SpectatorCommandMessage
+  | FortClickMessage
+  | FortExitMessage;
 
 export type ServerMessage =
   | WorldStateMessage
@@ -504,4 +537,7 @@ export type ServerMessage =
   | SpectatorJoinedMessage
   | SpectatorLeftMessage
   | SpectatorCommandMessage
-  | ServerInfoMessage;
+  | ServerInfoMessage
+  | FogRevealMessage
+  | FortUpdateMessage
+  | FortViewMessage;

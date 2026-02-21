@@ -10,6 +10,12 @@ const TILE_WALL = 1;
 const TILE_WATER = 2;
 const TILE_DOOR = 3;
 const TILE_FLOOR = 4;
+const TILE_TREE    = 5;
+const TILE_HILL    = 6;
+const TILE_SAND    = 7;
+const TILE_PATH    = 8;
+const TILE_LAVA    = 9;
+const TILE_CRYSTAL = 10;
 
 const TILE_SIZE = 32;
 
