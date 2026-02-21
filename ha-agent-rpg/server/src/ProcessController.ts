@@ -338,6 +338,12 @@ export class ProcessController extends EventEmitter {
       console.error('[ProcessController] Error dismissing agents:', err);
     }
 
+    // Prune stale agentTurnCounts entries for the completed stage
+    const prefix = `${currentStage.id}:`;
+    for (const key of this.agentTurnCounts.keys()) {
+      if (key.startsWith(prefix)) this.agentTurnCounts.delete(key);
+    }
+
     this.context = { problem, template, stageIndex: nextIndex };
     this.stageStartedAt = new Date().toISOString();
     this.advancing = false;

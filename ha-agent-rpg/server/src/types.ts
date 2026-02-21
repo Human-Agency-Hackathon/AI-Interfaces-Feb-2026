@@ -401,6 +401,8 @@ export interface ServerInfoMessage {
   type: 'server:info';
   addresses: string[];
   port: number;
+  gamePhase: 'onboarding' | 'analyzing' | 'playing';
+  activeRealmId: string | null;
 }
 
 // ── Messages: Player → Server (Process) ──

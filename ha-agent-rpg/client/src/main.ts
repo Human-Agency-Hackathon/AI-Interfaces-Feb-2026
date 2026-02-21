@@ -236,11 +236,50 @@ ws.on('quest:update', (msg) => {
 let serverAddresses: string[] = [];
 let serverPort = 3001;
 
+// ── C1: localStorage helpers ──
+function saveSessionIdentity(identity: SetupIdentity): void {
+  try {
+    localStorage.setItem('agentDungeon.identity', JSON.stringify({ name: identity.name, color: identity.color }));
+  } catch { /* storage unavailable */ }
+}
+
+function getSavedIdentity(): SetupIdentity | null {
+  try {
+    const raw = localStorage.getItem('agentDungeon.identity');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.name === 'string' && typeof parsed.color === 'number') return parsed;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveRealmId(realmId: string): void {
+  try {
+    localStorage.setItem('agentDungeon.realmId', realmId);
+  } catch { /* storage unavailable */ }
+}
+
 ws.on('server:info', (msg) => {
   const data = msg as unknown as ServerInfoMessage;
   serverAddresses = data.addresses;
   serverPort = data.port;
   updateServerInfoPanel();
+
+  // Persist activeRealmId whenever the server tells us one
+  if (data.activeRealmId) {
+    saveRealmId(data.activeRealmId);
+  }
+
+  // ── C3: Auto-resume on refresh ──
+  // If the server is in playing mode and we have a saved identity for this realm, skip setup
+  if (data.gamePhase === 'playing' && data.activeRealmId && !gameStarted) {
+    const savedIdentity = getSavedIdentity();
+    const savedRealmId = localStorage.getItem('agentDungeon.realmId');
+    if (savedIdentity && savedRealmId === data.activeRealmId) {
+      pendingIdentity = savedIdentity;
+      startGame(savedIdentity);
+    }
+  }
 });
 
 function updateServerInfoPanel(): void {
@@ -445,6 +484,9 @@ function startGame(identity: SetupIdentity): void {
 
   // Auto-register as spectator using identity from SetupScreen
   ws.send({ type: 'spectator:register', name: identity.name, color: identity.color });
+
+  // C1: Persist identity for auto-resume on refresh
+  saveSessionIdentity(identity);
 
   // Instantiate QuestLog
   questLog = new QuestLog('quest-log');
