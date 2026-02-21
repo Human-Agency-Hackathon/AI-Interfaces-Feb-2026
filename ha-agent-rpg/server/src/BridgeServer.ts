@@ -17,6 +17,9 @@ import type {
   MapNodeSummary,
   MapObject,
   ProcessState,
+  SpectatorInfo,
+  SpectatorRegisterMessage,
+  SpectatorCommandMessage,
 } from './types.js';
 import { WorldState } from './WorldState.js';
 import { RepoAnalyzer, type RepoData } from './RepoAnalyzer.js';
@@ -72,6 +75,8 @@ export class BridgeServer {
   private playerSocket: WebSocket | null = null;
   private playerNavStack: NavigationFrame[] = [];
   private playerCurrentPath = '';
+  private spectatorSockets = new Map<string, WebSocket>();        // spectatorId → socket
+  private spectatorInfo = new Map<string, SpectatorInfo>();       // spectatorId → identity
   private processController: ProcessController | null = null;
   private settings: SessionSettings = {
     max_agents: 5,
@@ -106,7 +111,7 @@ export class BridgeServer {
 
     // Send current world state if in gameplay phase
     if (this.gamePhase === 'playing') {
-      this.send(ws, this.worldState.getSnapshot());
+      this.send(ws, this.buildWorldStateMessage());
     }
 
     ws.on('message', (raw) => {
@@ -120,6 +125,17 @@ export class BridgeServer {
 
     ws.on('close', () => {
       this.allSockets.delete(ws);
+
+      // Clean up spectator if this was a spectator socket
+      for (const [id, socket] of this.spectatorSockets.entries()) {
+        if (socket === ws) {
+          this.spectatorSockets.delete(id);
+          this.spectatorInfo.delete(id);
+          this.broadcast({ type: 'spectator:left', spectator_id: id });
+          console.log(`[Bridge] Spectator disconnected: ${id}`);
+          break;
+        }
+      }
     });
   }
 
@@ -160,6 +176,12 @@ export class BridgeServer {
       case 'player:navigate-back':
         this.handlePlayerNavigateBack(ws);
         break;
+      case 'spectator:register':
+        this.handleSpectatorRegister(ws, msg as unknown as SpectatorRegisterMessage);
+        break;
+      case 'spectator:command':
+        this.handleSpectatorCommand(ws, msg as unknown as SpectatorCommandMessage);
+        break;
       default:
         this.send(ws, { type: 'error', message: `Unknown message type: ${msg.type}` });
     }
@@ -179,7 +201,7 @@ export class BridgeServer {
     this.agentCurrentPath.set(agent_id, '');
 
     this.broadcast({ type: 'agent:joined', agent });
-    this.broadcast(this.worldState.getSnapshot());
+    this.broadcast(this.buildWorldStateMessage());
 
     // Track socket so we can detect disconnect
     ws.on('close', () => {
@@ -314,7 +336,7 @@ export class BridgeServer {
       this.broadcast({ type: 'agent:joined', agent });
     }
 
-    this.broadcast(this.worldState.getSnapshot());
+    this.broadcast(this.buildWorldStateMessage());
 
     const priorArtifacts = this.worldState.getProcessState()?.collectedArtifacts ?? {};
 
@@ -512,7 +534,7 @@ export class BridgeServer {
     const agent = this.worldState.addAgent(agentId, agentName, color, role, realm,
       result.agentPositions[agentId]);
     this.broadcast({ type: 'agent:joined', agent });
-    this.broadcast(this.worldState.getSnapshot());
+    this.broadcast(this.buildWorldStateMessage());
 
     await this.sessionManager.spawnAgent({
       agentId,
@@ -588,7 +610,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     if (pos) this.worldState.applyMove(agentId, pos.x, pos.y);
 
     this.broadcast({ type: 'agent:joined', agent });
-    this.broadcast(this.worldState.getSnapshot());
+    this.broadcast(this.buildWorldStateMessage());
 
     // Notify client of spawn request (for UI)
     this.broadcast({
@@ -656,6 +678,69 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     // Send follow-up to the target agent
     this.sessionManager.sendFollowUp(targetId, prompt).catch((err) => {
       console.error(`[Bridge] Failed to send command to ${targetId}:`, err);
+    });
+  }
+
+  // ── Spectator Registration ──
+
+  private handleSpectatorRegister(ws: WebSocket, msg: SpectatorRegisterMessage): void {
+    // Reject re-registration on same socket
+    for (const [id, socket] of this.spectatorSockets.entries()) {
+      if (socket === ws) {
+        this.send(ws, { type: 'spectator:welcome', spectator_id: id, name: this.spectatorInfo.get(id)?.name ?? msg.name });
+        return;
+      }
+    }
+
+    const spectator_id = `spectator_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const info: SpectatorInfo = { spectator_id, name: msg.name.slice(0, 30), color: msg.color };
+
+    this.spectatorSockets.set(spectator_id, ws);
+    this.spectatorInfo.set(spectator_id, info);
+
+    // Welcome the spectator (private)
+    this.send(ws, { type: 'spectator:welcome', spectator_id, name: info.name });
+
+    // Notify all clients of new spectator
+    this.broadcast({ type: 'spectator:joined', spectator_id, name: info.name, color: info.color });
+
+    // Send current world state with spectators list
+    if (this.gamePhase === 'playing') {
+      this.send(ws, this.buildWorldStateMessage());
+    }
+
+    console.log(`[Bridge] Spectator registered: ${spectator_id} (${info.name})`);
+  }
+
+  // ── Spectator Commands ──
+
+  private handleSpectatorCommand(_ws: WebSocket, msg: SpectatorCommandMessage): void {
+    if (!this.sessionManager) return;
+
+    console.log(`[Bridge] Spectator command from ${msg.name}: ${msg.text}`);
+
+    // Echo to all clients for attribution display
+    this.broadcast(msg as unknown as ServerMessage);
+
+    // Route to agent (same logic as player:command)
+    const activeIds = this.sessionManager.getActiveAgentIds();
+    let targetId = 'oracle';
+
+    for (const id of activeIds) {
+      const session = this.sessionManager.getSession(id);
+      if (!session) continue;
+      const name = session.config.agentName.toLowerCase();
+      if (msg.text.toLowerCase().startsWith(name + ',') ||
+          msg.text.toLowerCase().startsWith(name + ' ')) {
+        targetId = id;
+        break;
+      }
+    }
+
+    const prompt = `[PLAYER COMMAND from ${msg.name}]: ${msg.text}`;
+
+    this.sessionManager.sendFollowUp(targetId, prompt).catch((err) => {
+      console.error(`[Bridge] Failed to send spectator command to ${targetId}:`, err);
     });
   }
 
@@ -1199,6 +1284,13 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
   }
 
   // ── Helpers ──
+
+  /** Build a world:state message that includes the current spectator list. */
+  private buildWorldStateMessage(): ServerMessage {
+    const snapshot = this.worldState.getSnapshot();
+    const spectators = Array.from(this.spectatorInfo.values());
+    return { ...snapshot, spectators };
+  }
 
   private stripMapData(node: MapNode): MapNodeSummary {
     const { map: _m, objects: _o, ...rest } = node;

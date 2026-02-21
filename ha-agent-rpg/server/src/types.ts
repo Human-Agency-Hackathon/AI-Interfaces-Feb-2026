@@ -436,7 +436,9 @@ export type ClientMessage =
   | PlayerNavigateEnterMessage
   | PlayerNavigateBackMessage
   | PlayerMoveMessage
-  | StartProcessMessage;
+  | StartProcessMessage
+  | SpectatorRegisterMessage
+  | SpectatorCommandMessage;
 
 export type ServerMessage =
   | WorldStateMessage
@@ -460,4 +462,8 @@ export type ServerMessage =
   | StageAdvancedMessage
   | StageCompletedMessage
   | IdeaProposedMessage
-  | IdeaVotedMessage;
+  | IdeaVotedMessage
+  | SpectatorWelcomeMessage
+  | SpectatorJoinedMessage
+  | SpectatorLeftMessage
+  | SpectatorCommandMessage;

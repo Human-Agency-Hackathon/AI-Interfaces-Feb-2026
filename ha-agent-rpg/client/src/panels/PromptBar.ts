@@ -16,6 +16,8 @@ export interface PromptBarOptions {
   onToggleSettings?: () => void;
   onShowQuests?: () => void;
   onPlayerMessage?: (text: string) => void;
+  /** Called when a spectator-attributed message is sent (name, color, text). */
+  onSpectatorMessage?: (name: string, color: number, text: string) => void;
 }
 
 export class PromptBar {
@@ -35,6 +37,7 @@ export class PromptBar {
   private selectedCommandIndex = 0;
   private filteredCommands: SlashCommand[] = [];
   private options: PromptBarOptions;
+  private spectator: { spectator_id: string; name: string; color: number } | null = null;
 
   constructor(parentId: string, ws: WebSocketClient, options: PromptBarOptions = {}) {
     this.container = document.getElementById(parentId)!;
@@ -45,6 +48,11 @@ export class PromptBar {
   }
 
   // ── Public API ──
+
+  /** Store spectator identity — once set, all commands are sent as spectator:command. */
+  setSpectator(info: { spectator_id: string; name: string; color: number }): void {
+    this.spectator = info;
+  }
 
   focus(): void {
     this.textarea.focus();
