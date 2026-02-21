@@ -25,17 +25,18 @@ export class PlayerSprite {
     this.logicalX = px;
     this.logicalY = py;
 
-    // Shadow ellipse under feet
-    this.shadow = scene.add.ellipse(px, py + 10, 16, 6, 0x000000, 0.3)
+    // Shadow ellipse under feet (enlarged to match scaled sprite)
+    this.shadow = scene.add.ellipse(px, py + 14, 28, 10, 0x000000, 0.3)
       .setDepth(9);
 
-    // Character sprite (shifted up slightly from tile center)
-    this.sprite = scene.add.image(px, py - 2, textureKey)
-      .setDepth(10);
+    // Character sprite (shifted up slightly from tile center, scaled 2.5× for visibility)
+    this.sprite = scene.add.image(px, py - 6, textureKey)
+      .setDepth(10)
+      .setScale(2.5);
 
     // Name label with stroke for readability
-    this.nameLabel = scene.add.text(px, py - 18, name, {
-      fontSize: '10px',
+    this.nameLabel = scene.add.text(px, py - 28, name, {
+      fontSize: '11px',
       fontFamily: 'monospace',
       color: '#ffffff',
       stroke: '#000000',
@@ -159,10 +160,10 @@ export class PlayerSprite {
       this.currentAnimation.stop();
     }
 
-    // Subtle breathing animation
+    // Subtle breathing animation (relative to 2.5× base scale)
     this.currentAnimation = this.scene.tweens.add({
       targets: this.sprite,
-      scaleY: 0.98,
+      scaleY: 2.3,
       duration: 1500,
       yoyo: true,
       repeat: -1,
@@ -188,7 +189,7 @@ export class PlayerSprite {
     // Stop idle animation during walk
     if (this.currentAnimation) {
       this.currentAnimation.stop();
-      this.sprite.setScale(1);
+      this.sprite.setScale(2.5);
     }
 
     this.logicalX = targetX;
@@ -201,7 +202,7 @@ export class PlayerSprite {
     this.scene.tweens.add({
       targets: this.sprite,
       x: targetX,
-      y: targetY - 2,
+      y: targetY - 6,
       duration: dur,
       ease,
       onComplete: () => {
@@ -210,10 +211,10 @@ export class PlayerSprite {
       }
     });
 
-    // Walk squash-bounce
+    // Walk squash-bounce (relative to the 2.5× base scale)
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleY: { from: 1, to: 0.88 },
+      scaleY: { from: 2.5, to: 2.2 },
       duration: dur / 2,
       yoyo: true,
       ease: 'Sine.easeInOut',
@@ -223,7 +224,7 @@ export class PlayerSprite {
     this.scene.tweens.add({
       targets: this.shadow,
       x: targetX,
-      y: targetY + 10,
+      y: targetY + 14,
       duration: dur,
       ease,
     });
@@ -232,7 +233,7 @@ export class PlayerSprite {
     this.scene.tweens.add({
       targets: this.nameLabel,
       x: targetX,
-      y: targetY - 18,
+      y: targetY - 28,
       duration: dur,
       ease,
     });
@@ -260,9 +261,9 @@ export class PlayerSprite {
     this.logicalX = px;
     this.logicalY = py;
 
-    this.sprite.setPosition(px, py - 2);
-    this.shadow.setPosition(px, py + 10);
-    this.nameLabel.setPosition(px, py - 18);
+    this.sprite.setPosition(px, py - 6);
+    this.shadow.setPosition(px, py + 14);
+    this.nameLabel.setPosition(px, py - 28);
   }
 
   destroy(): void {
