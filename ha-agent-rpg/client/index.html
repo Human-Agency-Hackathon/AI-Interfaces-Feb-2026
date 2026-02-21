@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Agent RPG</title>
+  <style>
+    /* ── Reset & Base ── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a1a;
+      color: #c8c8e8;
+      font-family: "Courier New", Courier, monospace;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* ── Onboarding Screen Containers ── */
+    .screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .screen-hidden { display: none !important; }
+
+    /* ── RPG Panel (shared box style) ── */
+    .rpg-panel {
+      background: #111128;
+      border: 3px double #2a2a5a;
+      border-radius: 2px;
+      padding: 2.5rem;
+      max-width: 800px;
+      width: 100%;
+      position: relative;
+    }
+
+    .rpg-panel::before {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border: 1px solid #1a1a3a;
+      border-radius: 1px;
+      pointer-events: none;
+    }
+
+    /* ── Typography ── */
+    .screen-title {
+      font-size: 1.4rem;
+      color: #e8e8ff;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .screen-subtitle {
+      font-size: 0.85rem;
+      color: #8888aa;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    /* ── Title Screen Specifics ── */
+    .title-logo {
+      font-size: 3.5rem;
+      color: #e8e8ff;
+      text-align: center;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      text-shadow:
+        0 0 20px rgba(106, 138, 255, 0.5),
+        0 0 40px rgba(106, 138, 255, 0.2);
+      margin-bottom: 0.5rem;
+      line-height: 1.1;
+    }
+
+    .title-tagline {
+      font-size: 0.95rem;
+      color: #8888aa;
+      text-align: center;
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.08em;
+    }
+
+    .title-divider {
+      text-align: center;
+      color: #2a2a5a;
+      font-size: 0.75rem;
+      letter-spacing: 0.5em;
+      margin-bottom: 2.5rem;
+      user-select: none;
+    }
+
+    .title-version {
+      font-size: 0.7rem;
+      color: #555577;
+      text-align: center;
+      margin-top: 2rem;
+    }
+
+    /* ── Buttons ── */
+    .rpg-btn {
+      background: #111128;
+      border: 2px solid #6a8aff;
+      color: #6a8aff;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 1rem;
+      padding: 0.8rem 2.5rem;
+      cursor: pointer;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
+      display: inline-block;
+    }
+
+    .rpg-btn:hover {
+      background: #6a8aff;
+      color: #0a0a1a;
+      box-shadow: 0 0 15px rgba(106, 138, 255, 0.4);
+    }
+
+    .rpg-btn:active {
+      transform: scale(0.97);
+    }
+
+    .rpg-btn:disabled {
+      border-color: #333355;
+      color: #333355;
+      cursor: not-allowed;
+      box-shadow: none;
+      background: #111128;
+    }
+
+    .rpg-btn-large {
+      font-size: 1.2rem;
+      padding: 1rem 3rem;
+    }
+
+    .rpg-btn-deploy {
+      background: #111128;
+      border-color: #44cc66;
+      color: #44cc66;
+    }
+
+    .rpg-btn-deploy:hover {
+      background: #44cc66;
+      color: #0a0a1a;
+      box-shadow: 0 0 15px rgba(68, 204, 102, 0.4);
+    }
+
+    .rpg-btn-deploy:disabled {
+      border-color: #333355;
+      color: #333355;
+      background: #111128;
+      box-shadow: none;
+    }
+
+    /* ── Back Link ── */
+    .back-link {
+      color: #555577;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin-top: 1.5rem;
+      text-align: center;
+      letter-spacing: 0.1em;
+      transition: color 0.15s ease;
+    }
+
+    .back-link:hover {
+      color: #8888aa;
+    }
+
+    /* ── Input Fields ── */
+    .rpg-input {
+      background: #0a0a1a;
+      border: 2px solid #2a2a5a;
+      color: #e8e8ff;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 0.9rem;
+      padding: 0.7rem 1rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .rpg-input::placeholder {
+      color: #444466;
+    }
+
+    .rpg-input:focus {
+      border-color: #6a8aff;
+      box-shadow: 0 0 8px rgba(106, 138, 255, 0.15);
+    }
+
+    /* ── Repo Screen ── */
+    .repo-form {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .repo-form .rpg-input {
+      flex: 1;
+    }
+
+    .loading-area {
+      text-align: center;
+      padding: 1rem 0;
+    }
+
+    .loading-dots {
+      color: #6a8aff;
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+    }
+
+    .error-text {
+      color: #ff5555;
+      font-size: 0.8rem;
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+
+    /* ── Agent Cards Grid ── */
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .agent-card {
+      background: #0d0d22;
+      border: 2px solid #2a2a5a;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .agent-card:hover {
+      border-color: #4a4a7a;
+    }
+
+    .agent-card.selected {
+      box-shadow: 0 0 12px rgba(106, 138, 255, 0.25);
+    }
+
+    .agent-card-name {
+      font-size: 0.95rem;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.2rem;
+    }
+
+    .agent-card-role {
+      font-size: 0.7rem;
+      color: #666688;
+      margin-bottom: 0.6rem;
+    }
+
+    .agent-card-class {
+      display: inline-block;
+      font-size: 0.6rem;
+      padding: 0.15rem 0.5rem;
+      border: 1px solid;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
+    }
+
+    .agent-card-skills {
+      font-size: 0.65rem;
+      color: #8888aa;
+      margin-bottom: 0.6rem;
+      line-height: 1.5;
+    }
+
+    .agent-card-skill-tag {
+      display: inline-block;
+      background: #16163a;
+      border: 1px solid #2a2a5a;
+      padding: 0.1rem 0.4rem;
+      margin: 0.1rem 0.15rem 0.1rem 0;
+      font-size: 0.6rem;
+      color: #9999bb;
+    }
+
+    /* ── Stat Bars ── */
+    .stat-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .stat-label {
+      font-size: 0.55rem;
+      color: #666688;
+      width: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-bar-bg {
+      flex: 1;
+      height: 6px;
+      background: #0a0a1a;
+      border: 1px solid #1a1a3a;
+      position: relative;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .stat-value {
+      font-size: 0.55rem;
+      color: #555577;
+      width: 1.5rem;
+      text-align: right;
+    }
+
+    /* ── Cost ── */
+    .agent-card-cost {
+      font-size: 0.65rem;
+      color: #ccaa44;
+      margin-top: 0.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Selection Check ── */
+    .agent-card-check {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.6rem;
+      font-size: 0.8rem;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .agent-card.selected .agent-card-check {
+      opacity: 1;
+    }
+
+    /* ── Party Summary Bar ── */
+    .party-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #1a1a3a;
+    }
+
+    .party-info {
+      font-size: 0.8rem;
+      color: #8888aa;
+    }
+
+    .party-cost {
+      font-size: 0.8rem;
+      color: #ccaa44;
+    }
+
+    .party-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* ── Game Viewport (post-onboarding) ── */
+    #game-viewport {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #game-container {
+      flex: 1;
+      min-width: 0;
+    }
+
+    #sidebar {
+      width: 320px;
+      background: #111128;
+      border-left: 2px solid #2a2a5a;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Dialogue Log (chat transcript) ── */
+    #dialogue-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    /* ── Loading animation ── */
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .loading-dots span {
+      animation: blink 1.2s infinite;
+    }
+
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a1a; }
+    ::-webkit-scrollbar-thumb { background: #2a2a5a; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a6a; }
+
+    /* ── Chat Bubbles ── */
+    .chat-bubble {
+      max-width: 90%;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      word-wrap: break-word;
+      position: relative;
+    }
+
+    .chat-bubble-agent {
+      align-self: flex-start;
+      background: #16163a;
+      border: 1px solid #2a2a5a;
+      border-radius: 2px 8px 8px 8px;
+    }
+
+    .chat-bubble-player {
+      align-self: flex-end;
+      background: #1a2a5a;
+      border: 1px solid #3a4a7a;
+      border-radius: 8px 2px 8px 8px;
+    }
+
+    .chat-bubble-system {
+      align-self: center;
+      background: none;
+      font-style: italic;
+      color: #666688;
+      font-size: 0.65rem;
+      padding: 0.25rem 0.5rem;
+    }
+
+    .chat-bubble-activity {
+      align-self: flex-start;
+      background: none;
+      font-size: 0.65rem;
+      color: #555577;
+      padding: 0.15rem 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .chat-bubble-thought {
+      align-self: flex-start;
+      background: #111128;
+      border: 1px solid #222244;
+      border-radius: 2px 8px 8px 8px;
+      font-style: italic;
+      opacity: 0.75;
+    }
+
+    .chat-bubble-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .chat-agent-name {
+      font-weight: bold;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .chat-timestamp {
+      font-size: 0.55rem;
+      color: #555577;
+    }
+
+    .chat-bubble-body {
+      color: #c8c8e8;
+    }
+
+    .chat-bubble-player .chat-bubble-body {
+      color: #dde0ff;
+    }
+
+    .chat-bubble-body.truncated {
+      overflow: hidden;
+    }
+
+    .chat-show-more {
+      background: none;
+      border: none;
+      color: #6a8aff;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 0.65rem;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 0.2rem 0;
+      margin-top: 0.2rem;
+      display: block;
+    }
+
+    .chat-show-more:hover {
+      text-decoration: underline;
+    }
+
+    .activity-icon {
+      font-size: 0.7rem;
+    }
+
+    /* ── Prompt Bar ── */
+    .prompt-bar {
+      border-top: 2px solid #2a2a5a;
+      background: #0d0d22;
+      flex-shrink: 0;
+    }
+
+    /* ── Command Menu Popup ── */
+    .prompt-command-menu {
+      background: #111128;
+      border: 1px solid #2a2a5a;
+      border-bottom: none;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .prompt-command-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.75rem;
+      cursor: pointer;
+      font-size: 0.72rem;
+      transition: background 0.1s ease;
+    }
+
+    .prompt-command-item:hover,
+    .prompt-command-item.selected {
+      background: #1a1a3a;
+    }
+
+    .prompt-command-icon {
+      width: 1.2rem;
+      text-align: center;
+      font-size: 0.8rem;
+    }
+
+    .prompt-command-name {
+      color: #6a8aff;
+      font-weight: bold;
+      min-width: 5rem;
+    }
+
+    .prompt-command-desc {
+      color: #666688;
+      font-size: 0.65rem;
+    }
+
+    /* ── Toolbar ── */
+    .prompt-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid #1a1a3a;
+    }
+
+    .prompt-tool-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: #555577;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.4rem;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.1s ease;
+    }
+
+    .prompt-tool-btn:hover {
+      border-color: #3a3a6a;
+      color: #8888aa;
+      background: #16163a;
+    }
+
+    .prompt-toolbar-spacer {
+      flex: 1;
+    }
+
+    /* ── Mode Badge ── */
+    .prompt-mode-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.15rem 0.5rem;
+      border: 1px solid #2a2a5a;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8888aa;
+      transition: all 0.15s ease;
+    }
+
+    .prompt-mode-badge:hover {
+      border-color: #4a4a7a;
+    }
+
+    .prompt-mode-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      transition: background 0.3s ease;
+    }
+
+    .prompt-mode-badge[data-mode="manual"] .prompt-mode-dot { background: #6a8aff; }
+    .prompt-mode-badge[data-mode="supervised"] .prompt-mode-dot { background: #ccaa44; }
+    .prompt-mode-badge[data-mode="autonomous"] .prompt-mode-dot { background: #44cc66; }
+
+    /* ── Input Row ── */
+    .prompt-input-row {
+      display: flex;
+      align-items: flex-end;
+      padding: 0.4rem;
+    }
+
+    /* ── Focus Badge ── */
+    .prompt-focus-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+      background: #1a1a3a;
+      border: 1px solid #3a3a6a;
+      border-radius: 2px;
+      padding: 0.15rem 0.4rem;
+      margin-right: 0.3rem;
+      font-size: 0.65rem;
+      color: #6a8aff;
+      flex-shrink: 0;
+      align-self: center;
+    }
+
+    .prompt-focus-clear {
+      background: none;
+      border: none;
+      color: #555577;
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0 0.15rem;
+      line-height: 1;
+    }
+
+    .prompt-focus-clear:hover {
+      color: #ff5555;
+    }
+
+    /* ── Textarea ── */
+    .prompt-textarea {
+      flex: 1;
+      background: #0a0a1a;
+      border: 1px solid #2a2a5a;
+      color: #e8e8ff;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 0.8rem;
+      padding: 0.5rem 0.6rem;
+      resize: none;
+      outline: none;
+      min-height: 2rem;
+      max-height: 8rem;
+      overflow-y: auto;
+      line-height: 1.4;
+      transition: border-color 0.15s ease;
+    }
+
+    .prompt-textarea::placeholder {
+      color: #444466;
+    }
+
+    .prompt-textarea:focus {
+      border-color: #6a8aff;
+      box-shadow: 0 0 8px rgba(106, 138, 255, 0.15);
+    }
+
+    /* ── Send Button ── */
+    .prompt-send-btn {
+      background: none;
+      border: 1px solid #2a2a5a;
+      color: #555577;
+      font-size: 0.85rem;
+      width: 2rem;
+      height: 2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0.25rem;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+      align-self: flex-end;
+    }
+
+    .prompt-send-btn:not(:disabled):hover {
+      border-color: #6a8aff;
+      color: #6a8aff;
+      background: #16163a;
+    }
+
+    .prompt-send-btn:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+    /* ── Realm List ── */
+    .realm-list {
+      margin-top: 1.5rem;
+      border-top: 1px solid #1a1a3a;
+      padding-top: 1.5rem;
+    }
+
+    .realm-list-title {
+      font-size: 0.75rem;
+      color: #555577;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .realm-card {
+      background: #0d0d22;
+      border: 2px solid #2a2a5a;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      transition: border-color 0.15s ease;
+    }
+
+    .realm-card:hover {
+      border-color: #4a4a7a;
+    }
+
+    .realm-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.4rem;
+    }
+
+    .realm-card-name {
+      font-size: 0.9rem;
+      color: #e8e8ff;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+    }
+
+    .realm-card-date {
+      font-size: 0.65rem;
+      color: #555577;
+    }
+
+    .realm-card-stats {
+      font-size: 0.7rem;
+      color: #8888aa;
+      margin-bottom: 0.2rem;
+    }
+
+    .realm-card-changes {
+      font-size: 0.65rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .realm-card-changes-ok { color: #44cc66; }
+    .realm-card-changes-stale { color: #ccaa44; }
+    .realm-card-changes-unknown { color: #555577; }
+
+    .realm-card-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .realm-btn {
+      font-size: 0.65rem;
+      padding: 0.3rem 0.8rem;
+      letter-spacing: 0.08em;
+    }
+
+    .realm-btn-danger {
+      border-color: #553333;
+      color: #aa5555;
+    }
+
+    .realm-btn-danger:hover {
+      background: #553333;
+      color: #ff8888;
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Title Screen -->
+  <div id="title-screen" class="screen">
+  </div>
+
+  <!-- Repository Link Screen -->
+  <div id="repo-screen" class="screen screen-hidden">
+  </div>
+
+  <!-- Game Viewport (Phaser + Sidebar) -->
+  <div id="game-viewport" class="screen-hidden">
+    <div id="game-container"></div>
+    <div id="sidebar">
+      <div id="dialogue-log"></div>
+      <div id="quest-log" style="display:none; overflow-y:auto; flex:0 0 auto; max-height:40%; border-top:1px solid #2a2a5a; padding:0.5rem;"></div>
+      <div id="settings-panel" style="display:none; padding: 1rem; border-top: 1px solid #2a2a5a;">
+        <div style="font-size: 0.8rem; color: #8888aa; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.1em;">Settings</div>
+        <label style="display:block; font-size: 0.7rem; color: #666688; margin-bottom: 0.3rem;">Max Agents</label>
+        <input id="setting-max-agents" type="number" value="5" min="1" max="20" class="rpg-input" style="margin-bottom: 0.5rem; padding: 0.4rem;">
+        <label style="display:block; font-size: 0.7rem; color: #666688; margin-bottom: 0.3rem;">Budget (USD)</label>
+        <input id="setting-budget" type="number" value="2.00" min="0.10" step="0.10" class="rpg-input" style="margin-bottom: 0.5rem; padding: 0.4rem;">
+        <label style="display:block; font-size: 0.7rem; color: #666688; margin-bottom: 0.3rem;">Permission Level</label>
+        <select id="setting-permission" class="rpg-input" style="margin-bottom: 0.5rem; padding: 0.4rem;">
+          <option value="read-only" selected>Read Only</option>
+          <option value="write-with-approval">Write (with approval)</option>
+          <option value="full">Full Read/Write</option>
+        </select>
+        <label style="display:block; font-size: 0.7rem; color: #666688; margin-bottom: 0.3rem;">Autonomy</label>
+        <select id="setting-autonomy" class="rpg-input" style="padding: 0.4rem;">
+          <option value="supervised" selected>Supervised</option>
+          <option value="manual">Manual</option>
+          <option value="autonomous">Autonomous</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

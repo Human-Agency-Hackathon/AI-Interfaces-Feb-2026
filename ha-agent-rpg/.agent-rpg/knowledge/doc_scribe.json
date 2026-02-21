@@ -1,0 +1,11 @@
+{
+  "agent_id": "doc_scribe",
+  "agent_name": "Doc Scribe",
+  "role": "Technical Documentation Expert",
+  "realm": "/docs",
+  "expertise": {},
+  "realm_knowledge": {},
+  "insights": [],
+  "task_history": [],
+  "files_analyzed": []
+}

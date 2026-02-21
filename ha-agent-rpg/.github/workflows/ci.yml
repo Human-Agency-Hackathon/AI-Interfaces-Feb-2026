@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test-server:
+    name: Test Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run server tests
+        run: npm run test -w server
+
+      - name: Generate coverage report
+        run: npm run test -w server -- --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./server/coverage/coverage-final.json
+          flags: server
+          name: server-coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  test-client:
+    name: Test Client Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build client
+        run: npm run build -w client
+
+      # TODO: Add client tests when available
+      # - name: Run client tests
+      #   run: npm run test -w client
+
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check server
+        run: npm run build -w server
+
+      - name: Type check client
+        run: npm run build -w client
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [test-server, test-client, lint]
+    if: always()
+
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.test-server.result }}" != "success" ]] || \
+             [[ "${{ needs.test-client.result }}" != "success" ]] || \
+             [[ "${{ needs.lint.result }}" != "success" ]]; then
+            echo "Quality gate failed - one or more checks did not pass"
+            exit 1
+          fi
+          echo "Quality gate passed - all checks successful"

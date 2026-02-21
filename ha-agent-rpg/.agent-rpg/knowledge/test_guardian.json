@@ -1,0 +1,11 @@
+{
+  "agent_id": "test_guardian",
+  "agent_name": "Test Guardian",
+  "role": "Client-Side Testing Specialist",
+  "realm": "/client",
+  "expertise": {},
+  "realm_knowledge": {},
+  "insights": [],
+  "task_history": [],
+  "files_analyzed": []
+}
