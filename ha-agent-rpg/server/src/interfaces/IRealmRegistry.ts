@@ -8,4 +8,7 @@ export interface IRealmRegistry {
   saveRealm(entry: RealmEntry): void;
   removeRealm(id: string): void;
   generateRealmId(repoPath: string): string;
+  getLastActiveRealmId(): string | undefined;
+  setLastActiveRealmId(id: string): void;
+  clearLastActiveRealmId(): void;
 }

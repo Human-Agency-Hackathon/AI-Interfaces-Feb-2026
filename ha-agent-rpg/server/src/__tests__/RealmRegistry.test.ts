@@ -113,6 +113,52 @@ describe('RealmRegistry', () => {
     });
   });
 
+  describe('lastActiveRealmId', () => {
+    it('returns undefined when not set', async () => {
+      const registry = new RealmRegistry(tempDir);
+      await registry.load();
+      expect(registry.getLastActiveRealmId()).toBeUndefined();
+    });
+
+    it('set and get round-trip', async () => {
+      const registry = new RealmRegistry(tempDir);
+      await registry.load();
+      registry.setLastActiveRealmId('realm_abc');
+      expect(registry.getLastActiveRealmId()).toBe('realm_abc');
+    });
+
+    it('clear removes the value', async () => {
+      const registry = new RealmRegistry(tempDir);
+      await registry.load();
+      registry.setLastActiveRealmId('realm_abc');
+      registry.clearLastActiveRealmId();
+      expect(registry.getLastActiveRealmId()).toBeUndefined();
+    });
+
+    it('persists across save/load', async () => {
+      const reg1 = new RealmRegistry(tempDir);
+      await reg1.load();
+      reg1.setLastActiveRealmId('realm_xyz');
+      await reg1.save();
+
+      const reg2 = new RealmRegistry(tempDir);
+      await reg2.load();
+      expect(reg2.getLastActiveRealmId()).toBe('realm_xyz');
+    });
+
+    it('cleared value persists as undefined across save/load', async () => {
+      const reg1 = new RealmRegistry(tempDir);
+      await reg1.load();
+      reg1.setLastActiveRealmId('realm_xyz');
+      reg1.clearLastActiveRealmId();
+      await reg1.save();
+
+      const reg2 = new RealmRegistry(tempDir);
+      await reg2.load();
+      expect(reg2.getLastActiveRealmId()).toBeUndefined();
+    });
+  });
+
   describe('generateRealmId()', () => {
     it('produces a stable id from a given path', () => {
       const registry = new RealmRegistry(tempDir);

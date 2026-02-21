@@ -6,11 +6,13 @@ import type { IRealmRegistry } from './interfaces/index.js';
 
 interface RealmRegistryData {
   realms: RealmEntry[];
+  lastActiveRealmId?: string;
 }
 
 export class RealmRegistry implements IRealmRegistry {
   private realms: RealmEntry[] = [];
   private filePath: string;
+  private lastActiveRealmId: string | undefined = undefined;
 
   constructor(baseDir: string) {
     this.filePath = join(baseDir, '.agent-rpg', 'realms.json');
@@ -21,6 +23,7 @@ export class RealmRegistry implements IRealmRegistry {
       const data = await readFile(this.filePath, 'utf-8');
       const parsed: RealmRegistryData = JSON.parse(data);
       this.realms = parsed.realms ?? [];
+      this.lastActiveRealmId = parsed.lastActiveRealmId;
     } catch {
       this.realms = [];
     }
@@ -28,7 +31,7 @@ export class RealmRegistry implements IRealmRegistry {
 
   async save(): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
-    const data: RealmRegistryData = { realms: this.realms };
+    const data: RealmRegistryData = { realms: this.realms, lastActiveRealmId: this.lastActiveRealmId };
     await writeFile(this.filePath, JSON.stringify(data, null, 2));
   }
 
@@ -57,5 +60,17 @@ export class RealmRegistry implements IRealmRegistry {
 
   generateRealmId(repoPath: string): string {
     return createHash('sha256').update(repoPath).digest('hex').slice(0, 12);
+  }
+
+  getLastActiveRealmId(): string | undefined {
+    return this.lastActiveRealmId;
+  }
+
+  setLastActiveRealmId(id: string): void {
+    this.lastActiveRealmId = id;
+  }
+
+  clearLastActiveRealmId(): void {
+    this.lastActiveRealmId = undefined;
   }
 }

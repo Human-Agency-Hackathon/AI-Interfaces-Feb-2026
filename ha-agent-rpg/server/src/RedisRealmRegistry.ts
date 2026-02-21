@@ -10,18 +10,21 @@ import type { RealmEntry } from './types.js';
  */
 export class RedisRealmRegistry implements IRealmRegistry {
   private readonly key = 'realms:registry';
+  private readonly lastActiveKey = 'realms:lastActiveRealmId';
   private realms: RealmEntry[] = [];
+  private lastActiveRealmId: string | undefined = undefined;
 
   async load(): Promise<void> {
     const data = await getRedisClient().get(this.key);
     if (data) {
-      const parsed = JSON.parse(data) as { realms: RealmEntry[] };
+      const parsed = JSON.parse(data) as { realms: RealmEntry[]; lastActiveRealmId?: string };
       this.realms = parsed.realms ?? [];
+      this.lastActiveRealmId = parsed.lastActiveRealmId;
     }
   }
 
   async save(): Promise<void> {
-    await getRedisClient().set(this.key, JSON.stringify({ realms: this.realms }));
+    await getRedisClient().set(this.key, JSON.stringify({ realms: this.realms, lastActiveRealmId: this.lastActiveRealmId }));
   }
 
   listRealms(): RealmEntry[] {
@@ -49,5 +52,17 @@ export class RedisRealmRegistry implements IRealmRegistry {
 
   generateRealmId(repoPath: string): string {
     return createHash('sha256').update(repoPath).digest('hex').slice(0, 12);
+  }
+
+  getLastActiveRealmId(): string | undefined {
+    return this.lastActiveRealmId;
+  }
+
+  setLastActiveRealmId(id: string): void {
+    this.lastActiveRealmId = id;
+  }
+
+  clearLastActiveRealmId(): void {
+    this.lastActiveRealmId = undefined;
   }
 }
