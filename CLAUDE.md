@@ -1,5 +1,9 @@
 # Agent Dungeon (AI-Interfaces-Feb-2026)
 
+## Workflow Rules
+
+- **Always commit and push.** After making changes, commit and push to `main` without being asked. The team accesses this repo from multiple devices; unpushed work is invisible work.
+
 ## Project Overview
 
 This repo is the umbrella for "Agent Dungeon": a visual interface that renders AI sub-agents as characters in a classic JRPG. The main codebase lives in `ha-agent-rpg/`. Project docs live in `docs/`.
