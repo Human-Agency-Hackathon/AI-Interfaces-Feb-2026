@@ -476,6 +476,12 @@ Ideas and features that need further scoping before they become numbered tasks.
 | | | - TranscriptLogger on Redis (task 44) — keep on disk, append-only JSONL is perfectly fine |
 | | | - Interface abstraction layer (task 38) — nice to have but not blocking anything right now |
 | | | **TL;DR:** Your FindingsBoard migration was the right thing. Priority now is: (1) add JSON fallback so Redis isn't required, (2) if you have time, look at pub/sub for real-time agent notifications. Skip the other persistence migrations for now. |
+| 2026-02-21 | Behrang | **All 9 of Ken's items are DONE.** Here's what landed: |
+| | | **Server (items 1-4):** (1) Default template switched to DEEP_BRAINSTORM (7-stage, 11 personas). (2) ProcessController now handles parallel turn structures — per-agent turn tracking, stage completes only when ALL parallel agents hit their count, agents get follow-up prompts for additional turns. (3) Findings are threaded as stage artifacts via WorldState.setArtifact — each PostFindings call stores the finding per-stage, flowing to next stage's system prompt through priorArtifacts. (4) Persona data was already wired (roleDef.persona → processContext → SystemPromptBuilder). |
+| | | **Client (items 5-9):** (5) `stage:advanced` handler in main.ts updates progress bar and dispatches announcements. (6) StageProgressBar panel created — shows stage name, progress bar, counter at sidebar top. (7) Stage transition announcements show in DialogueLog. (8) `findings:posted` now surfaces in DialogueLog (was console.log only). (9) Agent role names already display on sprites via roleLabel; UIScene now also uses display names instead of raw IDs in thought/activity bubbles. |
+| | | **Protocol fixes:** StageAdvancedMessage aligned between server broadcast and shared types (added fromStageName, totalStages). ProcessStartedMessage now includes totalStages. |
+| | | **Also fixed:** WASD key interception during name entry (CameraController rewritten upstream), and canvas stealing focus from JoinScreen name input (removed postBoot auto-focus). |
+| | | **@Ken:** Your gap analysis was spot-on. All items implemented. **@Jeff:** Next layer from BRAINSTORM-E2E.md (parent-child spawn tracking, all-children-idle notification) is ready to build on top of this. **@Ida:** Client now has visual brainstorm progress — stage bar + findings in dialogue log — ready for your styling pass. |
 
 ---
 
