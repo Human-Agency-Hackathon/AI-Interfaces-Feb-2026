@@ -1,6 +1,7 @@
 import { WebSocketClient } from '../network/WebSocketClient';
 import { MapRenderer } from '../systems/MapRenderer';
 import { AgentSprite } from '../systems/AgentSprite';
+import { PlayerSprite } from '../systems/PlayerSprite';
 import { EffectSystem } from '../systems/EffectSystem';
 import { CameraController } from '../systems/CameraController';
 import { MapObjectSprite } from '../systems/MapObjectSprite';
@@ -23,11 +24,16 @@ export class GameScene extends Phaser.Scene {
   private wsClient!: WebSocketClient;
   private mapRenderer: MapRenderer | null = null;
   private agentSprites: Map<string, AgentSprite> = new Map();
+  private playerSprite: PlayerSprite | null = null;
   private effectSystem!: EffectSystem;
   private cameraController: CameraController | null = null;
   private mapObjectSprites: MapObjectSprite[] = [];
   private thoughtBubble!: ThoughtBubble;
   private objects: MapObject[] = [];
+  private currentMapDimensions: { width: number; height: number } | null = null;
+  private wasdKeys!: Record<string, Phaser.Input.Keyboard.Key>;
+  private arrowKeys!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private isPlayerMoving = false;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -38,12 +44,24 @@ export class GameScene extends Phaser.Scene {
     this.thoughtBubble = new ThoughtBubble(this);
     this.wsClient = new WebSocketClient('ws://localhost:3001');
 
+    // Setup keyboard controls for player movement
+    if (this.input.keyboard) {
+      this.arrowKeys = this.input.keyboard.createCursorKeys();
+      this.wasdKeys = {
+        w: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+        a: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+        s: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+        d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+      };
+    }
+
     this.wsClient.on('world:state', (msg) => {
       const state = msg as unknown as WorldStateMessage;
-      // Only render map once
       if (!this.mapRenderer) {
+        // First render — create map renderer and camera
         this.mapRenderer = new MapRenderer(this, state.map);
         this.mapRenderer.render();
+        this.currentMapDimensions = { width: state.map.width, height: state.map.height };
 
         // Create camera controller with actual map dimensions
         this.cameraController = new CameraController(
@@ -53,7 +71,7 @@ export class GameScene extends Phaser.Scene {
           state.map.tile_size,
         );
 
-        // Snap to oracle, then pan down to reveal nav doors at map bottom
+        // Snap camera to oracle
         const oracle = state.agents.find((a) => a.agent_id === 'oracle');
         const tileSize = state.map.tile_size;
         if (oracle) {
@@ -62,15 +80,20 @@ export class GameScene extends Phaser.Scene {
             oracle.y * tileSize + tileSize / 2,
           );
         }
-        // Pan down after a short delay to show nav doors near the map bottom
-        const navDoor = state.objects.find(o => o.type === 'nav_door');
-        if (navDoor) {
-          this.time.delayedCall(900, () => {
-            this.cameraController?.panTo(
-              navDoor.x * tileSize + tileSize / 2,
-              navDoor.y * tileSize + tileSize / 2,
-            );
-          });
+      } else {
+        // Subsequent world:state — reload tilemap (e.g. new agent room added)
+        this.mapRenderer.loadMap(state.map);
+        // Update camera bounds if map dimensions changed
+        if (
+          state.map.width !== this.currentMapDimensions?.width ||
+          state.map.height !== this.currentMapDimensions?.height
+        ) {
+          this.cameras.main.setBounds(
+            0, 0,
+            state.map.width * state.map.tile_size,
+            state.map.height * state.map.tile_size,
+          );
+          this.currentMapDimensions = { width: state.map.width, height: state.map.height };
         }
       }
 
@@ -90,7 +113,14 @@ export class GameScene extends Phaser.Scene {
 
       // Sync agent sprites
       for (const agent of state.agents) {
-        if (!this.agentSprites.has(agent.agent_id)) {
+        if (agent.agent_id === 'oracle') {
+          // Create player sprite for Oracle instead of regular agent sprite
+          if (!this.playerSprite) {
+            this.playerSprite = new PlayerSprite(this, agent.x, agent.y, agent.name);
+          } else {
+            this.playerSprite.setPosition(agent.x, agent.y);
+          }
+        } else if (!this.agentSprites.has(agent.agent_id)) {
           this.createAgentSprite(agent);
         }
       }
@@ -185,6 +215,107 @@ export class GameScene extends Phaser.Scene {
     if (this.cameraController) {
       this.cameraController.update();
     }
+
+    // Handle player movement input
+    this.handlePlayerInput();
+  }
+
+  private handlePlayerInput(): void {
+    // Don't process input if player is already moving
+    if (this.isPlayerMoving || !this.playerSprite) {
+      return;
+    }
+
+    let direction: 'up' | 'down' | 'left' | 'right' | null = null;
+
+    // Check arrow keys
+    if (this.arrowKeys.up.isDown || this.wasdKeys.w.isDown) {
+      direction = 'up';
+    } else if (this.arrowKeys.down.isDown || this.wasdKeys.s.isDown) {
+      direction = 'down';
+    } else if (this.arrowKeys.left.isDown || this.wasdKeys.a.isDown) {
+      direction = 'left';
+    } else if (this.arrowKeys.right.isDown || this.wasdKeys.d.isDown) {
+      direction = 'right';
+    }
+
+    if (direction) {
+      this.movePlayer(direction);
+    }
+  }
+
+  private movePlayer(direction: 'up' | 'down' | 'left' | 'right'): void {
+    if (!this.playerSprite) return;
+
+    const currentX = this.playerSprite.getTileX();
+    const currentY = this.playerSprite.getTileY();
+    let targetX = currentX;
+    let targetY = currentY;
+
+    switch (direction) {
+      case 'up':
+        targetY -= 1;
+        break;
+      case 'down':
+        targetY += 1;
+        break;
+      case 'left':
+        targetX -= 1;
+        break;
+      case 'right':
+        targetX += 1;
+        break;
+    }
+
+    // Check if target tile is walkable
+    if (this.isWalkable(targetX, targetY)) {
+      this.isPlayerMoving = true;
+
+      // Send movement to server
+      this.wsClient.send({
+        type: 'player:move',
+        direction: direction,
+      });
+
+      // Animate player sprite
+      this.playerSprite.walkTo(targetX, targetY, () => {
+        this.isPlayerMoving = false;
+      });
+
+      // Update camera to follow player
+      if (this.cameraController) {
+        const TILE_SIZE = 32;
+        const px = targetX * TILE_SIZE + TILE_SIZE / 2;
+        const py = targetY * TILE_SIZE + TILE_SIZE / 2;
+        this.cameraController.panTo(px, py);
+      }
+    }
+  }
+
+  private isWalkable(x: number, y: number): boolean {
+    if (!this.mapRenderer) return false;
+
+    const map = this.mapRenderer.getMap();
+
+    // Check bounds
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height) {
+      return false;
+    }
+
+    // Check tile type (0 = grass/walkable, 1 = wall, 2 = water)
+    const tile = map.tiles[y][x];
+    if (tile === 1 || tile === 2) {
+      return false;
+    }
+
+    // Check for collision with objects
+    for (const obj of this.objects) {
+      if (obj.x === x && obj.y === y && obj.type !== 'nav_door' && obj.type !== 'nav_back') {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private createAgentSprite(agent: AgentInfo): void {

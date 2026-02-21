@@ -309,6 +309,75 @@ export interface ErrorMessage {
   message: string;
 }
 
+// ── Messages: Player → Server (Process) ──
+
+/**
+ * Player submits a problem statement to start a brainstorming process.
+ * The server loads/creates a ProcessState and begins the first stage.
+ * Replaces player:link-repo in the new flow.
+ */
+export interface StartProcessMessage {
+  type: 'player:start-process';
+  /** The brainstorming problem, e.g. "How do we reduce onboarding time by 50%?" */
+  problem: string;
+  /** Optional template ID from PROCESS_TEMPLATES; defaults to "standard_brainstorm" */
+  processId?: string;
+}
+
+// ── Messages: Server → All (Process) ──
+
+/** Sent once after a process is successfully created and the first stage begins. */
+export interface ProcessStartedMessage {
+  type: 'process:started';
+  processId: string;
+  problem: string;
+  /** Display name of the active template, e.g. "Standard Brainstorm" */
+  processName: string;
+  /** ID of the first stage */
+  currentStageId: string;
+  /** Display name of the first stage */
+  currentStageName: string;
+}
+
+/** Sent when the current stage ends and the next one begins. */
+export interface StageAdvancedMessage {
+  type: 'stage:advanced';
+  fromStageId: string;
+  toStageId: string;
+  toStageName: string;
+  /** Zero-based index of the new stage */
+  stageIndex: number;
+}
+
+/** Sent when the final stage completes and the process is done. */
+export interface StageCompletedMessage {
+  type: 'stage:completed';
+  stageId: string;
+  /** Artifacts produced: artifactId → content */
+  artifacts: Record<string, string>;
+  /** True if this was the last stage (process is now complete) */
+  isFinal: boolean;
+}
+
+/** An agent has proposed an idea during the brainstorm. */
+export interface IdeaProposedMessage {
+  type: 'idea:proposed';
+  ideaId: string;
+  agentId: string;
+  agentName: string;
+  stageId: string;
+  content: string;
+}
+
+/** An agent has voted on a previously proposed idea. */
+export interface IdeaVotedMessage {
+  type: 'idea:voted';
+  ideaId: string;
+  agentId: string;
+  /** Positive endorsement or negative challenge */
+  vote: 'up' | 'down';
+}
+
 // ── Union types ──
 export type ClientMessage =
   | AgentRegisterMessage
@@ -319,7 +388,8 @@ export type ClientMessage =
   | DismissAgentMessage
   | ListRealmsMessage
   | ResumeRealmMessage
-  | RemoveRealmMessage;
+  | RemoveRealmMessage
+  | StartProcessMessage;
 
 export type ServerMessage =
   | WorldStateMessage
@@ -338,4 +408,9 @@ export type ServerMessage =
   | MapChangeMessage
   | RealmPresenceMessage
   | RealmTreeMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | ProcessStartedMessage
+  | StageAdvancedMessage
+  | StageCompletedMessage
+  | IdeaProposedMessage
+  | IdeaVotedMessage;

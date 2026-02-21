@@ -1,4 +1,4 @@
-import type { AgentInfo, AgentStats, TileMapData, MapObject, Quest, WorldStateMessage, MapNode } from './types.js';
+import type { AgentInfo, AgentStats, TileMapData, MapObject, Quest, WorldStateMessage, MapNode, ProcessState } from './types.js';
 
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 15;
@@ -12,6 +12,11 @@ export class WorldState {
   private quests: Quest[] = [];
   tick = 0;
   mapTree: MapNode | null = null;
+
+  // ── Process State ──────────────────────────────────
+  // Set when a brainstorming process is active. Null until
+  // player:start-process is received.
+  private processState: ProcessState | null = null;
 
   constructor() {
     this.map = this.generateDefaultMap();
@@ -92,14 +97,57 @@ export class WorldState {
     return { width: MAP_WIDTH, height: MAP_HEIGHT, tile_size: TILE_SIZE, tiles };
   }
 
+  // ── Process state accessors ────────────────────────
+
+  setProcessState(state: ProcessState): void {
+    this.processState = state;
+  }
+
+  getProcessState(): ProcessState | null {
+    return this.processState;
+  }
+
+  /**
+   * Advance the active process to the next stage by index.
+   * Records an artifact for the stage that just completed before advancing.
+   */
+  advanceStage(completedStageId: string, artifacts: Record<string, string>): void {
+    if (!this.processState) return;
+    this.processState.collectedArtifacts[completedStageId] = { ...artifacts };
+    this.processState.currentStageIndex++;
+  }
+
+  /**
+   * Mark the active process as completed and record the final stage's artifacts.
+   */
+  completeProcess(finalStageId: string, artifacts: Record<string, string>): void {
+    if (!this.processState) return;
+    this.processState.collectedArtifacts[finalStageId] = { ...artifacts };
+    this.processState.status = 'completed';
+    this.processState.completedAt = new Date().toISOString();
+  }
+
+  /**
+   * Store a single artifact produced mid-stage (e.g. from an idea:proposed tool call).
+   * Artifacts are keyed by stageId → artifactId → content.
+   */
+  setArtifact(stageId: string, artifactId: string, content: string): void {
+    if (!this.processState) return;
+    if (!this.processState.collectedArtifacts[stageId]) {
+      this.processState.collectedArtifacts[stageId] = {};
+    }
+    this.processState.collectedArtifacts[stageId][artifactId] = content;
+  }
+
   addAgent(
     agent_id: string,
     name: string,
     color: number,
     role: string,
     realm: string,
+    spawnAt?: { x: number; y: number },
   ): AgentInfo {
-    const pos = this.findSpawnPosition();
+    const pos = spawnAt ?? this.findSpawnPosition();
     const stats: AgentStats = {
       realm_knowledge: {},
       expertise: {},
@@ -212,6 +260,7 @@ export class WorldState {
       quests: this.quests,
       tick: this.tick,
       mapTree: this.mapTree ?? null,
+      processState: this.processState ?? null,
     });
   }
 
@@ -224,6 +273,7 @@ export class WorldState {
     ws.setQuests(data.quests ?? []);
     ws.tick = data.tick ?? 0;
     if (data.mapTree) ws.setMapTree(data.mapTree as MapNode);
+    if (data.processState) ws.setProcessState(data.processState as ProcessState);
     return ws;
   }
 }

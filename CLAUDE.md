@@ -66,7 +66,7 @@ The bridge is the hub; agents and the client never talk directly to each other.
 
 ## Git Workflow
 
-This is a hackathon. Commit and push early and often. Do not accumulate large changesets; small, frequent commits keep the team aligned and avoid painful integrations. When in doubt, push what you have.
+This is a hackathon. Commit and push early and often. Do not accumulate large changesets; small, frequent commits keep the team aligned and avoid painful integrations. When in doubt, push what you have. Pull `origin main` frequently too; teammates are constantly pushing new code and you need to stay current.
 
 ## Documentation
 

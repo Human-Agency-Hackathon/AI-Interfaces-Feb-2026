@@ -18,7 +18,7 @@ import type {
 } from './types.js';
 import { WorldState } from './WorldState.js';
 import { RepoAnalyzer, type RepoData } from './RepoAnalyzer.js';
-import { MapGenerator } from './MapGenerator.js';
+import { MapGenerator, type AgentMapResult } from './MapGenerator.js';
 import { QuestManager } from './QuestManager.js';
 import { AgentSessionManager } from './AgentSessionManager.js';
 import { EventTranslator, type RPGEvent } from './EventTranslator.js';
@@ -61,6 +61,7 @@ export class BridgeServer {
   private agentColorIndex = 0;
   private realmRegistry: RealmRegistry;
   private worldStatePersistence: WorldStatePersistence;
+  private agentRoomPositions: Map<string, { x: number; y: number }> = new Map();
   private agentSockets = new Map<string, WebSocket>();           // agentId → socket
   private agentNavStacks = new Map<string, NavigationFrame[]>(); // agentId → nav stack
   private agentCurrentPath = new Map<string, string>();          // agentId → current folder path
@@ -227,13 +228,11 @@ export class BridgeServer {
 
       this.repoPath = localRepoPath;
 
-      // Generate map
-      const { map, objects, quests } = this.mapGenerator.generate(repoData);
+      // Extract quests from repo analysis (map is generated when oracle spawns)
+      const { quests } = this.mapGenerator.generate(repoData);
 
-      // Update world state
+      // Reset world state (map/objects will be set in spawnOracle)
       this.worldState = new WorldState();
-      this.worldState.setMap(map);
-      this.worldState.setObjects(objects);
       this.worldState.setQuests(quests);
 
       // Load quests
@@ -262,28 +261,18 @@ export class BridgeServer {
       this.sessionManager = new AgentSessionManager(this.findingsBoard, this.toolHandler);
       this.wireSessionManagerEvents();
 
-      // Set objects on event translator
-      this.eventTranslator.setObjects(objects);
+      // Event translator will be updated with agent-room objects after oracle spawns
+      this.eventTranslator.setObjects([]);
 
-      // Build hierarchical map tree from the repo file list
-      const mapTree = this.mapGenerator.buildMapTree(repoData.tree);
-      this.worldState.setMapTree(mapTree);
-
-      // Generate the root-level hierarchical map (top-level folders as rooms with doors)
-      const rootNode = this.worldState.getMapNode('')!;
-      const hierarchicalRoot = this.mapGenerator.generateFolderMap(rootNode, 0);
-      this.worldState.setMap(hierarchicalRoot.map);
-      this.worldState.setObjects(hierarchicalRoot.objects);
-
-      // Broadcast repo:ready
+      // Broadcast repo:ready with default map (real agent map comes after oracle spawns)
       this.broadcast({
         type: 'repo:ready',
         repo_name: repoData.owner === 'local'
           ? repoData.repo
           : `${repoData.owner}/${repoData.repo}`,
-        map: hierarchicalRoot.map,
+        map: this.worldState.map,
         quests,
-        objects: hierarchicalRoot.objects,
+        objects: [],
         stats: {
           total_files: repoData.totalFiles,
           total_lines: 0,
@@ -291,12 +280,6 @@ export class BridgeServer {
           open_issues: repoData.issues.length,
           last_commit: '',
         },
-      });
-
-      // Broadcast the tree structure
-      this.broadcast({
-        type: 'realm:tree',
-        root: this.stripMapData(mapTree),
       });
 
       // Save realm to registry
@@ -307,8 +290,6 @@ export class BridgeServer {
       } catch {
         // Not a git repo — use defaults
       }
-
-      const roomCount = Math.max(1, objects.filter((o) => o.type === 'sign').length);
 
       const realmEntry: RealmEntry = {
         id: realmId,
@@ -328,9 +309,9 @@ export class BridgeServer {
           questsCompleted: 0,
         },
         mapSnapshot: {
-          rooms: roomCount,
-          tileWidth: map.width,
-          tileHeight: map.height,
+          rooms: 1,
+          tileWidth: 60,
+          tileHeight: 50,
         },
       };
 
@@ -364,7 +345,15 @@ export class BridgeServer {
     const realm = '/';
     const color = this.nextColor();
 
-    const agent = this.worldState.addAgent(agentId, agentName, color, role, realm);
+    // Generate the single-room agent map for oracle
+    const result = this.mapGenerator.generateAgentMap([{ agentId, name: agentName, role }]);
+    this.worldState.setMap(result.map);
+    this.worldState.setObjects(result.objects);
+    this.eventTranslator.setObjects(result.objects);
+    this.agentRoomPositions.set(agentId, result.agentPositions[agentId]);
+
+    const agent = this.worldState.addAgent(agentId, agentName, color, role, realm,
+      result.agentPositions[agentId]);
     this.broadcast({ type: 'agent:joined', agent });
     this.broadcast(this.worldState.getSnapshot());
 
@@ -436,7 +425,13 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
       request.realm,
     );
 
+    // Rebuild full map with all agents and move new agent to its room
+    const result = this.rebuildAgentMap();
+    const pos = result.agentPositions[agentId];
+    if (pos) this.worldState.applyMove(agentId, pos.x, pos.y);
+
     this.broadcast({ type: 'agent:joined', agent });
+    this.broadcast(this.worldState.getSnapshot());
 
     // Notify client of spawn request (for UI)
     this.broadcast({
@@ -657,6 +652,24 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     this.send(ws, { type: 'realm:removed', realm_id: msg.realm_id });
   }
 
+  private rebuildAgentMap(): AgentMapResult {
+    // Build specs in insertion order, oracle always first
+    const specs: Array<{ agentId: string; name: string; role: string }> = [];
+    const oracle = this.worldState.agents.get('oracle');
+    if (oracle) specs.push({ agentId: 'oracle', name: oracle.name, role: oracle.role });
+    for (const [id, agent] of this.worldState.agents) {
+      if (id !== 'oracle') specs.push({ agentId: id, name: agent.name, role: agent.role });
+    }
+    const result = this.mapGenerator.generateAgentMap(specs);
+    this.worldState.setMap(result.map);
+    this.worldState.setObjects(result.objects);
+    this.eventTranslator.setObjects(result.objects);
+    for (const [agentId, pos] of Object.entries(result.agentPositions)) {
+      this.agentRoomPositions.set(agentId, pos);
+    }
+    return result;
+  }
+
   private async cleanupCurrentRealm(): Promise<void> {
     if (this.sessionManager) {
       const activeIds = this.sessionManager.getActiveAgentIds();
@@ -669,6 +682,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
       }
     }
     this.agentColorIndex = 0;
+    this.agentRoomPositions.clear();
   }
 
   // ── Event Wiring ──

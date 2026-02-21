@@ -305,6 +305,56 @@ export interface ErrorMessage {
   message: string;
 }
 
+// ── Messages: Player → Server (Process) ──
+
+export interface StartProcessMessage {
+  type: 'player:start-process';
+  problem: string;
+  processId?: string;
+}
+
+// ── Messages: Server → All (Process) ──
+
+export interface ProcessStartedMessage {
+  type: 'process:started';
+  processId: string;
+  problem: string;
+  processName: string;
+  currentStageId: string;
+  currentStageName: string;
+}
+
+export interface StageAdvancedMessage {
+  type: 'stage:advanced';
+  fromStageId: string;
+  toStageId: string;
+  toStageName: string;
+  stageIndex: number;
+}
+
+export interface StageCompletedMessage {
+  type: 'stage:completed';
+  stageId: string;
+  artifacts: Record<string, string>;
+  isFinal: boolean;
+}
+
+export interface IdeaProposedMessage {
+  type: 'idea:proposed';
+  ideaId: string;
+  agentId: string;
+  agentName: string;
+  stageId: string;
+  content: string;
+}
+
+export interface IdeaVotedMessage {
+  type: 'idea:voted';
+  ideaId: string;
+  agentId: string;
+  vote: 'up' | 'down';
+}
+
 // ── Union types ──
 export interface PlayerNavigateEnterMessage {
   type: 'player:navigate-enter';
@@ -313,6 +363,11 @@ export interface PlayerNavigateEnterMessage {
 
 export interface PlayerNavigateBackMessage {
   type: 'player:navigate-back';
+}
+
+export interface PlayerMoveMessage {
+  type: 'player:move';
+  direction: 'up' | 'down' | 'left' | 'right';
 }
 
 export type ClientMessage =
@@ -326,7 +381,9 @@ export type ClientMessage =
   | ResumeRealmMessage
   | RemoveRealmMessage
   | PlayerNavigateEnterMessage
-  | PlayerNavigateBackMessage;
+  | PlayerNavigateBackMessage
+  | PlayerMoveMessage
+  | StartProcessMessage;
 
 export type ServerMessage =
   | WorldStateMessage
@@ -345,4 +402,9 @@ export type ServerMessage =
   | MapChangeMessage
   | RealmPresenceMessage
   | RealmTreeMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | ProcessStartedMessage
+  | StageAdvancedMessage
+  | StageCompletedMessage
+  | IdeaProposedMessage
+  | IdeaVotedMessage;
