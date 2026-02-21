@@ -12,6 +12,11 @@ export interface ProcessState {
   collectedArtifacts: Record<string, Record<string, string>>;
   startedAt: string;
   completedAt?: string;
+  // Persistence fields (S1) — see shared/process.ts for docs
+  problemStatement?: string;
+  stageTurnCounts?: Record<string, number>;
+  agentTurnCounts?: Record<string, number>;
+  stageStartedAt?: string;
 }
 
 // ── Spectator Identity ──
