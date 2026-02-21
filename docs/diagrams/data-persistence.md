@@ -105,27 +105,29 @@ sequenceDiagram
 
 ---
 
-## Findings Board (Redis-Backed)
+## Findings Board (Redis + JSON Fallback)
 
-The shared board where agents post discoveries. Uses Redis when available, falls back to JSON file.
+The shared board where agents post discoveries. Checks Redis availability at load time via `isRedisAvailable()`. Falls back to JSON file automatically, so the server works without Redis (including in CI).
 
 ```mermaid
 graph TD
-    subgraph RedisMode ["Redis Mode (default)"]
+    subgraph RedisMode ["Redis Mode (if available)"]
         Key["Key: session:&lt;sanitized-path&gt;:findings"]
         Write1["addFinding() → RPUSH (JSON string)"]
         Read1["getAll() → LRANGE 0 -1"]
         Recent1["getRecent(15) → LRANGE -15 -1"]
+        Save1["save() → no-op (writes are immediate)"]
     end
 
-    subgraph JSONMode ["JSON Fallback (no Redis)"]
+    subgraph JSONMode ["JSON Fallback (default, no Redis needed)"]
         File["File: .agent-rpg/findings/board.json"]
         Write2["addFinding() → array.push + writeFile"]
-        Read2["getAll() → return array"]
+        Read2["getAll() → return array copy"]
         Recent2["getRecent(15) → array.slice(-15)"]
+        Save2["save() → writeFile to disk"]
     end
 
-    Check{"Redis available?"} -->|"Yes"| RedisMode
+    Check{"isRedisAvailable()<br/>at load() time"} -->|"Yes"| RedisMode
     Check -->|"No"| JSONMode
 ```
 
@@ -205,6 +207,12 @@ graph TD
     SDK["Claude Agent SDK<br/>streaming messages"] --> Logger["TranscriptLogger"]
     Logger --> LogPath
 ```
+
+---
+
+## Known Gap: ProcessController State
+
+**ProcessController has no state serialization.** Its runtime state (`context`, `stageTurnCounts`, `agentTurnCounts`) lives in memory only. If the server crashes mid-brainstorm, the process state is lost and cannot be resumed. Only `WorldState` tracks high-level process completion (via `advanceStage()` and `completeProcess()`). A state persistence feature is designed in `docs/features/20260221.02_state_persistence/` but not yet implemented.
 
 ---
 

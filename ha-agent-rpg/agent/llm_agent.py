@@ -99,8 +99,6 @@ class LLMAgent:
             "type": "agent:register",
             "agent_id": self.agent_id,
             "name": self.name,
-            "role": self.name,
-            "realm": "/",  # Start at root
             "color": self.color
         }
         await ws.send(json.dumps(register_msg))
@@ -117,7 +115,10 @@ class LLMAgent:
             print(f"🌍 Received world state ({len(msg.get('agents', []))} agents, {len(msg.get('objects', []))} objects)")
 
         elif msg_type == "turn:start":
-            # It's our turn!
+            # NOTE: The server does not currently send turn:start messages.
+            # Server-managed agents use Claude Agent SDK follow-up prompts instead.
+            # This handler is kept for forward-compatibility if the turn protocol
+            # is implemented for external (non-SDK) agents in the future.
             if msg.get("agent_id") == self.agent_id:
                 turn_id = msg.get("turn_id")
                 timeout_ms = msg.get("timeout_ms", 5000)
@@ -161,23 +162,23 @@ class LLMAgent:
                 print(f"👋 Agent left: {agent_id}")
 
         elif msg_type == "findings:posted":
-            # Team finding posted
-            finding = msg.get("finding", {})
-            severity = finding.get("severity", "low")
-            text = finding.get("text", "")
-            print(f"📢 Finding [{severity.upper()}]: {text[:100]}...")
+            # Team finding posted — server sends flat structure:
+            # { type, agent_id, agent_name, realm, finding: string, severity: string }
+            severity = msg.get("severity", "low")
+            finding_text = msg.get("finding", "")
+            agent_name = msg.get("agent_name", "unknown")
+            print(f"📢 Finding [{severity.upper()}] by {agent_name}: {finding_text[:100]}...")
 
-        elif msg_type == "knowledge:level-up":
+        elif msg_type == "agent:level-up":
             # Agent gained expertise
             if msg.get("agent_id") == self.agent_id:
                 area = msg.get("area")
                 level = msg.get("level")
                 print(f"📈 Level up! {area}: {level}")
 
-        elif msg_type == "spawn:request":
-            # Agent summoned
-            agent = msg.get("agent", {})
-            print(f"🔮 Agent summoned: {agent.get('name')} for {agent.get('mission')}")
+        elif msg_type == "agent:spawn-request":
+            # Agent summoned — protocol fields: requested_name, requested_role, requested_mission
+            print(f"🔮 Agent summoned: {msg.get('requested_name')} for {msg.get('requested_mission')}")
 
         # Ignore other message types silently
 

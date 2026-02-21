@@ -19,12 +19,13 @@ graph TD
         CTH["CustomToolHandler<br/>MCP Tool Execution"]
         ET["EventTranslator<br/>SDK → RPG Events"]
         SPB["SystemPromptBuilder<br/>Dynamic Prompts"]
-        MG["MapGenerator<br/>Repo → Tile Maps"]
+        MG["MapGenerator<br/>Repo/Process → Tile Maps"]
+        BG["BiomeGenerator<br/>Voronoi Biome Zones"]
     end
 
     subgraph Client ["Phaser Client (port 5173)"]
-        GS["GameScene<br/>Map + Sprites"]
-        UI["UIScene<br/>Dialogue Overlay"]
+        GS["GameScene<br/>Map + Sprites + Forts"]
+        UI["UIScene<br/>Dialogue + Details Panel"]
         PB["PromptBar<br/>Commands"]
         DL["DialogueLog<br/>Message History"]
     end
@@ -40,6 +41,7 @@ graph TD
     ASM --> ET
     ASM --> SPB
     BS --> MG
+    MG --> BG
 ```
 
 ## Message Protocol Summary
@@ -53,23 +55,48 @@ graph TD
         AA["agent:action<br/>Submit turn action"]
     end
 
-    subgraph PlayerToServer ["Player → Server"]
-        PC2["player:command<br/>Chat command"]
-        SC["spectator:command<br/>Spectator chat"]
-        SP["player:start-process<br/>Begin brainstorm"]
-        LR["link:repo<br/>Analyze repo"]
-        PN["player:navigate-enter/back<br/>Folder navigation"]
+    subgraph SpectatorToServer ["Spectator → Server"]
+        SR["spectator:register<br/>Join as viewer"]
+        SC["spectator:command<br/>Chat message"]
     end
 
-    subgraph ServerToAll ["Server → All Clients"]
+    subgraph PlayerToServer ["Player → Server"]
+        SP["player:start-process<br/>Begin brainstorm"]
+        PCmd["player:command<br/>Chat command"]
+        PD["player:dismiss-agent<br/>Remove agent"]
+        PUS["player:update-settings<br/>Change settings"]
+        GAD["player:get-agent-details<br/>Request agent info"]
+        LR["player:link-repo<br/>Analyze repo (legacy)"]
+        PLR["player:list-realms<br/>Get realm list"]
+        PRR["player:resume-realm<br/>Resume session"]
+        PRM["player:remove-realm<br/>Delete realm"]
+        PN["player:navigate-enter/back<br/>Folder navigation"]
+        FC["fort:click<br/>Click agent fort"]
+        FE["fort:exit<br/>Exit fort view"]
+    end
+
+    subgraph ServerBroadcasts ["Server → All Clients"]
         WST["world:state<br/>Full snapshot"]
         ARS["action:result<br/>Action outcome"]
         TS["turn:start<br/>Next agent's turn"]
         AJ["agent:joined / left<br/>Lifecycle events"]
-        MC["map:change<br/>Room transition"]
-        FP["findings:posted<br/>New discovery"]
         AT["agent:thought / activity<br/>Status updates"]
-        PS["process:started<br/>stage:advanced<br/>stage:completed"]
+        ASR["agent:spawn-request<br/>Spawn notification"]
+        ALU["agent:level-up<br/>Expertise increase"]
+        AD["agent:details<br/>Full agent info response"]
+        FP["findings:posted<br/>New discovery"]
+        MC["map:change<br/>Room transition"]
+        PS["process:started<br/>stage:advanced<br/>stage:completed<br/>process:completed"]
+        IP["idea:proposed / idea:voted<br/>Brainstorm idea events"]
+        SW["spectator:welcome<br/>spectator:joined<br/>spectator:left<br/>spectator:command"]
+        SI["server:info<br/>LAN address for spectators"]
+        ER["error<br/>Error message"]
+        RL["realm:list<br/>realm:removed<br/>realm:presence<br/>realm:tree"]
+        FR["fog:reveal<br/>Fog-of-war tile reveal"]
+        FU["fort:update<br/>Fort stage change"]
+        FV["fort:view<br/>Fort interior data"]
+        RR["repo:ready<br/>Repo analysis complete (legacy)"]
+        QU["quest:update<br/>Quest status change"]
     end
 ```
 
@@ -84,7 +111,7 @@ graph TD
 
     subgraph AgentManagement ["Agent Management"]
         ASM2["AgentSessionManager<br/>SDK query() sessions<br/>Follow-up prompts<br/>Session resumption"]
-        SPB2["SystemPromptBuilder<br/>Codebase mode prompts<br/>Brainstorm mode prompts<br/>Knowledge injection"]
+        SPB2["SystemPromptBuilder<br/>Codebase mode prompts<br/>Brainstorm mode prompts<br/>Knowledge + artifact injection"]
         ET2["EventTranslator<br/>SDK streams → RPG events<br/>Tool use → animations"]
     end
 
@@ -94,21 +121,25 @@ graph TD
     end
 
     subgraph WorldModel ["World Model"]
-        WS2["WorldState<br/>Agents, map, objects<br/>Quests, process state"]
-        MG2["MapGenerator<br/>Repo → tile maps<br/>Lazy folder generation"]
+        WS2["WorldState<br/>Agents, map, objects<br/>Quests, process state<br/>Fog grid, spectators"]
+        MG2["MapGenerator<br/>Repo → tile maps<br/>Process stage → maps<br/>Fog-of-war → 120x120 maps"]
+        BG2["BiomeGenerator<br/>Voronoi zone seeding<br/>Biome assignment"]
         QM["QuestManager<br/>GitHub issues → quests"]
     end
 
     subgraph Persistence ["Persistence"]
-        FB["FindingsBoard<br/>Redis-backed<br/>Shared discoveries"]
+        FB["FindingsBoard<br/>Redis + JSON fallback<br/>Shared discoveries"]
         KV["KnowledgeVault<br/>JSON files<br/>Per-agent memory"]
-        RR["RealmRegistry<br/>Global repo list<br/>Session resumption"]
+        RR2["RealmRegistry<br/>Global realm list<br/>Session resumption"]
+        WSP["WorldStatePersistence<br/>JSON files<br/>Full state snapshots"]
+        TL["TranscriptLogger<br/>JSONL files<br/>Per-agent daily logs"]
     end
 
     BS2 --> ASM2
     BS2 --> PC3
     BS2 --> WS2
     BS2 --> MG2
+    MG2 --> BG2
     ASM2 --> SPB2
     ASM2 --> ET2
     ASM2 --> RMS
@@ -117,6 +148,22 @@ graph TD
     CTH2 --> KV
     CTH2 --> QM
 ```
+
+### MCP Tool Details
+
+| Server | Tool | Description |
+|--------|------|-------------|
+| Codebase | SummonAgent | Spawn a new specialist agent |
+| Codebase | RequestHelp | Ask another agent for help |
+| Codebase | PostFindings | Share a discovery on the board |
+| Codebase | UpdateKnowledge | Update own knowledge vault |
+| Codebase | ClaimQuest | Claim a quest from the board |
+| Codebase | CompleteQuest | Mark a quest as complete |
+| Codebase | SealChamber | Mark a chamber/area as done |
+| Brainstorm | PostFindings | Share an idea or result |
+| Brainstorm | UpdateKnowledge | Update own knowledge |
+| Brainstorm | CompleteStage | Signal stage completion |
+| Brainstorm | SealChamber | Mark a chamber as done |
 
 ## Port Map
 

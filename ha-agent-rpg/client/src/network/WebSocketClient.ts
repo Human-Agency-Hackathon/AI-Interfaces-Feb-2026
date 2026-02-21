@@ -5,12 +5,25 @@ export class WebSocketClient {
   private listeners: Map<string, MessageHandler[]> = new Map();
   private url: string;
   private reconnectDelay = 2000;
+  private shouldReconnect = true;
 
   constructor(url: string) {
     this.url = url;
   }
 
   connect(): void {
+    // Clean up previous WebSocket instance to prevent memory leaks
+    if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close();
+      }
+    }
+
+    this.shouldReconnect = true;
     this.ws = new WebSocket(this.url);
 
     this.ws.onopen = () => {
@@ -31,9 +44,11 @@ export class WebSocketClient {
     };
 
     this.ws.onclose = () => {
-      console.log('[WS] Disconnected, reconnecting...');
       this.listeners.get('ws:disconnected')?.forEach(fn => fn({}));
-      setTimeout(() => this.connect(), this.reconnectDelay);
+      if (this.shouldReconnect) {
+        console.log('[WS] Disconnected, reconnecting...');
+        setTimeout(() => this.connect(), this.reconnectDelay);
+      }
     };
 
     this.ws.onerror = (err) => {
@@ -41,11 +56,37 @@ export class WebSocketClient {
     };
   }
 
+  disconnect(): void {
+    this.shouldReconnect = false;
+    if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close();
+      }
+      this.ws = null;
+    }
+  }
+
   on(type: string, callback: MessageHandler): void {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, []);
     }
     this.listeners.get(type)!.push(callback);
+  }
+
+  off(type: string, callback: MessageHandler): void {
+    const handlers = this.listeners.get(type);
+    if (handlers) {
+      const idx = handlers.indexOf(callback);
+      if (idx !== -1) handlers.splice(idx, 1);
+    }
+  }
+
+  removeAllListeners(): void {
+    this.listeners.clear();
   }
 
   send(message: Record<string, unknown>): void {

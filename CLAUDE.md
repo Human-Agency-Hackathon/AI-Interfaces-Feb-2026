@@ -114,6 +114,7 @@ This is a hackathon. Commit and push early and often. Do not accumulate large ch
 | `agent-lifecycle.md` | Agent spawning, session management, shutdown, AgentSessionManager |
 | `agent-communication.md` | Findings board, inter-agent messaging, system prompts, knowledge vaults |
 | `brainstorm-process.md` | ProcessController, stage transitions, brainstorm skill, personas |
+| `fog-of-war-map.md` | Overworld map, biomes, agent forts, fog reveal, camera modes, minimap |
 | `client-rendering.md` | Phaser scenes, UI panels, WebSocket handlers, screen flow |
 | `data-persistence.md` | Redis, knowledge vaults, realm registry, transcript logs |
 
