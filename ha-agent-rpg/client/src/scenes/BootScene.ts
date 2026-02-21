@@ -12,6 +12,15 @@ export class BootScene extends Phaser.Scene {
     for (const name of rooms) {
       this.load.image(name, `rooms/${name}.jpg`);
     }
+
+    // Load dungeon visual images for fort interior views
+    const dungeonRooms = [
+      'room-throne', 'room-forge', 'room-library', 'room-armory',
+      'room-dungeon-cell', 'room-greenhouse', 'room-alchemy-lab', 'room-summoning-chamber',
+    ];
+    for (const name of dungeonRooms) {
+      this.load.image(`dv-${name}`, `dungeon_visuals/${name}.jpg`);
+    }
   }
 
   create(): void {
@@ -21,6 +30,14 @@ export class BootScene extends Phaser.Scene {
     this.generateWaterTiles();
     this.generateDoorTile();
     this.generateFloorTile();
+    this.generateTreeTile();
+    this.generateHillTile();
+    this.generateSandTile();
+    this.generatePathTile();
+    this.generateLavaTile();
+    this.generateCrystalTile();
+    this.generateFogTile();
+    this.generateFortTextures();
 
     // ─── Map Object Textures ───
     this.generateFileTexture();
@@ -500,5 +517,206 @@ export class BootScene extends Phaser.Scene {
 
     g.generateTexture('obj-sign', 16, 16);
     g.destroy();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  FOG-OF-WAR TERRAIN TILES
+  // ═══════════════════════════════════════════════════════════
+
+  private generateTreeTile(): void {
+    const g = this.add.graphics();
+    // Grass base
+    g.fillStyle(0x3a7d2c); g.fillRect(0, 0, 32, 32);
+    // Tree trunk
+    g.fillStyle(0x5c3a1e); g.fillRect(13, 16, 6, 12);
+    // Canopy (dark green circle)
+    g.fillStyle(0x2d6b1f); g.fillCircle(16, 12, 10);
+    // Canopy highlight
+    g.fillStyle(0x4a9e3a); g.fillCircle(14, 9, 5);
+    // Leaf detail
+    g.fillStyle(0x3d8c2e); g.fillCircle(19, 13, 4);
+    g.generateTexture('tile-tree', 32, 32);
+    g.destroy();
+  }
+
+  private generateHillTile(): void {
+    const g = this.add.graphics();
+    // Grass base
+    g.fillStyle(0x5a8f3c); g.fillRect(0, 0, 32, 32);
+    // Hill mound
+    g.fillStyle(0x7aaa55);
+    g.fillTriangle(0, 28, 16, 8, 32, 28);
+    // Hill highlight
+    g.fillStyle(0x8dbe66);
+    g.fillTriangle(4, 26, 14, 12, 20, 26);
+    // Grass tufts on hill
+    g.fillStyle(0x4a7d30);
+    g.fillRect(10, 22, 2, 4); g.fillRect(20, 20, 2, 5);
+    g.generateTexture('tile-hill', 32, 32);
+    g.destroy();
+  }
+
+  private generateSandTile(): void {
+    const g = this.add.graphics();
+    g.fillStyle(0xd4b96a); g.fillRect(0, 0, 32, 32);
+    // Sand texture dots
+    g.fillStyle(0xc4a85a);
+    for (let i = 0; i < 8; i++) {
+      g.fillRect((i * 7 + 3) % 30, (i * 11 + 5) % 30, 2, 2);
+    }
+    // Light sand patches
+    g.fillStyle(0xe0c878);
+    g.fillRect(5, 12, 6, 3); g.fillRect(20, 22, 5, 3);
+    g.generateTexture('tile-sand', 32, 32);
+    g.destroy();
+  }
+
+  private generatePathTile(): void {
+    const g = this.add.graphics();
+    // Dirt base
+    g.fillStyle(0x8b7355); g.fillRect(0, 0, 32, 32);
+    // Worn center (lighter)
+    g.fillStyle(0x9e866a); g.fillRect(4, 0, 24, 32);
+    // Gravel dots
+    g.fillStyle(0x7a6548);
+    g.fillRect(8, 5, 2, 2); g.fillRect(18, 15, 3, 2);
+    g.fillRect(12, 25, 2, 2); g.fillRect(22, 8, 2, 3);
+    // Edge grass tufts
+    g.fillStyle(0x5a8f3c);
+    g.fillRect(0, 10, 3, 4); g.fillRect(29, 20, 3, 4);
+    g.generateTexture('tile-path', 32, 32);
+    g.destroy();
+  }
+
+  private generateLavaTile(): void {
+    const g = this.add.graphics();
+    // Dark rock base
+    g.fillStyle(0x2a1a0e); g.fillRect(0, 0, 32, 32);
+    // Lava glow
+    g.fillStyle(0xff4400); g.fillRect(4, 4, 24, 24);
+    // Hot center
+    g.fillStyle(0xff8800); g.fillRect(8, 8, 16, 16);
+    // Brightest core
+    g.fillStyle(0xffcc00); g.fillRect(12, 12, 8, 8);
+    // Dark crust patches
+    g.fillStyle(0x3a1a0a);
+    g.fillRect(6, 6, 4, 3); g.fillRect(20, 18, 5, 4);
+    g.generateTexture('tile-lava', 32, 32);
+    g.destroy();
+  }
+
+  private generateCrystalTile(): void {
+    const g = this.add.graphics();
+    // Stone base
+    g.fillStyle(0x3a3a4a); g.fillRect(0, 0, 32, 32);
+    // Crystal shard 1
+    g.fillStyle(0x88ccff);
+    g.fillTriangle(8, 28, 12, 8, 16, 28);
+    // Crystal shard 2
+    g.fillStyle(0x66aadd);
+    g.fillTriangle(18, 28, 22, 12, 26, 28);
+    // Highlight
+    g.fillStyle(0xaaddff);
+    g.fillTriangle(10, 24, 12, 12, 14, 24);
+    // Sparkle
+    g.fillStyle(0xffffff);
+    g.fillRect(11, 10, 2, 2); g.fillRect(21, 14, 2, 2);
+    g.generateTexture('tile-crystal', 32, 32);
+    g.destroy();
+  }
+
+  private generateFogTile(): void {
+    const g = this.add.graphics();
+    g.fillStyle(0x0a0a14, 0.92);
+    g.fillRect(0, 0, 32, 32);
+    // Subtle noise
+    g.fillStyle(0x0d0d18, 0.5);
+    g.fillRect(4, 4, 8, 8); g.fillRect(20, 16, 8, 8);
+    g.generateTexture('tile-fog', 32, 32);
+    g.destroy();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  FORT STAGE TEXTURES (5 stages, growing in size)
+  // ═══════════════════════════════════════════════════════════
+
+  private generateFortTextures(): void {
+    // Stage 1: Campfire (2x2 = 64x64)
+    const g1 = this.add.graphics();
+    g1.fillStyle(0x3a3a3a); g1.fillRect(0, 0, 64, 64);
+    g1.fillStyle(0x5c3a1e); // logs
+    g1.fillRect(16, 40, 32, 8);
+    g1.fillRect(22, 36, 20, 8);
+    g1.fillStyle(0xff6600); // fire
+    g1.fillTriangle(32, 16, 24, 44, 40, 44);
+    g1.fillStyle(0xffcc00); // fire core
+    g1.fillTriangle(32, 24, 28, 40, 36, 40);
+    g1.generateTexture('fort-stage-1', 64, 64);
+    g1.destroy();
+
+    // Stage 2: Tent (3x3 = 96x96)
+    const g2 = this.add.graphics();
+    g2.fillStyle(0x3a7d2c); g2.fillRect(0, 0, 96, 96);
+    g2.fillStyle(0x8b6e4e); // tent body
+    g2.fillTriangle(48, 12, 12, 80, 84, 80);
+    g2.fillStyle(0x7a5e3e); // tent shadow
+    g2.fillTriangle(48, 12, 48, 80, 84, 80);
+    g2.fillStyle(0x3a2a1a); // door opening
+    g2.fillRect(40, 56, 16, 24);
+    g2.generateTexture('fort-stage-2', 96, 96);
+    g2.destroy();
+
+    // Stage 3: Hut (4x4 = 128x128)
+    const g3 = this.add.graphics();
+    g3.fillStyle(0x3a7d2c); g3.fillRect(0, 0, 128, 128);
+    g3.fillStyle(0x6b5030); // walls
+    g3.fillRect(24, 48, 80, 56);
+    g3.fillStyle(0x8b4513); // roof
+    g3.fillTriangle(64, 16, 16, 52, 112, 52);
+    g3.fillStyle(0x3a2a1a); // door
+    g3.fillRect(52, 72, 24, 32);
+    g3.fillStyle(0x88ccff); // windows
+    g3.fillRect(32, 64, 12, 12); g3.fillRect(84, 64, 12, 12);
+    g3.generateTexture('fort-stage-3', 128, 128);
+    g3.destroy();
+
+    // Stage 4: Tower (5x5 = 160x160)
+    const g4 = this.add.graphics();
+    g4.fillStyle(0x3a7d2c); g4.fillRect(0, 0, 160, 160);
+    g4.fillStyle(0x666677); // stone tower
+    g4.fillRect(48, 24, 64, 112);
+    // Battlements
+    g4.fillStyle(0x777788);
+    for (let i = 0; i < 4; i++) {
+      g4.fillRect(48 + i * 20, 16, 12, 16);
+    }
+    g4.fillStyle(0x3a2a1a); // door
+    g4.fillRect(64, 104, 32, 32);
+    g4.fillStyle(0x88ccff); // windows
+    g4.fillRect(60, 48, 12, 16); g4.fillRect(88, 48, 12, 16);
+    g4.fillRect(60, 76, 12, 16); g4.fillRect(88, 76, 12, 16);
+    g4.generateTexture('fort-stage-4', 160, 160);
+    g4.destroy();
+
+    // Stage 5: Fort (6x6 = 192x192)
+    const g5 = this.add.graphics();
+    g5.fillStyle(0x3a7d2c); g5.fillRect(0, 0, 192, 192);
+    // Outer wall
+    g5.fillStyle(0x555566); g5.fillRect(16, 16, 160, 160);
+    // Interior
+    g5.fillStyle(0x444455); g5.fillRect(32, 32, 128, 128);
+    // Corner towers
+    g5.fillStyle(0x666677);
+    g5.fillRect(8, 8, 28, 28);    g5.fillRect(156, 8, 28, 28);
+    g5.fillRect(8, 156, 28, 28);  g5.fillRect(156, 156, 28, 28);
+    // Keep (central building)
+    g5.fillStyle(0x777788); g5.fillRect(64, 48, 64, 80);
+    // Gate
+    g5.fillStyle(0x3a2a1a); g5.fillRect(80, 136, 32, 40);
+    // Banner pole
+    g5.fillStyle(0x8b4513); g5.fillRect(94, 24, 4, 32);
+    g5.fillStyle(0xff3333); g5.fillRect(98, 24, 16, 12); // flag
+    g5.generateTexture('fort-stage-5', 192, 192);
+    g5.destroy();
   }
 }
