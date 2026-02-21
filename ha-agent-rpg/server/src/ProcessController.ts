@@ -49,6 +49,7 @@ export class ProcessController extends EventEmitter {
   /** Per-agent turn counts for parallel stages: "stageId:agentId" -> count */
   private agentTurnCounts: Map<string, number> = new Map();
   private advancing = false; // guard against concurrent advance calls
+  private stageStartedAt: string | null = null;
 
   constructor(delegate: ProcessControllerDelegate) {
     super();
@@ -64,6 +65,7 @@ export class ProcessController extends EventEmitter {
     this.stageTurnCounts.clear();
     this.agentTurnCounts.clear();
     this.advancing = false;
+    this.stageStartedAt = new Date().toISOString();
     const stage = template.stages[0];
     if (stage) {
       this.emit('stage:started', {
@@ -165,6 +167,7 @@ export class ProcessController extends EventEmitter {
     this.stageTurnCounts.clear();
     this.agentTurnCounts.clear();
     this.advancing = false;
+    this.stageStartedAt = null;
   }
 
   // ── Private ──
@@ -295,6 +298,7 @@ export class ProcessController extends EventEmitter {
     }
 
     this.context = { problem, template, stageIndex: nextIndex };
+    this.stageStartedAt = new Date().toISOString();
     this.advancing = false;
 
     try {

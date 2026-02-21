@@ -444,4 +444,37 @@ describe('ProcessController', () => {
       await ctrl.onAgentTurnComplete('agent_a');
     });
   });
+
+  describe('stageStartedAt tracking', () => {
+    it('is set when start() is called', () => {
+      const before = new Date().toISOString();
+      controller.start('Test', makeTemplate());
+      const after = new Date().toISOString();
+
+      const startedAt = (controller as any).stageStartedAt;
+      expect(startedAt).not.toBeNull();
+      expect(startedAt >= before).toBe(true);
+      expect(startedAt <= after).toBe(true);
+    });
+
+    it('is updated when stage advances', async () => {
+      controller.start('Test', makeTemplate());
+      const firstStartedAt = (controller as any).stageStartedAt;
+
+      await new Promise(r => setTimeout(r, 5));
+
+      await controller.onExplicitStageComplete('agent_a');
+      const secondStartedAt = (controller as any).stageStartedAt;
+
+      expect(secondStartedAt).not.toBeNull();
+      expect(secondStartedAt > firstStartedAt).toBe(true);
+    });
+
+    it('is cleared when stop() is called', () => {
+      controller.start('Test', makeTemplate());
+      expect((controller as any).stageStartedAt).not.toBeNull();
+      controller.stop();
+      expect((controller as any).stageStartedAt).toBeNull();
+    });
+  });
 });
