@@ -417,6 +417,173 @@ describe('Process State', () => {
   });
 });
 
+describe('Fog-of-War State', () => {
+  let world: WorldState;
+  beforeEach(() => { world = new WorldState(); });
+
+  describe('initFogMap', () => {
+    it('creates a 120x120 explored grid initialized to false', () => {
+      world.initFogMap(120, 120);
+      expect(world.getExplored().length).toBe(120);
+      expect(world.getExplored()[0].length).toBe(120);
+      expect(world.getExplored()[60][60]).toBe(false);
+    });
+  });
+
+  describe('revealTiles', () => {
+    it('marks tiles as explored and returns only newly revealed tiles', () => {
+      world.initFogMap(120, 120);
+      const revealed = world.revealTiles(60, 60, 3);
+      expect(revealed.length).toBeGreaterThan(0);
+      expect(world.getExplored()[60][60]).toBe(true);
+
+      const again = world.revealTiles(60, 60, 3);
+      expect(again.length).toBe(0);
+    });
+
+    it('does not reveal tiles outside map bounds', () => {
+      world.initFogMap(120, 120);
+      const revealed = world.revealTiles(0, 0, 5);
+      for (const t of revealed) {
+        expect(t.x).toBeGreaterThanOrEqual(0);
+        expect(t.y).toBeGreaterThanOrEqual(0);
+        expect(t.x).toBeLessThan(120);
+        expect(t.y).toBeLessThan(120);
+      }
+    });
+  });
+
+  describe('isExplored', () => {
+    it('returns false for unexplored tiles', () => {
+      world.initFogMap(120, 120);
+      expect(world.isExplored(50, 50)).toBe(false);
+    });
+
+    it('returns true after reveal', () => {
+      world.initFogMap(120, 120);
+      world.revealTiles(50, 50, 1);
+      expect(world.isExplored(50, 50)).toBe(true);
+    });
+
+    it('returns false for out-of-bounds', () => {
+      world.initFogMap(120, 120);
+      expect(world.isExplored(-1, 0)).toBe(false);
+      expect(world.isExplored(200, 0)).toBe(false);
+    });
+  });
+
+  describe('fort stages', () => {
+    it('sets and gets fort stage', () => {
+      world.setFortStage('agent_1', 2);
+      expect(world.getFortStage('agent_1')).toBe(2);
+    });
+
+    it('returns 0 for unknown agent', () => {
+      expect(world.getFortStage('unknown')).toBe(0);
+    });
+  });
+
+  describe('fort positions', () => {
+    it('sets and gets fort position', () => {
+      world.setFortPosition('agent_1', 30, 25);
+      expect(world.getFortPosition('agent_1')).toEqual({ x: 30, y: 25 });
+    });
+
+    it('returns null for unknown agent', () => {
+      expect(world.getFortPosition('unknown')).toBeNull();
+    });
+  });
+
+  describe('isWalkable with new tiles', () => {
+    it('returns false for tree (5)', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      tiles[5][5] = 5;
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      expect(world.isWalkable(5, 5)).toBe(false);
+    });
+
+    it('returns true for hill (6)', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      tiles[5][5] = 6;
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      expect(world.isWalkable(5, 5)).toBe(true);
+    });
+
+    it('returns true for sand (7)', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      tiles[5][5] = 7;
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      expect(world.isWalkable(5, 5)).toBe(true);
+    });
+
+    it('returns true for path (8)', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      tiles[5][5] = 8;
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      expect(world.isWalkable(5, 5)).toBe(true);
+    });
+
+    it('returns false for lava (9)', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      tiles[5][5] = 9;
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      expect(world.isWalkable(5, 5)).toBe(false);
+    });
+
+    it('returns false for crystal (10)', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      tiles[5][5] = 10;
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      expect(world.isWalkable(5, 5)).toBe(false);
+    });
+  });
+
+  describe('convertToPath', () => {
+    it('converts a grass tile to path', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      const converted = world.convertToPath(5, 5);
+      expect(converted).toBe(true);
+      expect(world.getTile(5, 5)).toBe(8);
+    });
+
+    it('does not convert wall tiles', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      tiles[5][5] = 1;
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      const converted = world.convertToPath(5, 5);
+      expect(converted).toBe(false);
+      expect(world.getTile(5, 5)).toBe(1);
+    });
+
+    it('does not convert floor tiles (fort interior)', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      tiles[5][5] = 4;
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      const converted = world.convertToPath(5, 5);
+      expect(converted).toBe(false);
+      expect(world.getTile(5, 5)).toBe(4);
+    });
+
+    it('does not convert already-path tiles', () => {
+      const tiles = Array.from({ length: 10 }, () => Array(10).fill(0));
+      tiles[5][5] = 8;
+      world.setMap({ width: 10, height: 10, tile_size: 32, tiles });
+      const converted = world.convertToPath(5, 5);
+      expect(converted).toBe(false);
+    });
+  });
+
+  describe('getSnapshot includes fog state', () => {
+    it('includes explored grid in snapshot when fog is active', () => {
+      world.initFogMap(10, 10);
+      world.revealTiles(5, 5, 2);
+      const snapshot = world.getSnapshot();
+      expect((snapshot as any).explored).toBeDefined();
+    });
+  });
+});
+
 function makeMapNode(path: string, children: MapNode[] = []): MapNode {
   return {
     path,

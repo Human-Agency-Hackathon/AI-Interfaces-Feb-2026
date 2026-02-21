@@ -18,6 +18,11 @@ export class WorldState {
   // player:start-process is received.
   private processState: ProcessState | null = null;
 
+  // ── Fog-of-War State ─────────────────────────────
+  private explored: boolean[][] | null = null;
+  private fortStages: Map<string, number> = new Map();
+  private fortPositions: Map<string, { x: number; y: number }> = new Map();
+
   constructor() {
     this.map = this.generateDefaultMap();
   }
@@ -229,8 +234,8 @@ export class WorldState {
 
   isWalkable(x: number, y: number): boolean {
     const tile = this.getTile(x, y);
-    // Walkable tiles: 0=grass, 3=door, 4=floor
-    return tile === 0 || tile === 3 || tile === 4;
+    // Walkable tiles: 0=grass, 3=door, 4=floor, 6=hill, 7=sand, 8=path
+    return tile === 0 || tile === 3 || tile === 4 || tile === 6 || tile === 7 || tile === 8;
   }
 
   isOccupied(x: number, y: number): boolean {
@@ -248,6 +253,69 @@ export class WorldState {
     return true;
   }
 
+  // ── Fog-of-War methods ────────────────────────────
+
+  initFogMap(width: number, height: number): void {
+    this.explored = Array.from({ length: height }, () => Array(width).fill(false));
+  }
+
+  getExplored(): boolean[][] {
+    return this.explored ?? [];
+  }
+
+  isExplored(x: number, y: number): boolean {
+    if (!this.explored) return false;
+    if (y < 0 || y >= this.explored.length) return false;
+    if (x < 0 || x >= this.explored[0].length) return false;
+    return this.explored[y][x];
+  }
+
+  revealTiles(cx: number, cy: number, radius: number): { x: number; y: number }[] {
+    if (!this.explored) return [];
+    const newly: { x: number; y: number }[] = [];
+    const h = this.explored.length;
+    const w = this.explored[0].length;
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if (dx * dx + dy * dy > radius * radius) continue;
+        const x = cx + dx;
+        const y = cy + dy;
+        if (x < 0 || x >= w || y < 0 || y >= h) continue;
+        if (!this.explored[y][x]) {
+          this.explored[y][x] = true;
+          newly.push({ x, y });
+        }
+      }
+    }
+    return newly;
+  }
+
+  setFortStage(agentId: string, stage: number): void {
+    this.fortStages.set(agentId, stage);
+  }
+
+  getFortStage(agentId: string): number {
+    return this.fortStages.get(agentId) ?? 0;
+  }
+
+  setFortPosition(agentId: string, x: number, y: number): void {
+    this.fortPositions.set(agentId, { x, y });
+  }
+
+  getFortPosition(agentId: string): { x: number; y: number } | null {
+    return this.fortPositions.get(agentId) ?? null;
+  }
+
+  convertToPath(x: number, y: number): boolean {
+    const tile = this.getTile(x, y);
+    // Only convert walkable terrain tiles (not structures, not already paths)
+    if (tile === 0 || tile === 6 || tile === 7) {
+      this.map.tiles[y][x] = 8; // TILE_PATH
+      return true;
+    }
+    return false;
+  }
+
   getSnapshot(): WorldStateMessage {
     this.tick++;
     return {
@@ -257,7 +325,8 @@ export class WorldState {
       map: this.map,
       objects: this.objects,
       quests: this.quests,
-    };
+      ...(this.explored ? { explored: this.explored } : {}),
+    } as WorldStateMessage;
   }
 
   toJSON(): string {

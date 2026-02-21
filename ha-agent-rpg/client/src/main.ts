@@ -123,6 +123,30 @@ ws.on('stage:advanced', (msg) => {
   }));
 });
 
+// Process complete — show overlay with next-step options; never auto-navigate away
+ws.on('process:completed', (msg) => {
+  const data = msg as any;
+  const overlay = document.getElementById('session-complete-overlay');
+  const problemEl = document.getElementById('session-complete-problem');
+  if (problemEl && data.problem) problemEl.textContent = `"${data.problem}"`;
+  if (overlay) overlay.classList.add('visible');
+
+  document.getElementById('session-complete-read')?.addEventListener('click', () => {
+    overlay?.classList.remove('visible');
+  }, { once: true });
+
+  document.getElementById('session-complete-export')?.addEventListener('click', () => {
+    ws.send({ type: 'player:export' });
+    overlay?.classList.remove('visible');
+  }, { once: true });
+
+  document.getElementById('session-complete-new')?.addEventListener('click', () => {
+    overlay?.classList.remove('visible');
+    stopGame();
+    setupScreen.show();
+  }, { once: true });
+});
+
 // Handle errors from server
 ws.on('error', (msg) => {
   const data = msg as unknown as ErrorMessage;
@@ -374,6 +398,9 @@ function startGame(identity: SetupIdentity): void {
 
 function stopGame(): void {
   gameStarted = false;
+
+  // Dismiss completion overlay if visible
+  document.getElementById('session-complete-overlay')?.classList.remove('visible');
 
   // Hide game viewport
   const viewport = document.getElementById('game-viewport')!;
