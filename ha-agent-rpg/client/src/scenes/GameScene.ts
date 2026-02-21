@@ -270,12 +270,34 @@ export class GameScene extends Phaser.Scene {
 
     this.wsClient.on('fort:view', (msg: any) => {
       this.inFortView = true;
-      if (this.roomBackground) {
-        this.roomBackground.show(
-          msg.roomImage,
-          20, 15, 32,
-        );
+
+      // Create or reuse room background for fort interior
+      if (!this.roomBackground) {
+        this.roomBackground = new RoomBackground(this);
       }
+      this.roomBackground.showDirect(msg.roomImage, 20, 15, 32);
+
+      // Switch camera to diorama mode for room view
+      if (this.cameraController) {
+        this.cameraController.setMode('diorama');
+        this.cameraController.updateBounds(20, 15, 32);
+      }
+
+      // Add back button
+      const backBtn = document.createElement('button');
+      backBtn.textContent = 'Back to Map';
+      backBtn.style.cssText = `
+        position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+        padding: 8px 24px; font-family: monospace; font-size: 14px;
+        background: #2a1a0a; color: #c8a84a; border: 2px solid #c8a84a;
+        border-radius: 4px; cursor: pointer; z-index: 200;
+      `;
+      backBtn.onclick = () => {
+        this.wsClient.send({ type: 'fort:exit' });
+        backBtn.remove();
+        this.inFortView = false;
+      };
+      document.body.appendChild(backBtn);
     });
 
     // Player nav door clicks

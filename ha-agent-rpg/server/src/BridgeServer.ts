@@ -85,6 +85,7 @@ export class BridgeServer {
   private spectatorSockets = new Map<string, WebSocket>();        // spectatorId → socket
   private spectatorInfo = new Map<string, SpectatorInfo>();       // spectatorId → identity
   private processController: ProcessController | null = null;
+  private movementBias: 'outward' | 'inward' | 'neutral' = 'neutral';
   private spawnParent = new Map<string, string>();       // childId → parentId
   private spawnChildren = new Map<string, Set<string>>(); // parentId → Set<childId>
   private settings: SessionSettings = {
@@ -416,6 +417,21 @@ export class BridgeServer {
 
       // Spawn the first stage's agents
       await this.spawnProcessAgents(template, 0, msg.problem);
+
+      // Listen for stage transitions to update movement bias
+      this.processController.on('stage:started', (event: any) => {
+        const stageId: string = event.stageId ?? '';
+        const divergent = ['divergent_thinking', 'precedent_research'];
+        const convergent = ['convergent_thinking', 'fact_checking', 'pushback'];
+
+        if (divergent.some(s => stageId.includes(s))) {
+          this.movementBias = 'outward';
+        } else if (convergent.some(s => stageId.includes(s))) {
+          this.movementBias = 'inward';
+        } else {
+          this.movementBias = 'neutral';
+        }
+      });
 
       // Start stage tracking after agents are spawned
       this.processController.start(msg.problem, template);
