@@ -545,4 +545,105 @@ describe('ProcessController', () => {
       expect((controller as any).stageStartedAt).toBeNull();
     });
   });
+
+  describe('fromJSON()', () => {
+    it('reconstructs controller state from a saved ProcessState', () => {
+      const template = makeTemplate();
+      const savedState: ProcessState = {
+        processId: 'test_process',
+        problem: 'Saved problem',
+        currentStageIndex: 1,
+        status: 'running',
+        collectedArtifacts: { stage_1: { art_1: 'content' } },
+        startedAt: '2026-02-21T10:00:00.000Z',
+        problemStatement: 'Saved problem',
+        stageTurnCounts: { stage_1: 3 },
+        agentTurnCounts: { 'stage_1:agent_a': 2, 'stage_1:agent_b': 1 },
+        stageStartedAt: '2026-02-21T10:05:00.000Z',
+      };
+
+      const restored = ProcessController.fromJSON(savedState, template, delegate);
+
+      const ctx = restored.getContext();
+      expect(ctx).not.toBeNull();
+      expect(ctx!.problem).toBe('Saved problem');
+      expect(ctx!.stageIndex).toBe(1);
+      expect(ctx!.template).toBe(template);
+
+      const snapshot = restored.toJSON(savedState);
+      expect(snapshot.stageTurnCounts).toEqual({ stage_1: 3 });
+      expect(snapshot.agentTurnCounts).toEqual({ 'stage_1:agent_a': 2, 'stage_1:agent_b': 1 });
+      expect(snapshot.stageStartedAt).toBe('2026-02-21T10:05:00.000Z');
+    });
+
+    it('does NOT emit any events on restore', () => {
+      const template = makeTemplate();
+      const savedState: ProcessState = {
+        processId: 'test_process',
+        problem: 'Test',
+        currentStageIndex: 0,
+        status: 'running',
+        collectedArtifacts: {},
+        startedAt: '2026-02-21T10:00:00.000Z',
+      };
+
+      const events: any[] = [];
+      const restored = ProcessController.fromJSON(savedState, template, delegate);
+      restored.on('stage:started', (e: any) => events.push(e));
+      restored.on('stage:completed', (e: any) => events.push(e));
+      restored.on('process:completed', (e: any) => events.push(e));
+
+      expect(events).toHaveLength(0);
+    });
+
+    it('handles missing S1 fields gracefully (backward compat)', () => {
+      const template = makeTemplate();
+      const oldState: ProcessState = {
+        processId: 'test_process',
+        problem: 'Old problem',
+        currentStageIndex: 0,
+        status: 'running',
+        collectedArtifacts: {},
+        startedAt: '2026-02-21T10:00:00.000Z',
+      };
+
+      const restored = ProcessController.fromJSON(oldState, template, delegate);
+
+      const ctx = restored.getContext();
+      expect(ctx).not.toBeNull();
+      expect(ctx!.problem).toBe('Old problem');
+      expect(ctx!.stageIndex).toBe(0);
+
+      const snapshot = restored.toJSON(oldState);
+      expect(snapshot.stageTurnCounts).toEqual({});
+      expect(snapshot.agentTurnCounts).toEqual({});
+      expect(snapshot.stageStartedAt).toBeUndefined();
+    });
+
+    it('round-trips: start -> advance turns -> toJSON -> fromJSON -> verify match', async () => {
+      const template = makeTemplate();
+      controller.start('Round-trip problem', template);
+
+      await controller.onAgentTurnComplete('agent_a');
+
+      const existingState: ProcessState = {
+        processId: 'test_process',
+        problem: 'Round-trip problem',
+        currentStageIndex: 0,
+        status: 'running',
+        collectedArtifacts: {},
+        startedAt: '2026-02-21T10:00:00.000Z',
+      };
+
+      const snapshot = controller.toJSON(existingState);
+      const restored = ProcessController.fromJSON(snapshot, template, makeDelegate());
+      const snapshot2 = restored.toJSON(snapshot);
+
+      expect(snapshot2.currentStageIndex).toBe(snapshot.currentStageIndex);
+      expect(snapshot2.problemStatement).toBe(snapshot.problemStatement);
+      expect(snapshot2.stageTurnCounts).toEqual(snapshot.stageTurnCounts);
+      expect(snapshot2.agentTurnCounts).toEqual(snapshot.agentTurnCounts);
+      expect(snapshot2.stageStartedAt).toBe(snapshot.stageStartedAt);
+    });
+  });
 });

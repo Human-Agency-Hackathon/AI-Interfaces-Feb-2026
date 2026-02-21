@@ -180,6 +180,28 @@ export class ProcessController extends EventEmitter {
     };
   }
 
+  /**
+   * Reconstruct a ProcessController from a saved ProcessState.
+   * Does NOT emit any events — BridgeServer is responsible for
+   * spawning agents and broadcasting after calling this.
+   */
+  static fromJSON(
+    state: ProcessState,
+    template: ProcessDefinition,
+    delegate: ProcessControllerDelegate,
+  ): ProcessController {
+    const pc = new ProcessController(delegate);
+    pc.context = {
+      problem: state.problemStatement ?? state.problem,
+      template,
+      stageIndex: state.currentStageIndex,
+    };
+    pc.stageTurnCounts = new Map(Object.entries(state.stageTurnCounts ?? {}));
+    pc.agentTurnCounts = new Map(Object.entries(state.agentTurnCounts ?? {}));
+    pc.stageStartedAt = state.stageStartedAt ?? null;
+    return pc;
+  }
+
   /** Stop the controller (e.g. user quit or error) */
   stop(): void {
     this.context = null;
