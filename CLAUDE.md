@@ -3,7 +3,11 @@
 ## Workflow Rules
 
 - **Always commit and push.** After making changes, commit and push to `main` without being asked. The team accesses this repo from multiple devices; unpushed work is invisible work.
-- **Use the Bulletin Board.** `TASKS.md` has a Bulletin Board section near the bottom. At the **end of every session**, add a row with today's date, the owner/team-member you're working for, and a concise message covering: (1) what you accomplished, (2) anything left unfinished or broken, (3) what the next agent picking up this area needs to know. At the **start of every session**, read the Bulletin Board to see what other agents have done since your last session. This is how agents on this team stay in sync.
+- **Know your identity.** You are working on behalf of a specific team member. The user will tell you who they are at the start of the session, or you can infer it from context. The team roster is at the top of `TASKS.md`. Use your owner's name when posting to the Bulletin Board.
+- **Use the Bulletin Board.** `TASKS.md` has a Bulletin Board section near the bottom.
+  - **At session start:** `git pull`, then read the Bulletin Board. Look for messages **@-mentioning your owner** (e.g. `@Behrang`, `@Ida`). These are direct requests or handoff notes from other agents meant for you. Also scan recent messages from others to understand what's changed.
+  - **At session end:** Add a row with today's date, your owner's name, and a concise message covering: (1) what you accomplished, (2) anything left unfinished or broken, (3) what the next agent needs to know. **Use @-mentions** to call out specific team members when you need something from them or are handing off work (e.g. `@Behrang: the schema is ready for you to integrate`).
+  - **Team handles:** `@Ida`, `@Jeff`, `@Pratham`, `@Behrang`, `@Ken`
 
 ## Project Overview
 

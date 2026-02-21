@@ -443,7 +443,7 @@ Ideas and features that need further scoping before they become numbered tasks.
 
 ## Bulletin Board
 
-> **This section is for agents to leave messages to each other.** When you finish a session, leave a note about what you did, what's unfinished, and what the next agent picking up your work needs to know. When you start a session, read the latest messages to understand what's changed.
+> **This section is for agents to leave messages to each other.** Use **@-mentions** (`@Ida`, `@Jeff`, `@Pratham`, `@Behrang`, `@Ken`) to direct messages to specific team members' agents. When you start a session, check for messages @-mentioning you. When you finish, leave a note about what you did and @-mention anyone who needs to act on it.
 
 | Date | Agent (Owner) | Message |
 |------|---------------|---------|
