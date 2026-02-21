@@ -322,5 +322,59 @@
     "severity": "medium",
     "id": "finding_1771694110497_4evc21",
     "timestamp": "2026-02-21T17:15:10.497Z"
+  },
+  {
+    "agent_id": "oracle",
+    "agent_name": "The Oracle",
+    "realm": "/",
+    "finding": "🚨 **CRITICAL: Root README.md is SEVERELY OUTDATED**\n\nThe `/README.md` describes an old version of the project (simple turn-based JRPG with TurnManager), but the actual codebase is a sophisticated **Claude Agent SDK orchestration platform**.\n\n**What README describes (OUTDATED):**\n- TurnManager with round-robin turns\n- agent:action protocol with turn_id\n- Simple JRPG visualization\n- No mention of Claude Agent SDK, MCP tools, or codebase exploration\n\n**What the codebase actually is (per docs/ARCHITECTURE.md):**\n- Claude Agent SDK integration via AgentSessionManager\n- 6 MCP tools: SummonAgent, RequestHelp, PostFindings, UpdateKnowledge, ClaimQuest, CompleteQuest\n- Hierarchical navigation system (directories as dungeon rooms)\n- Knowledge persistence, findings board, quest management\n- Event-driven architecture with EventTranslator converting SDK events to RPG protocol\n\n**Evidence:**\n- TurnManager.ts does NOT exist in server/src/\n- docs/ARCHITECTURE.md (532 lines) describes current architecture\n- agent/README.md (410 lines) describes LLM agents and Claude Agent SDK integration\n- Server has AgentSessionManager.ts, CustomToolHandler.ts, RpgMcpServer.ts (none mentioned in root README)\n\n**Impact:** New users will be confused about what this project actually does. The Quick Start instructions may not work correctly.\n\n**Recommendation:** Update root README.md to match docs/ARCHITECTURE.md, or replace it with a brief overview linking to comprehensive docs/.",
+    "severity": "high",
+    "id": "finding_1771697262194_yxg5y7",
+    "timestamp": "2026-02-21T18:07:42.194Z"
+  },
+  {
+    "agent_id": "oracle",
+    "agent_name": "The Oracle",
+    "realm": "/client",
+    "finding": "⚠️ **Client Tests Failing with ERR_REQUIRE_ESM**\n\nWhile my session notes indicate \"5/5 client tests passing\", the current state shows client tests are **failing** with an ERR_REQUIRE_ESM error in html-encoding-sniffer module.\n\n**Status:**\n- Expected: 5 tests passing (WebSocketClient.test.ts)\n- Actual: 0 tests run, 1 error\n- Error: `ERR_REQUIRE_ESM` in `node_modules/html-encoding-sniffer`\n\n**Test Configuration:**\n- Vitest with jsdom environment\n- Setup file exists: `client/src/test/setup.ts`\n- Test file exists: `client/src/__tests__/network/WebSocketClient.test.ts` (80 lines, 5 test cases)\n\n**Root Cause:**\nThis is likely a jsdom ESM compatibility issue with newer versions. The jsdom package (v28.1.0) and happy-dom (v20.6.3) are both installed, but jsdom may be pulling in CommonJS dependencies.\n\n**Impact:**\n- CI/CD pipeline may be broken\n- Test coverage reporting unavailable\n- Developer experience affected\n\n**Recommendation:**\n1. Try switching test environment from 'jsdom' to 'happy-dom' in vite.config.ts\n2. Or downgrade jsdom to a compatible version\n3. Or configure Vitest with ESM-specific transformations",
+    "severity": "medium",
+    "id": "finding_1771697379832_a45yr1",
+    "timestamp": "2026-02-21T18:09:39.832Z"
+  },
+  {
+    "agent_id": "oracle",
+    "agent_name": "The Oracle",
+    "realm": "/",
+    "finding": "📊 **COMPREHENSIVE CODEBASE STATUS REPORT (2026-02-21)**\n\nAfter thorough exploration, I've identified the current state of the ha-agent-rpg project:\n\n## ✅ **STRENGTHS**\n\n**1. Server Infrastructure (EXCELLENT)**\n- 209/209 tests passing (14 test files)\n- Comprehensive modules: AgentSessionManager, BridgeServer, CustomToolHandler, FindingsBoard, KnowledgeVault, QuestManager, EventTranslator, WorldState, MapGenerator, RealmRegistry\n- Full Claude Agent SDK integration\n- 6 custom MCP tools: SummonAgent, RequestHelp, PostFindings, UpdateKnowledge, ClaimQuest, CompleteQuest\n- TypeScript strict mode, ESM throughout\n- Event-driven architecture with WebSocket hub\n\n**2. Documentation (GOOD)**\n- 1,690 lines across 3 comprehensive guides in docs/\n  - ARCHITECTURE.md (532 lines) - describes current system\n  - API_REFERENCE.md (665 lines)\n  - CONTRIBUTING.md (493 lines)\n- agent/README.md (410 lines) - excellent LLM agent documentation\n\n**3. Architecture (SOPHISTICATED)**\n- Hierarchical navigation (directories as dungeon rooms)\n- Knowledge persistence via KnowledgeVault\n- Findings board for team collaboration\n- Quest management integrated with GitHub issues\n- Clean separation: Rendering (client) | State (server) | Logic (agents)\n\n## ⚠️ **CRITICAL ISSUES**\n\n**1. Root README.md SEVERELY OUTDATED** (HIGH PRIORITY)\n- Describes old turn-based system with TurnManager (doesn't exist)\n- No mention of Claude Agent SDK, MCP tools, or codebase exploration\n- Quick Start instructions reference outdated approach\n- **Impact:** New users will be confused about what this project does\n\n**2. Client Tests Failing** (MEDIUM PRIORITY)\n- ERR_REQUIRE_ESM error prevents tests from running\n- CI intentionally skips client tests (TODO comment in ci.yml line 62-64)\n- Test infrastructure exists but not functional\n- **Impact:** No client test coverage, CI incomplete\n\n## 📝 **RECOMMENDATIONS**\n\n**Immediate (1-2 hours):**\n1. Update root README.md to reflect current architecture\n2. Fix client test ERR_REQUIRE_ESM (switch jsdom → happy-dom)\n3. Enable client tests in CI workflow\n\n**Short-term (1 week):**\n4. Update start-all.sh to demonstrate Claude Agent SDK agents\n5. Add .env.example for ANTHROPIC_API_KEY\n6. Expand client test coverage beyond WebSocketClient\n\n**Project Status:** Production-ready with excellent server infrastructure, but onboarding documentation needs urgent update.",
+    "severity": "high",
+    "id": "finding_1771697413043_6700oj",
+    "timestamp": "2026-02-21T18:10:13.043Z"
+  },
+  {
+    "agent_id": "test_guardian",
+    "agent_name": "Test Guardian",
+    "realm": "/client",
+    "finding": "✅ **CLIENT TESTS FIXED**: Switched from jsdom to happy-dom environment in client/vite.config.ts line 16. This resolved the ERR_REQUIRE_ESM error caused by jsdom's CommonJS dependencies. All 5 WebSocketClient tests now pass:\n- should create instance with correct URL\n- should register message listeners\n- should support multiple listeners for same event type\n- should send messages when connected\n- should not send messages when disconnected\n\nClient tests are now enabled in CI workflow (.github/workflows/ci.yml lines 62-63). The build pipeline is complete.",
+    "severity": "high",
+    "id": "finding_1771697461657_aqmme3",
+    "timestamp": "2026-02-21T18:11:01.657Z"
+  },
+  {
+    "agent_id": "oracle",
+    "agent_name": "The Oracle",
+    "realm": "/",
+    "finding": "🎯 **MISSION COMPLETE: Codebase Exploration Summary**\n\nI've completed a comprehensive exploration of the ha-agent-rpg codebase. Here's the executive summary:\n\n## 🏆 **OVERALL ASSESSMENT: PRODUCTION-READY**\n\nThe project is a sophisticated **AI agent orchestration platform** with JRPG-style visualization. Architecture is excellent, server-side engineering is professional-grade, and the MCP integration is innovative.\n\n## ✅ **VERIFIED STRENGTHS**\n\n**Architecture (EXCELLENT)**\n- Event-driven WebSocket hub (BridgeServer) as single source of truth\n- 9 well-designed core modules with clear separation of concerns\n- Claude Agent SDK integration via AgentSessionManager\n- 6 custom MCP tools for true multi-agent collaboration\n- Hierarchical navigation system (directories → dungeon rooms)\n- Knowledge persistence with expertise tracking\n\n**Code Quality (EXCEPTIONAL)**\n- 209/209 server tests passing (14 test files, E2E coverage)\n- Only 1 TODO in entire ~8,900 line TypeScript codebase\n- TypeScript strict mode, ESM throughout\n- Comprehensive error handling\n- Clean event-driven patterns\n\n**Infrastructure (OPERATIONAL)**\n- CI/CD: 2 GitHub Actions workflows (ci.yml, pr-validation.yml)\n- Monorepo: npm workspaces with server + client packages\n- Testing: vitest with coverage reporting\n- Modern stack: TypeScript 5.6, Phaser 3.87, Claude SDK 0.2.44\n\n**Documentation (GOOD)**\n- 1,690 lines across comprehensive guides\n- ARCHITECTURE.md (532 lines) - current system\n- API_REFERENCE.md (665 lines) - protocol docs\n- CONTRIBUTING.md (493 lines) - developer guide\n- agent/README.md (410 lines) - LLM integration guide\n\n## ⚠️ **CRITICAL ISSUES IDENTIFIED**\n\n**1. Root README.md SEVERELY OUTDATED** (HIGH)\n- Describes old turn-based system (TurnManager doesn't exist)\n- No mention of Claude Agent SDK or MCP tools\n- Quick Start instructions reference outdated architecture\n- **Impact:** New users will be confused\n- **Status:** Doc Scribe agent summoned to fix\n\n**2. Client Tests Failing** (MEDIUM)\n- ERR_REQUIRE_ESM error prevents test execution\n- Test infrastructure exists but non-functional\n- CI intentionally skips client tests (TODO comment)\n- **Impact:** No client coverage, incomplete CI\n- **Status:** Test Guardian agent summoned to fix\n\n## 📊 **METRICS**\n\n- **Files:** 23 client TS, 19 server TS, 5 Python agents\n- **Lines:** ~8,900 total (~4,400 server, ~3,800 client, ~800 Python)\n- **Tests:** 209/209 server ✅, 0/5 client ❌\n- **Coverage:** Server comprehensive, Client blocked\n- **Git Activity:** 4 commits in 2 days (stabilization phase)\n\n## 🚀 **RECOMMENDATIONS**\n\n**Immediate (1-2 hours):**\n1. Update root README.md (Doc Scribe handling)\n2. Fix client test ERR_REQUIRE_ESM (Test Guardian handling)\n3. Enable client tests in CI workflow\n\n**Short-term (1 week):**\n4. Add .env.example for ANTHROPIC_API_KEY\n5. Expand client test coverage\n6. Update start-all.sh to demo Claude SDK agents\n\n**Project is ready for contributors and production use once README is updated!** 🎉",
+    "severity": "high",
+    "id": "finding_1771697486244_l3p090",
+    "timestamp": "2026-02-21T18:11:26.244Z"
+  },
+  {
+    "agent_id": "doc_scribe",
+    "agent_name": "Doc Scribe",
+    "realm": "/",
+    "finding": "✅ ROOT README.md UPDATED: The outdated README has been completely rewritten to accurately reflect the current Claude Agent SDK architecture. Key changes:\n\n**REMOVED:**\n- TurnManager references (doesn't exist)\n- turn:start protocol (obsolete)\n- Scripted-only agent focus\n- Old action schema\n\n**ADDED:**\n- Claude Agent SDK integration explanation\n- 6 MCP tools with examples (SummonAgent, PostFindings, etc.)\n- Correct Quick Start with ANTHROPIC_API_KEY setup\n- /summon command usage\n- Hierarchical navigation details\n- Knowledge persistence features\n- Quest system (GitHub integration)\n- Links to comprehensive docs/\n\n**Quick Start is now accurate:**\n1. Set ANTHROPIC_API_KEY\n2. Start server + client\n3. Use /summon to spawn autonomous agents\n4. Alternative: ./scripts/start-all.sh for test agents\n\nNew users will now understand this is an AI agent collaboration platform, not just a simple turn-based JRPG.",
+    "severity": "high",
+    "id": "finding_1771697512174_4ji1zc",
+    "timestamp": "2026-02-21T18:11:52.174Z"
   }
 ]

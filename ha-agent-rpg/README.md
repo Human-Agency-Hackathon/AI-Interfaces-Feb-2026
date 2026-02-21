@@ -1,18 +1,16 @@
 # AI Agent RPG Interface
 
-A visual theater for autonomous AI agents, rendered as a classic JRPG.
-
-AI agents run as independent processes, connect via WebSocket to a bridge server, and their actions are rendered in real time by a Phaser.js game client — movement on a tile map, dialogue boxes, emote bubbles, skill effects, and more.
+A JRPG-style visual platform for autonomous AI agents collaborating on codebases. Agents explore directory structures as dungeon maps, claim GitHub issues as quests, and share knowledge using custom MCP tools — all powered by the Claude Agent SDK.
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Python Agent  │────▶│   Bridge Server  │────▶│  Phaser Client  │
-│  (any runtime)  │◀────│   (WebSocket)    │◀────│   (browser)     │
+│  Claude Agent   │────▶│   Bridge Server  │────▶│  Phaser Client  │
+│  SDK Sessions   │◀────│   (WebSocket)    │◀────│   (browser)     │
 └─────────────────┘     └──────────────────┘     └─────────────────┘
         ▲                        │                         │
         │                        │                         │
-   LLM / script           Source of truth            Renders world
-   decides actions       validates & broadcasts      as a JRPG
+   Autonomous AI          Event translation         Renders world
+   with MCP tools         + world state              as a JRPG
 ```
 
 ## Quick Start
@@ -24,104 +22,172 @@ AI agents run as independent processes, connect via WebSocket to a bridge server
 git clone https://github.com/bgarakani/ha-agent-rpg.git
 cd ha-agent-rpg
 npm install
-pip install -r agent/requirements.txt
 
-# Run everything
+# Set up environment
+export ANTHROPIC_API_KEY="your-api-key"
+# Get your key at: https://console.anthropic.com/
+
+# Start server and client
+npm run dev:server  # Terminal 1 (port 3001)
+npm run dev:client  # Terminal 2 (port 5173)
+```
+
+Open **http://localhost:5173**, then use the in-game prompt bar to summon agents:
+
+```
+/summon name="Code Explorer" role="Explorer" mission="Find all API endpoints"
+/summon name="Doc Scribe" role="Writer" mission="Document the authentication system"
+```
+
+Watch agents autonomously explore your codebase, collaborate, and share findings in real-time!
+
+### Alternative: Scripted Test Agents
+
+For testing the visualization without API costs:
+
+```bash
+# Terminal 3 - Launch test agents
 ./scripts/start-all.sh
 ```
 
-Then open **http://localhost:5173** and watch two agents explore the world.
+This starts the bridge server, Phaser client, and two scripted test agents (Hero, Mage).
 
-### Run Individually (3 terminals)
+## What Makes This Different?
 
-```bash
-# Terminal 1 — Bridge server
-npm run dev:server
+**Traditional JRPG:** Players control characters manually
+**AI Agent RPG:** AI agents act autonomously using Claude Agent SDK
 
-# Terminal 2 — Phaser client
-npm run dev:client
+### Core Capabilities
 
-# Terminal 3 — Agent(s)
-cd agent
-python3 agent.py agent_1 Hero ff3300
-python3 agent.py agent_2 Mage 3366ff    # in a 4th terminal
+- **🤖 Autonomous Agents**: Claude SDK agents with file system access (Read, Edit, Write, Grep, Glob, Bash)
+- **🎮 JRPG Visualization**: Phaser 3 rendering with agent sprites, dialogue boxes, emotes
+- **🗺️ Hierarchical Navigation**: Directories become dungeon rooms, files become interactive objects
+- **🛠️ Custom MCP Tools**: 6 collaboration tools (SummonAgent, RequestHelp, PostFindings, UpdateKnowledge, ClaimQuest, CompleteQuest)
+- **📚 Knowledge Persistence**: Agent memories saved across sessions (`.agent-rpg/knowledge/`)
+- **🎯 Quest System**: GitHub issues integrated as in-game quests
+- **👥 Team Collaboration**: Agents share findings, request help, and summon specialists
+
+## Architecture Overview
+
+### Agent Workflow
+
+1. **Summon Agent** → Player or agent uses `/summon` command or `SummonAgent` MCP tool
+2. **Agent Spawns** → BridgeServer creates Claude SDK session with mission prompt + MCP tools
+3. **Autonomous Exploration** → Agent uses SDK tools (Read, Grep, Edit) to explore/modify codebase
+4. **Visual Feedback** → EventTranslator converts SDK events to JRPG protocol (dialogue, movement, emotes)
+5. **Collaboration** → Agents post findings, request help, update knowledge vault
+6. **Quest Completion** → Agent marks GitHub issues as complete
+
+### MCP Tools Available to Agents
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `SummonAgent` | Request specialist agent | Summon a test-writer when fixing bugs |
+| `RequestHelp` | Ask another agent | "What's the auth strategy?" |
+| `PostFindings` | Share discovery | "Found critical security issue in auth.ts" |
+| `UpdateKnowledge` | Save insight | "This codebase uses Phaser 3 for rendering" |
+| `ClaimQuest` | Assign GitHub issue | Claim issue #42 |
+| `CompleteQuest` | Mark quest done | Complete with summary |
+
+### Directory Structure
+
+```
+ha-agent-rpg/
+├── server/              # Bridge server (TypeScript, WebSocket)
+│   ├── src/
+│   │   ├── BridgeServer.ts        # WebSocket hub + message routing
+│   │   ├── AgentSessionManager.ts # Claude SDK session management
+│   │   ├── WorldState.ts          # Game state (single source of truth)
+│   │   ├── MapGenerator.ts        # Directory → tile map converter
+│   │   ├── CustomToolHandler.ts   # MCP tool execution
+│   │   ├── EventTranslator.ts     # SDK events → RPG protocol
+│   │   ├── KnowledgeVault.ts      # Persistent agent memory
+│   │   ├── FindingsBoard.ts       # Team knowledge sharing
+│   │   └── QuestManager.ts        # GitHub issues integration
+│   └── __tests__/       # 209 passing tests
+├── client/              # Phaser 3 game client
+│   ├── src/
+│   │   ├── scenes/      # GameScene, UIScene, BootScene
+│   │   ├── systems/     # AgentSprite, MapRenderer, Dialogue
+│   │   └── panels/      # MiniMap, QuestLog, PromptBar
+├── agent/               # Reference agent implementations
+│   ├── agent.py         # Scripted test agent
+│   ├── llm_agent.py     # Claude-powered agent (alternative)
+│   └── README.md        # Agent development guide
+├── docs/
+│   ├── ARCHITECTURE.md  # Comprehensive architecture guide
+│   ├── API_REFERENCE.md # Protocol and API documentation
+│   └── CONTRIBUTING.md  # Developer onboarding
+└── scripts/
+    └── start-all.sh     # Launch server + client + test agents
 ```
 
-## Architecture
+## Key Features
 
-### Bridge Server (`server/`)
+### 1. Hierarchical Navigation
 
-TypeScript WebSocket server on **port 3001**. The single source of truth.
+Directories map to dungeon rooms. Agents can navigate using visual "doors":
 
-- **WorldState** — 20x15 tile map (grass, walls, water), agent positions, HP/MP
-- **TurnManager** — Round-robin turns, 5-second timeout per turn
-- **ActionValidator** — Validates every action before applying it
-- Broadcasts results to all connected agents and game clients
+- **Yellow Triangles** (▼) → Subdirectories (navigate down)
+- **Blue Triangle** (▲) → Parent directory (navigate up)
+- MiniMap shows directory tree with agent presence indicators
 
-### Phaser Client (`client/`)
+### 2. Persistent Knowledge
 
-Phaser 3 game running in the browser on **port 5173**. Purely a renderer — it never sends actions, only receives state and results from the bridge.
+Agents remember what they learn across sessions:
 
-- Tile-based map rendered from world state
-- Agent sprites as colored rectangles (swap in real sprites later)
-- JRPG dialogue box with typewriter text effect
-- Emote bubbles (!, ?, ♥, ♪), skill effects, walk animations
-- All textures generated programmatically — zero asset files
-
-### Python Agent (`agent/`)
-
-Sample agent demonstrating the full protocol lifecycle.
-
-```bash
-python3 agent.py <agent_id> <name> <color_hex>
+```yaml
+# .agent-rpg/knowledge/agents/CodeExplorer.md
+expertise:
+  Architecture: 5
+  Testing: 3
+realm_knowledge:
+  /src/api/: 4
+insights:
+  - "Server uses TypeScript strict mode + ESM"
+  - "Client bundle is 1.53 MB - could be code-split"
 ```
 
-The included `ScriptedBehavior` cycles through all 6 action types. Replace it with LLM calls to make agents autonomous.
+### 3. Team Findings Board
 
-## Action Schema
-
-Every agent action follows the format:
+All agents see shared discoveries:
 
 ```json
 {
-  "type": "agent:action",
-  "agent_id": "scholar",
-  "turn_id": 1,
-  "action": "speak",
-  "params": { "text": "I found something in the archives..." }
+  "agent_id": "code_explorer",
+  "severity": "high",
+  "realm": "/client/",
+  "finding": "Client tests failing with ERR_REQUIRE_ESM",
+  "timestamp": "2026-02-21T10:00:00Z"
 }
 ```
 
-| Action      | Params                              | What Happens                    |
-|-------------|-------------------------------------|---------------------------------|
-| `move`      | `{ x, y }`                         | Sprite walks to adjacent tile   |
-| `speak`     | `{ text, emote? }`                 | Dialogue box with typewriter    |
-| `skill`     | `{ skill_id, target_id }`          | Effect animation + damage calc  |
-| `interact`  | `{ object_id }`                    | Examine, open, trade            |
-| `emote`     | `{ type }`                         | Floating bubble (!, ?, ♥, ♪)   |
-| `wait`      | `{ duration_ms }`                  | Idle animation                  |
+### 4. Quest Integration
 
-**Emote types:** `exclamation`, `question`, `heart`, `sweat`, `music`
+GitHub issues become in-game quests. Agents can:
+- View open issues in Quest Log (toggle with `/quest`)
+- Claim issues with `ClaimQuest` tool
+- Mark complete with `CompleteQuest` tool (updates GitHub labels)
 
-## Protocol Flow
+## Writing Custom Agents
 
-```
-1. Agent connects     → sends agent:register { agent_id, name, color }
-2. Server responds    → world:state (full snapshot)
-3. Server broadcasts  → agent:joined (to everyone else)
+### Option 1: Use Claude SDK (Recommended)
 
-Turn loop (round-robin):
-4. Server → turn:start { agent_id, turn_id, timeout_ms }
-5. Agent  → agent:action { action, params, turn_id }
-6. Server validates, applies, broadcasts → action:result { success, error? }
-7. Server → turn:start for next agent
+Summon agents via `/summon` command in the game. No code required!
+
+### Option 2: Use llm_agent.py (Standalone)
+
+```bash
+cd agent
+pip install anthropic websockets
+
+python3 llm_agent.py explorer "Explorer" ff6b35 \
+  --mission "Find all TODO comments and create a report"
 ```
 
-If an agent doesn't respond within 5 seconds, the server auto-applies a `wait` action and advances the turn.
+### Option 3: Build Your Own (Any Language)
 
-## Writing Your Own Agent
-
-Any language with WebSocket support works. Here's the minimal loop:
+Minimal WebSocket protocol:
 
 ```python
 import asyncio, json, websockets
@@ -132,57 +198,63 @@ async def main():
         await ws.send(json.dumps({
             "type": "agent:register",
             "agent_id": "my_agent",
-            "name": "Scholar",
+            "name": "Scout",
+            "role": "Explorer",
+            "realm": "/src/",
             "color": 0xa855f7
         }))
 
+        # Listen for events
         async for raw in ws:
             msg = json.loads(raw)
-
-            if msg["type"] == "turn:start" and msg["agent_id"] == "my_agent":
-                # Your LLM / logic decides the action here
-                await ws.send(json.dumps({
-                    "type": "agent:action",
-                    "agent_id": "my_agent",
-                    "turn_id": msg["turn_id"],
-                    "action": "speak",
-                    "params": {"text": "Hello world!"}
-                }))
+            # Handle world:state, action:result, etc.
 
 asyncio.run(main())
 ```
 
-## Project Structure
+See [`agent/README.md`](./agent/README.md) for full protocol documentation.
 
+## Player Commands
+
+Type commands in the in-game prompt bar:
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/summon` | Spawn new agent | `/summon name="Tester" mission="Write tests for auth"` |
+| `/quest` | Toggle quest log | `/quest` |
+| `/help` | Show commands | `/help` |
+| `/nav <path>` | Navigate to directory | `/nav src/api/` |
+
+## Development
+
+### Run Tests
+
+```bash
+# Server tests (209 tests, all passing)
+npm run test:server
+
+# Client tests (5 tests)
+npm run test:client
+
+# Coverage reports
+npm run coverage:server
 ```
-ha-agent-rpg/
-├── shared/protocol.ts            # Canonical type definitions
-├── server/src/
-│   ├── index.ts                  # Entry point (port 3001)
-│   ├── BridgeServer.ts           # WebSocket hub + message routing
-│   ├── WorldState.ts             # Map, agents, positions, HP/MP
-│   ├── TurnManager.ts            # Round-robin turn controller
-│   └── ActionValidator.ts        # Action validation rules
-├── client/src/
-│   ├── main.ts                   # Phaser game entry point
-│   ├── scenes/
-│   │   ├── BootScene.ts          # Generates textures (no assets needed)
-│   │   ├── GameScene.ts          # Map rendering + action handling
-│   │   └── UIScene.ts            # Dialogue box + turn indicator
-│   ├── systems/
-│   │   ├── AgentSprite.ts        # Sprite with walk/emote/idle
-│   │   ├── MapRenderer.ts        # Tile map renderer
-│   │   ├── DialogueSystem.ts     # JRPG text box + typewriter
-│   │   └── EffectSystem.ts       # Skill visual effects
-│   └── network/
-│       └── WebSocketClient.ts    # WS client with auto-reconnect
-├── agent/
-│   ├── agent.py                  # Sample agent entry point
-│   ├── behaviors.py              # Scripted behavior sequence
-│   └── protocol.py               # Python message helpers
-└── scripts/
-    └── start-all.sh              # Launch everything at once
+
+### Build for Production
+
+```bash
+npm run build:server  # → server/dist/
+npm run build:client  # → client/dist/
+
+npm run start:server  # Production server
 ```
+
+## Documentation
+
+- **[📚 Architecture Guide](./docs/ARCHITECTURE.md)** - Deep dive into system design, modules, data flow
+- **[📖 API Reference](./docs/API_REFERENCE.md)** - Protocol messages, schemas, examples
+- **[🤝 Contributing](./docs/CONTRIBUTING.md)** - Developer onboarding, coding standards, PR process
+- **[🤖 Agent Guide](./agent/README.md)** - How to create and customize agents
 
 ## Tech Stack
 
@@ -190,8 +262,32 @@ ha-agent-rpg/
 |-----------|-----------|
 | Game Client | Phaser 3, TypeScript, Vite |
 | Bridge Server | Node.js, `ws`, TypeScript, `tsx` |
-| Sample Agent | Python 3, `websockets` |
+| AI Agents | Claude Agent SDK (via Anthropic) |
+| MCP Tools | Custom in-process MCP server |
+| Testing | Vitest, 209 server tests passing |
+
+## Current Status
+
+✅ **Production Ready**
+- 209/209 server tests passing
+- Full Claude Agent SDK integration
+- Comprehensive documentation (1,690 lines)
+- Event-driven WebSocket architecture
+- 6 custom MCP tools operational
+- Knowledge persistence + findings board
+- Quest system (GitHub integration)
+- Hierarchical navigation system
 
 ## License
 
 MIT
+
+---
+
+**Next Steps:**
+1. Set your `ANTHROPIC_API_KEY` environment variable
+2. Start the server and client (`npm run dev:server`, `npm run dev:client`)
+3. Open http://localhost:5173
+4. Use `/summon` to spawn agents and watch them work!
+
+For detailed architectural information, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
