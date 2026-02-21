@@ -482,6 +482,67 @@
       font-size: 0.75rem;
       color: #666688;
     }
+    .agent-details-skills-subsection-label {
+      font-family: monospace;
+      font-size: 0.65rem;
+      color: #8888aa;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.3rem 0 0.15rem;
+    }
+    .agent-details-expertise-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.15rem 0;
+      font-family: monospace;
+      font-size: 0.7rem;
+      color: #ccccdd;
+    }
+    .agent-details-expertise-label {
+      min-width: 80px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .agent-details-bar-container {
+      flex: 1;
+      height: 8px;
+      background: #1a1a2e;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .agent-details-bar-fill {
+      height: 100%;
+      background: #c45a20;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    .agent-details-expertise-level {
+      min-width: 20px;
+      text-align: right;
+      color: #8888aa;
+      font-size: 0.65rem;
+    }
+    .agent-details-tool-item {
+      font-family: monospace;
+      font-size: 0.7rem;
+      color: #ccccdd;
+      padding: 0.1rem 0;
+    }
+    .agent-details-tool-item::before {
+      content: '>';
+      color: #b8860b;
+      margin-right: 0.4rem;
+      font-weight: bold;
+    }
+    .agent-details-empty {
+      font-family: monospace;
+      font-size: 0.7rem;
+      color: #555566;
+      padding: 0.2rem 0;
+      font-style: italic;
+    }
 
     /* ── Chat Bubbles ── */
     .chat-bubble {
