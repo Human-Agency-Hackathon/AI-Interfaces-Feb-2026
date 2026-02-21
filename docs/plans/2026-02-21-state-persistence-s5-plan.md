@@ -4,273 +4,32 @@
 
 **Goal:** Make `handleResumeRealm` restore a running brainstorm process (ProcessController + stage agents) instead of always spawning Oracle.
 
-**Architecture:** Extract delegate/listener wiring into a `createProcessController` helper method. In `handleResumeRealm`, branch on `processState.status === 'running'`: reconstruct ProcessController via `fromJSON()`, spawn stage agents with resume context. Fall back to Oracle if template not found or no running process. Restore navigation state from `worldState.navigationState` (activates when S3 lands).
+**Architecture:** Extract delegate creation and event wiring into two reusable helpers: `createProcessDelegate()` (returns delegate object) and `wireProcessControllerEvents(pc)` (wires movement-bias listener). In `handleResumeRealm`, branch on `processState.status === 'running'`: reconstruct ProcessController via `fromJSON()` using the delegate helper, spawn stage agents with resume context. Fall back to Oracle if template not found or no running process. Restore navigation state from `worldState.navigationState` (activates when S3 lands).
 
 **Tech Stack:** TypeScript (strict mode), Vitest
 
 ---
 
-### Task 1: Extract `createProcessController` helper from `handleStartProcess`
+### Task 1: Extract `createProcessDelegate` + `wireProcessControllerEvents` from `handleStartProcess`
 
 **Files:**
-- Modify: `ha-agent-rpg/server/src/BridgeServer.ts:401-447` (extract helper, refactor handleStartProcess)
+- Modify: `ha-agent-rpg/server/src/BridgeServer.ts` (~lines 345-447)
 
 **Step 1: Read the current code**
 
-Read `ha-agent-rpg/server/src/BridgeServer.ts` lines 401-447 (the delegate creation + event wiring in handleStartProcess).
+Read `ha-agent-rpg/server/src/BridgeServer.ts` lines 345-455 (the delegate creation + event wiring in `handleStartProcess`). Understand the 7 delegate callbacks and the `stage:started` event listener.
 
-**Step 2: Extract the helper method**
+**Step 2: Add import for ProcessControllerDelegate**
 
-Add a new private method `createProcessController()` to BridgeServer (place it right before `handleStartProcess`, around line 345). This method creates the delegate and wires event listeners, returning the ProcessController:
-
-```typescript
-  /**
-   * Create a ProcessController with delegate callbacks and event listeners.
-   * Used by both handleStartProcess (fresh) and handleResumeRealm (restore).
-   */
-  private createProcessController(): ProcessController {
-    const pc = new ProcessController({
-      dismissStageAgents: async (stage: StageDefinition) => {
-        for (const roleId of stage.roles) {
-          await this.sessionManager.dismissAgent(roleId);
-          this.worldState.removeAgent(roleId);
-          this.broadcast({ type: 'agent:left', agent_id: roleId });
-        }
-      },
-      spawnStageAgents: async (tpl: ProcessDefinition, idx: number, prob: string) => {
-        await this.spawnProcessAgents(tpl, idx, prob);
-      },
-      broadcast: (msg) => this.broadcast(msg as unknown as ServerMessage),
-      saveArtifact: (stageId, artifactId, content) => {
-        this.worldState.setArtifact(stageId, artifactId, content);
-      },
-      onStageAdvanced: (completedStageId, artifacts) => {
-        this.worldState.advanceStage(completedStageId, artifacts);
-      },
-      onProcessCompleted: (finalStageId, artifacts) => {
-        this.worldState.completeProcess(finalStageId, artifacts);
-      },
-      sendFollowUp: async (agentId, prompt) => {
-        await this.sessionManager.sendFollowUp(agentId, prompt);
-      },
-    });
-
-    // Listen for stage transitions to update movement bias
-    pc.on('stage:started', (event: any) => {
-      const stageId: string = event.stageId ?? '';
-      const divergent = ['divergent_thinking', 'precedent_research'];
-      const convergent = ['convergent_thinking', 'fact_checking', 'pushback'];
-
-      if (divergent.some(s => stageId.includes(s))) {
-        this.movementBias = 'outward';
-      } else if (convergent.some(s => stageId.includes(s))) {
-        this.movementBias = 'inward';
-      } else {
-        this.movementBias = 'neutral';
-      }
-    });
-
-    return pc;
-  }
-```
-
-**Step 3: Refactor `handleStartProcess` to use the helper**
-
-Replace lines 401-447 (the inline delegate + event wiring + `this.processController.start(...)`) with:
+At the top of BridgeServer.ts, update the ProcessController import to also import the delegate type:
 
 ```typescript
-      // Create process controller with delegate callbacks
-      this.processController = this.createProcessController();
-
-      // Spawn the first stage's agents
-      await this.spawnProcessAgents(template, 0, msg.problem);
-
-      // Start stage tracking after agents are spawned
-      this.processController.start(msg.problem, template);
+import { ProcessController, type ProcessControllerDelegate } from './ProcessController.js';
 ```
 
-The `processController.on('stage:started', ...)` listener is now inside `createProcessController()`.
+**Step 3: Add the two helper methods**
 
-**Step 4: Run the full test suite to verify no regression**
-
-Run: `npm run test -w server` from `ha-agent-rpg/`
-Expected: ALL PASS (this is a pure refactor — same behavior, different structure)
-
-**Step 5: Type-check**
-
-Run: `npm run build -w server` from `ha-agent-rpg/`
-Expected: SUCCESS
-
-**Step 6: Commit**
-
-```bash
-git add ha-agent-rpg/server/src/BridgeServer.ts
-git commit -m "refactor(S5): extract createProcessController helper from handleStartProcess"
-```
-
----
-
-### Task 2: Add resume context option to `spawnProcessAgents`
-
-**Files:**
-- Modify: `ha-agent-rpg/server/src/BridgeServer.ts:457-511` (spawnProcessAgents signature + processContext)
-
-**Step 1: Add optional `options` parameter**
-
-Change the `spawnProcessAgents` signature to accept an optional options object:
-
-```typescript
-  private async spawnProcessAgents(
-    template: ProcessDefinition,
-    stageIndex: number,
-    problem: string,
-    options?: { resumed?: boolean },
-  ): Promise<void> {
-```
-
-**Step 2: Add resume note to processContext**
-
-Inside `spawnProcessAgents`, where `processContext` is built (currently around line 498-508), add a `resumeNote` field when `options?.resumed` is true:
-
-```typescript
-        processContext: {
-          problem,
-          processName: template.name,
-          stageId: stage.id,
-          stageName: stage.name,
-          stageGoal: stage.goal,
-          stageIndex,
-          totalStages: template.stages.length,
-          persona: roleDef.persona,
-          priorArtifacts,
-          ...(options?.resumed ? {
-            resumeNote: 'You are resuming a paused brainstorm session. Prior stage artifacts are available in your system prompt. Continue where the previous agents left off.',
-          } : {}),
-        },
-```
-
-**Step 3: Run tests**
-
-Run: `npm run test -w server` from `ha-agent-rpg/`
-Expected: ALL PASS (optional param, no call sites changed)
-
-**Step 4: Commit**
-
-```bash
-git add ha-agent-rpg/server/src/BridgeServer.ts
-git commit -m "feat(S5): add resume context option to spawnProcessAgents"
-```
-
----
-
-### Task 3: Add process-aware branch to `handleResumeRealm`
-
-**Files:**
-- Modify: `ha-agent-rpg/server/src/BridgeServer.ts:1027-1032` (replace Oracle spawn with branching logic)
-
-**Step 1: Replace the Oracle-only spawn**
-
-In `handleResumeRealm`, replace lines 1027-1032:
-
-```typescript
-      this.gamePhase = 'playing';
-
-      // Respawn oracle
-      await this.spawnOracle(realm.path);
-
-      console.log(`[Bridge] Realm resumed: ${realm.displayName}`);
-```
-
-With process-aware branching:
-
-```typescript
-      this.gamePhase = 'playing';
-
-      // Check if a brainstorm process was running when state was saved
-      const processState = this.worldState.getProcessState();
-      if (processState && processState.status === 'running') {
-        const template = PROCESS_TEMPLATES[processState.processId];
-        if (template) {
-          // Restore ProcessController from saved state
-          this.processController = this.createProcessController();
-          // Hydrate internal state (turn counts, stage timing) from saved ProcessState
-          const restoredPc = ProcessController.fromJSON(processState, template, (this.processController as any).delegate);
-          // Actually, we need to use fromJSON directly with the helper's delegate.
-          // The helper creates a fresh PC — instead, build delegate separately:
-          this.processController = ProcessController.fromJSON(
-            processState,
-            template,
-            {
-              dismissStageAgents: async (stage: StageDefinition) => {
-                for (const roleId of stage.roles) {
-                  await this.sessionManager.dismissAgent(roleId);
-                  this.worldState.removeAgent(roleId);
-                  this.broadcast({ type: 'agent:left', agent_id: roleId });
-                }
-              },
-              spawnStageAgents: async (tpl: ProcessDefinition, idx: number, prob: string) => {
-                await this.spawnProcessAgents(tpl, idx, prob);
-              },
-              broadcast: (msg) => this.broadcast(msg as unknown as ServerMessage),
-              saveArtifact: (stageId, artifactId, content) => {
-                this.worldState.setArtifact(stageId, artifactId, content);
-              },
-              onStageAdvanced: (completedStageId, artifacts) => {
-                this.worldState.advanceStage(completedStageId, artifacts);
-              },
-              onProcessCompleted: (finalStageId, artifacts) => {
-                this.worldState.completeProcess(finalStageId, artifacts);
-              },
-              sendFollowUp: async (agentId, prompt) => {
-                await this.sessionManager.sendFollowUp(agentId, prompt);
-              },
-            },
-          );
-
-          // Wire stage:started listener for movement bias (same as createProcessController)
-          this.processController.on('stage:started', (event: any) => {
-            const stageId: string = event.stageId ?? '';
-            const divergent = ['divergent_thinking', 'precedent_research'];
-            const convergent = ['convergent_thinking', 'fact_checking', 'pushback'];
-            if (divergent.some(s => stageId.includes(s))) {
-              this.movementBias = 'outward';
-            } else if (convergent.some(s => stageId.includes(s))) {
-              this.movementBias = 'inward';
-            } else {
-              this.movementBias = 'neutral';
-            }
-          });
-
-          // Respawn agents for the current stage with resume context
-          await this.spawnProcessAgents(
-            template,
-            processState.currentStageIndex,
-            processState.problemStatement ?? processState.problem,
-            { resumed: true },
-          );
-
-          console.log(`[Bridge] Realm resumed with running process: ${realm.displayName} (stage ${processState.currentStageIndex})`);
-        } else {
-          console.warn(`[Bridge] Template "${processState.processId}" not found for resumed process, falling back to Oracle`);
-          await this.spawnOracle(realm.path);
-          console.log(`[Bridge] Realm resumed (Oracle fallback): ${realm.displayName}`);
-        }
-      } else {
-        // No running process — spawn Oracle as usual
-        await this.spawnOracle(realm.path);
-        console.log(`[Bridge] Realm resumed: ${realm.displayName}`);
-      }
-```
-
-**WAIT** — this duplicates the delegate. The design says to use the helper. Let me revise. The `createProcessController` helper creates a *fresh* ProcessController with the delegate and listeners wired up. For resume, we need `ProcessController.fromJSON()` instead of `new ProcessController()`. So we need to refactor the helper to accept an optional factory override, OR extract just the delegate creation.
-
-**Revised approach:** Change `createProcessController` to return just the delegate + wire listeners on a provided PC. Better yet: split into `createProcessDelegate()` (returns delegate) and have `createProcessController` call it. Then resume calls `createProcessDelegate()` + `ProcessController.fromJSON()` + wires listeners.
-
-Here's the actual implementation:
-
-**Step 1a: Refactor the helper into `createProcessDelegate` + listener wiring**
-
-Replace the `createProcessController()` method (from Task 1) with two pieces:
+Add these two private methods to BridgeServer (place them right before `handleStartProcess`, around line 345):
 
 ```typescript
   /**
@@ -322,7 +81,9 @@ Replace the `createProcessController()` method (from Task 1) with two pieces:
   }
 ```
 
-Then update `handleStartProcess` to use these:
+**Step 4: Refactor `handleStartProcess` to use the helpers**
+
+Replace the inline delegate creation + event wiring + `new ProcessController(...)` in `handleStartProcess` (approximately lines 401-447) with:
 
 ```typescript
       // Create process controller with delegate callbacks
@@ -336,9 +97,101 @@ Then update `handleStartProcess` to use these:
       this.processController.start(msg.problem, template);
 ```
 
-And the resume path in `handleResumeRealm`:
+**Step 5: Run the full test suite to verify no regression**
+
+Run: `npm run test -w server` from `ha-agent-rpg/`
+Expected: ALL PASS (this is a pure refactor — same behavior, different structure)
+
+**Step 6: Type-check**
+
+Run: `npm run build -w server` from `ha-agent-rpg/`
+Expected: SUCCESS
+
+**Step 7: Commit**
+
+```bash
+git add ha-agent-rpg/server/src/BridgeServer.ts
+git commit -m "refactor(S5): extract createProcessDelegate + wireProcessControllerEvents from handleStartProcess"
+```
+
+---
+
+### Task 2: Add resume context option to `spawnProcessAgents`
+
+**Files:**
+- Modify: `ha-agent-rpg/server/src/BridgeServer.ts` (~lines 457-511, the `spawnProcessAgents` method)
+
+**Step 1: Add optional `options` parameter**
+
+Change the `spawnProcessAgents` signature to accept an optional options object:
 
 ```typescript
+  private async spawnProcessAgents(
+    template: ProcessDefinition,
+    stageIndex: number,
+    problem: string,
+    options?: { resumed?: boolean },
+  ): Promise<void> {
+```
+
+**Step 2: Add resume note to processContext**
+
+Inside `spawnProcessAgents`, where `processContext` is built (around line 498-508), add a `resumeNote` field when `options?.resumed` is true:
+
+```typescript
+        processContext: {
+          problem,
+          processName: template.name,
+          stageId: stage.id,
+          stageName: stage.name,
+          stageGoal: stage.goal,
+          stageIndex,
+          totalStages: template.stages.length,
+          persona: roleDef.persona,
+          priorArtifacts,
+          ...(options?.resumed ? {
+            resumeNote: 'You are resuming a paused brainstorm session. Prior stage artifacts are available in your system prompt. Continue where the previous agents left off.',
+          } : {}),
+        },
+```
+
+**Step 3: Run tests**
+
+Run: `npm run test -w server` from `ha-agent-rpg/`
+Expected: ALL PASS (optional param, no call sites changed)
+
+**Step 4: Commit**
+
+```bash
+git add ha-agent-rpg/server/src/BridgeServer.ts
+git commit -m "feat(S5): add resume context option to spawnProcessAgents"
+```
+
+---
+
+### Task 3: Add process-aware branch to `handleResumeRealm`
+
+**Files:**
+- Modify: `ha-agent-rpg/server/src/BridgeServer.ts` (~lines 1027-1032, the Oracle spawn in `handleResumeRealm`)
+
+**Step 1: Replace the Oracle-only spawn**
+
+In `handleResumeRealm`, find the section that unconditionally spawns Oracle (approximately):
+
+```typescript
+      this.gamePhase = 'playing';
+
+      // Respawn oracle
+      await this.spawnOracle(realm.path);
+
+      console.log(`[Bridge] Realm resumed: ${realm.displayName}`);
+```
+
+Replace with process-aware branching using the helpers from Task 1:
+
+```typescript
+      this.gamePhase = 'playing';
+
       // Check if a brainstorm process was running when state was saved
       const processState = this.worldState.getProcessState();
       if (processState && processState.status === 'running') {
@@ -373,25 +226,17 @@ And the resume path in `handleResumeRealm`:
       }
 ```
 
-**Step 2: Also add the import for `ProcessControllerDelegate`**
-
-At the top of BridgeServer.ts, update the ProcessController import (line 44) to also import the delegate type:
-
-```typescript
-import { ProcessController, type ProcessControllerDelegate } from './ProcessController.js';
-```
-
-**Step 3: Run tests**
+**Step 2: Run tests**
 
 Run: `npm run test -w server` from `ha-agent-rpg/`
 Expected: ALL PASS
 
-**Step 4: Type-check**
+**Step 3: Type-check**
 
 Run: `npm run build -w server` from `ha-agent-rpg/`
 Expected: SUCCESS
 
-**Step 5: Commit**
+**Step 4: Commit**
 
 ```bash
 git add ha-agent-rpg/server/src/BridgeServer.ts
@@ -403,11 +248,11 @@ git commit -m "feat(S5): process-aware resume in handleResumeRealm with Oracle f
 ### Task 4: Add navigation state restoration
 
 **Files:**
-- Modify: `ha-agent-rpg/server/src/BridgeServer.ts` (inside handleResumeRealm, after loading worldState)
+- Modify: `ha-agent-rpg/server/src/BridgeServer.ts` (inside `handleResumeRealm`, after loading worldState)
 
 **Step 1: Add navigation restoration**
 
-In `handleResumeRealm`, after `this.worldState = savedState;` (line 965) and before the `gamePhase = 'playing'` line, add:
+In `handleResumeRealm`, after `this.worldState = savedState;` and before the `gamePhase = 'playing'` line, add:
 
 ```typescript
       // Restore navigation state if present (populated by S3's save triggers)
@@ -441,14 +286,14 @@ git commit -m "feat(S5): restore navigation state on realm resume"
 **Files:**
 - Create: `ha-agent-rpg/server/src/__tests__/BridgeServer.resume.test.ts`
 
-Since the E2E test file doesn't mock WorldStatePersistence or RealmRegistry, and testing handleResumeRealm via WebSocket would be very complex, we'll create a focused test file that tests the extracted helpers and resume logic by accessing BridgeServer internals.
+Since the E2E test file doesn't mock WorldStatePersistence or RealmRegistry, and testing `handleResumeRealm` via WebSocket would be very complex, we create a focused test file that tests the extracted helpers and resume logic by accessing BridgeServer internals.
 
 **Step 1: Create the test file**
 
 Create `ha-agent-rpg/server/src/__tests__/BridgeServer.resume.test.ts`:
 
 ```typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ── Module mocks ──
 
@@ -585,7 +430,6 @@ describe('BridgeServer resume', () => {
     }
 
     it('restores ProcessController when processState.status is running', async () => {
-      // Set up server internals to simulate a loaded realm
       const ws = new WorldState();
       ws.setProcessState(makeRunningProcessState());
 
@@ -593,7 +437,7 @@ describe('BridgeServer resume', () => {
       (server as any).repoPath = '/tmp';
       (server as any).gamePhase = 'playing';
 
-      // Manually init required subsystems (normally done by handleResumeRealm)
+      // Manually init required subsystems
       const { FindingsBoard } = await import('../FindingsBoard.js');
       (server as any).findingsBoard = new FindingsBoard('/tmp');
       const { TranscriptLogger } = await import('../TranscriptLogger.js');
@@ -644,8 +488,7 @@ describe('BridgeServer resume', () => {
       const template = PROCESS_TEMPLATES[processState.processId];
       expect(template).toBeUndefined();
 
-      // Verify: when template is missing, we don't create a ProcessController
-      // (handleResumeRealm would fall back to Oracle)
+      // When template is missing, processController stays null (Oracle fallback)
       expect((server as any).processController).toBeNull();
     });
 
@@ -658,14 +501,12 @@ describe('BridgeServer resume', () => {
       (server as any).worldState = ws;
 
       const processState = ws.getProcessState()!;
-      // Status is not 'running', so we should not create a ProcessController
       expect(processState.status).toBe('completed');
       expect((server as any).processController).toBeNull();
     });
 
     it('does not create ProcessController when processState is null', () => {
       const ws = new WorldState();
-      // No process state set
       (server as any).worldState = ws;
 
       expect(ws.getProcessState()).toBeNull();
@@ -706,13 +547,11 @@ describe('BridgeServer resume', () => {
 
     it('does nothing when navigationState is null', () => {
       const ws = new WorldState();
-      // navigationState defaults to null
       (server as any).worldState = ws;
 
       const navState = ws.navigationState;
       expect(navState).toBeNull();
 
-      // Maps should remain empty
       expect((server as any).agentNavStacks.size).toBe(0);
       expect((server as any).agentCurrentPath.size).toBe(0);
     });
