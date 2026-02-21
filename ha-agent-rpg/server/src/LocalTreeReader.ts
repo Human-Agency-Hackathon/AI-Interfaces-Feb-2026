@@ -45,7 +45,9 @@ export class LocalTreeReader {
     const tree: LocalTreeEntry[] = [];
     const languages: Record<string, number> = {};
 
-    await this.walkDir(repoPath, repoPath, tree, languages);
+    // Resolve the root to its real path (handles macOS /tmp → /private/tmp etc.)
+    const resolvedRoot = await realpath(repoPath).catch(() => resolve(repoPath));
+    await this.walkDir(resolvedRoot, resolvedRoot, tree, languages);
     const totalFiles = tree.filter(e => e.type === 'blob').length;
 
     const hasRemote = await this.checkGitRemote(repoPath);
