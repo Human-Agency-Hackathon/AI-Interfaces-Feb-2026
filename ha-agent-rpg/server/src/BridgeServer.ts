@@ -1363,10 +1363,22 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
       await Promise.allSettled(ids.map((id) => this.sessionManager.dismissAgent(id)));
     }
 
-    // Close all open client sockets
-    for (const ws of this.allSockets) {
-      ws.terminate();
-    }
+    // Close all open client sockets with a proper WebSocket close frame so
+    // clients (e.g. Python agents) receive a clean close and don't throw
+    // ConnectionClosedError. Fall back to terminate() after 2 s.
+    const closePromises = Array.from(this.allSockets).map(
+      (ws) =>
+        new Promise<void>((resolve) => {
+          if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+            ws.once('close', resolve);
+            ws.close(1001, 'Server shutting down');
+            setTimeout(() => { ws.terminate(); resolve(); }, 2000);
+          } else {
+            resolve();
+          }
+        }),
+    );
+    await Promise.allSettled(closePromises);
     this.allSockets.clear();
 
     // Close the WebSocket server and release the port
