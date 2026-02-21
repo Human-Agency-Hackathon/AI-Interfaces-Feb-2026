@@ -13,6 +13,7 @@
 
 import { EventEmitter } from 'node:events';
 import type { ProcessDefinition, StageDefinition } from './ProcessTemplates.js';
+import type { ProcessState } from './types.js';
 
 export interface StageContext {
   problem: string;
@@ -159,6 +160,24 @@ export class ProcessController extends EventEmitter {
   /** Returns the full context or null */
   getContext(): StageContext | null {
     return this.context;
+  }
+
+  /**
+   * Serialize ProcessController state into a full ProcessState.
+   * Merges PC's turn-tracking data with the existing ProcessState from WorldState
+   * (which owns collectedArtifacts, startedAt, completedAt, status).
+   */
+  toJSON(existingState: ProcessState): ProcessState {
+    return {
+      ...existingState,
+      processId: this.context?.template.id ?? existingState.processId,
+      problem: this.context?.problem ?? existingState.problem,
+      currentStageIndex: this.context?.stageIndex ?? existingState.currentStageIndex,
+      problemStatement: this.context?.problem ?? existingState.problemStatement,
+      stageTurnCounts: Object.fromEntries(this.stageTurnCounts),
+      agentTurnCounts: Object.fromEntries(this.agentTurnCounts),
+      stageStartedAt: this.stageStartedAt ?? existingState.stageStartedAt,
+    };
   }
 
   /** Stop the controller (e.g. user quit or error) */

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProcessController } from '../ProcessController.js';
 import type { ProcessControllerDelegate } from '../ProcessController.js';
 import type { ProcessDefinition, StageDefinition } from '../ProcessTemplates.js';
+import type { ProcessState } from '../types.js';
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -442,6 +443,73 @@ describe('ProcessController', () => {
       ctrl.start('Test', makeTemplate());
       // Should not throw
       await ctrl.onAgentTurnComplete('agent_a');
+    });
+  });
+
+  describe('toJSON()', () => {
+    it('merges ProcessController data into existingState', () => {
+      const template = makeTemplate();
+      controller.start('My brainstorm problem', template);
+
+      const existingState: ProcessState = {
+        processId: 'test_process',
+        problem: 'My brainstorm problem',
+        currentStageIndex: 0,
+        status: 'running',
+        collectedArtifacts: { stage_0: { doc: 'prior artifact' } },
+        startedAt: '2026-02-21T10:00:00.000Z',
+      };
+
+      const snapshot = controller.toJSON(existingState);
+
+      expect(snapshot.processId).toBe('test_process');
+      expect(snapshot.problem).toBe('My brainstorm problem');
+      expect(snapshot.currentStageIndex).toBe(0);
+      expect(snapshot.problemStatement).toBe('My brainstorm problem');
+      expect(snapshot.stageTurnCounts).toEqual({});
+      expect(snapshot.agentTurnCounts).toEqual({});
+      expect(snapshot.stageStartedAt).toBeTruthy();
+
+      expect(snapshot.collectedArtifacts).toEqual({ stage_0: { doc: 'prior artifact' } });
+      expect(snapshot.startedAt).toBe('2026-02-21T10:00:00.000Z');
+      expect(snapshot.status).toBe('running');
+    });
+
+    it('includes turn counts after agents take turns', async () => {
+      controller.start('Test', makeTemplate());
+      await controller.onAgentTurnComplete('agent_a');
+
+      const existingState: ProcessState = {
+        processId: 'test_process',
+        problem: 'Test',
+        currentStageIndex: 0,
+        status: 'running',
+        collectedArtifacts: {},
+        startedAt: '2026-02-21T10:00:00.000Z',
+      };
+
+      const snapshot = controller.toJSON(existingState);
+      expect(snapshot.stageTurnCounts).toEqual({ stage_1: 1 });
+      expect(snapshot.agentTurnCounts).toEqual({ 'stage_1:agent_a': 1 });
+    });
+
+    it('falls back to existingState when context is null', () => {
+      const existingState: ProcessState = {
+        processId: 'fallback_id',
+        problem: 'Fallback problem',
+        currentStageIndex: 2,
+        status: 'completed',
+        collectedArtifacts: {},
+        startedAt: '2026-02-21T10:00:00.000Z',
+        completedAt: '2026-02-21T11:00:00.000Z',
+      };
+
+      const snapshot = controller.toJSON(existingState);
+      expect(snapshot.processId).toBe('fallback_id');
+      expect(snapshot.problem).toBe('Fallback problem');
+      expect(snapshot.currentStageIndex).toBe(2);
+      expect(snapshot.stageTurnCounts).toEqual({});
+      expect(snapshot.agentTurnCounts).toEqual({});
     });
   });
 
