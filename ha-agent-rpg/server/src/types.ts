@@ -314,6 +314,11 @@ export interface PlayerNavigateBackMessage {
   type: 'player:navigate-back';
 }
 
+export interface PlayerMoveMessage {
+  type: 'player:move';
+  direction: 'up' | 'down' | 'left' | 'right';
+}
+
 export type ClientMessage =
   | AgentRegisterMessage
   | AgentActionMessage
@@ -325,7 +330,8 @@ export type ClientMessage =
   | ResumeRealmMessage
   | RemoveRealmMessage
   | PlayerNavigateEnterMessage
-  | PlayerNavigateBackMessage;
+  | PlayerNavigateBackMessage
+  | PlayerMoveMessage;
 
 export type ServerMessage =
   | WorldStateMessage

@@ -28,6 +28,13 @@ const CORRIDOR_W = 3;
 /** Spacing between rooms and from corridor endpoints */
 const ROOM_GAP = 4;
 
+// ---------- Agent-room layout constants ----------
+
+const AGENT_ROOM_W = 12;
+const AGENT_ROOM_H = 10;
+const AGENT_MAP_W = 60;
+const AGENT_MAP_H = 50;
+
 // ---------- Internal helper types ----------
 
 interface DirNode {
@@ -53,6 +60,16 @@ interface Room {
   /** Door position (tile coordinate) */
   doorX: number;
   doorY: number;
+}
+
+// ---------- Agent-room types ----------
+
+interface AgentRoomSpec { agentId: string; name: string; role: string; }
+
+export interface AgentMapResult {
+  map: TileMapData;
+  objects: MapObject[];
+  agentPositions: Record<string, { x: number; y: number }>;
 }
 
 // ---------- File classification ----------
@@ -788,5 +805,203 @@ export class MapGenerator {
       s = (s * 1664525 + 1013904223) | 0;
       return ((s >>> 0) / 0xFFFFFFFF);
     };
+  }
+
+  // ================================================================
+  // Agent-room map generation
+  // ================================================================
+
+  /**
+   * Build a flat "medieval offices" map: one room per agent on a fixed 60×50 canvas.
+   * Oracle's room is always at (24,20); sub-agent rooms radiate outward.
+   */
+  generateAgentMap(agents: AgentRoomSpec[]): AgentMapResult {
+    const tiles = this.createBlankGrid(AGENT_MAP_W, AGENT_MAP_H);
+    const objects: MapObject[] = [];
+    const agentPositions: Record<string, { x: number; y: number }> = {};
+
+    if (agents.length === 0) {
+      return { map: { width: AGENT_MAP_W, height: AGENT_MAP_H, tile_size: TILE_SIZE, tiles }, objects, agentPositions };
+    }
+
+    // Fixed room top-left positions matching DIRECTIONS order (N,E,S,W,NE,NW,SE,SW)
+    const ORACLE_X = 24;
+    const ORACLE_Y = 20;
+    const SUB_POSITIONS = [
+      { x: 24, y: 5 },   // N
+      { x: 41, y: 20 },  // E
+      { x: 24, y: 35 },  // S
+      { x: 7,  y: 20 },  // W
+      { x: 41, y: 5 },   // NE
+      { x: 7,  y: 5 },   // NW
+      { x: 41, y: 35 },  // SE
+      { x: 7,  y: 35 },  // SW
+    ];
+
+    // Oracle room
+    const oracle = agents[0];
+    this.carveAgentRoom(tiles, ORACLE_X, ORACLE_Y, AGENT_ROOM_W, AGENT_ROOM_H);
+    this.decorateAgentRoom(objects, ORACLE_X, ORACLE_Y, AGENT_ROOM_W, AGENT_ROOM_H, oracle);
+    agentPositions[oracle.agentId] = {
+      x: ORACLE_X + Math.floor(AGENT_ROOM_W / 2),
+      y: ORACLE_Y + Math.floor(AGENT_ROOM_H / 2),
+    };
+
+    // Sub-agent rooms
+    for (let i = 1; i < agents.length && i - 1 < SUB_POSITIONS.length; i++) {
+      const agent = agents[i];
+      const pos = SUB_POSITIONS[i - 1];
+      const dir = DIRECTIONS[i - 1];
+
+      this.carveAgentRoom(tiles, pos.x, pos.y, AGENT_ROOM_W, AGENT_ROOM_H);
+      this.decorateAgentRoom(objects, pos.x, pos.y, AGENT_ROOM_W, AGENT_ROOM_H, agent);
+      agentPositions[agent.agentId] = {
+        x: pos.x + Math.floor(AGENT_ROOM_W / 2),
+        y: pos.y + Math.floor(AGENT_ROOM_H / 2),
+      };
+
+      this.carveAgentCorridor(
+        tiles,
+        ORACLE_X, ORACLE_Y, AGENT_ROOM_W, AGENT_ROOM_H,
+        pos.x, pos.y, AGENT_ROOM_W, AGENT_ROOM_H,
+        dir,
+      );
+    }
+
+    return { map: { width: AGENT_MAP_W, height: AGENT_MAP_H, tile_size: TILE_SIZE, tiles }, objects, agentPositions };
+  }
+
+  /** Carve walls on border, floor inside. Doors are added later by carveAgentCorridor. */
+  private carveAgentRoom(tiles: number[][], x: number, y: number, w: number, h: number): void {
+    for (let ry = y; ry < y + h; ry++) {
+      for (let rx = x; rx < x + w; rx++) {
+        if (!this.inBounds(tiles, rx, ry)) continue;
+        const onBorder = ry === y || ry === y + h - 1 || rx === x || rx === x + w - 1;
+        tiles[ry][rx] = onBorder ? TILE_WALL : TILE_FLOOR;
+      }
+    }
+  }
+
+  /** Place sign (nameplate), 2× doc (books), 1× file (papers) in the four interior corners. */
+  private decorateAgentRoom(
+    objects: MapObject[],
+    x: number, y: number, w: number, h: number,
+    agent: AgentRoomSpec,
+  ): void {
+    const ix = x + 1;
+    const iy = y + 1;
+    const iw = w - 2;
+    const ih = h - 2;
+    objects.push({
+      id: `sign_${agent.agentId}`,
+      type: 'sign',
+      x: ix, y: iy,
+      label: `${agent.name} (${agent.role})`,
+      metadata: { agentId: agent.agentId },
+    });
+    objects.push({
+      id: `doc_${agent.agentId}_1`,
+      type: 'doc',
+      x: ix + iw - 1, y: iy,
+      label: 'Research',
+      metadata: { agentId: agent.agentId },
+    });
+    objects.push({
+      id: `doc_${agent.agentId}_2`,
+      type: 'doc',
+      x: ix, y: iy + ih - 1,
+      label: 'Findings',
+      metadata: { agentId: agent.agentId },
+    });
+    objects.push({
+      id: `file_${agent.agentId}`,
+      type: 'file',
+      x: ix + iw - 1, y: iy + ih - 1,
+      label: 'Notes',
+      metadata: { agentId: agent.agentId },
+    });
+  }
+
+  /**
+   * Place TILE_DOOR on each room's connecting wall and carve a TILE_FLOOR corridor between them.
+   * Cardinal directions use a straight corridor; diagonals use an L-shape.
+   * Only TILE_GRASS tiles are overwritten (rooms protect themselves).
+   */
+  private carveAgentCorridor(
+    tiles: number[][],
+    oX: number, oY: number, oW: number, oH: number,
+    sX: number, sY: number, sW: number, sH: number,
+    dir: { dx: number; dy: number },
+  ): void {
+    const halfW = Math.floor(CORRIDOR_W / 2);
+    const oCx = oX + Math.floor(oW / 2);
+    const oCy = oY + Math.floor(oH / 2);
+    const sCx = sX + Math.floor(sW / 2);
+    const sCy = sY + Math.floor(sH / 2);
+
+    // Door positions based on direction
+    let oDoorX: number, oDoorY: number, sDoorX: number, sDoorY: number;
+    if (dir.dx === 0 && dir.dy === -1) {        // N
+      oDoorX = oCx; oDoorY = oY;
+      sDoorX = sCx; sDoorY = sY + sH - 1;
+    } else if (dir.dx === 1 && dir.dy === 0) {  // E
+      oDoorX = oX + oW - 1; oDoorY = oCy;
+      sDoorX = sX; sDoorY = sCy;
+    } else if (dir.dx === 0 && dir.dy === 1) {  // S
+      oDoorX = oCx; oDoorY = oY + oH - 1;
+      sDoorX = sCx; sDoorY = sY;
+    } else if (dir.dx === -1 && dir.dy === 0) { // W
+      oDoorX = oX; oDoorY = oCy;
+      sDoorX = sX + sW - 1; sDoorY = sCy;
+    } else if (dir.dx === 1 && dir.dy === -1) { // NE
+      oDoorX = oX + oW - 1; oDoorY = oCy;
+      sDoorX = sCx; sDoorY = sY + sH - 1;
+    } else if (dir.dx === -1 && dir.dy === -1) { // NW
+      oDoorX = oX; oDoorY = oCy;
+      sDoorX = sCx; sDoorY = sY + sH - 1;
+    } else if (dir.dx === 1 && dir.dy === 1) {  // SE
+      oDoorX = oX + oW - 1; oDoorY = oCy;
+      sDoorX = sCx; sDoorY = sY;
+    } else {                                     // SW
+      oDoorX = oX; oDoorY = oCy;
+      sDoorX = sCx; sDoorY = sY;
+    }
+
+    if (this.inBounds(tiles, oDoorX, oDoorY)) tiles[oDoorY][oDoorX] = TILE_DOOR;
+    if (this.inBounds(tiles, sDoorX, sDoorY)) tiles[sDoorY][sDoorX] = TILE_DOOR;
+
+    const carve = (x: number, y: number): void => {
+      if (this.inBounds(tiles, x, y) && tiles[y][x] === TILE_GRASS) tiles[y][x] = TILE_FLOOR;
+    };
+
+    if (dir.dx === 0) {
+      // N or S: straight vertical corridor
+      const xC = oDoorX;
+      const yMin = Math.min(oDoorY, sDoorY) + 1;
+      const yMax = Math.max(oDoorY, sDoorY) - 1;
+      for (let cy = yMin; cy <= yMax; cy++) {
+        for (let off = -halfW; off <= halfW; off++) carve(xC + off, cy);
+      }
+    } else if (dir.dy === 0) {
+      // E or W: straight horizontal corridor
+      const yC = oDoorY;
+      const xMin = Math.min(oDoorX, sDoorX) + 1;
+      const xMax = Math.max(oDoorX, sDoorX) - 1;
+      for (let cx = xMin; cx <= xMax; cx++) {
+        for (let off = -halfW; off <= halfW; off++) carve(cx, yC + off);
+      }
+    } else {
+      // Diagonal: L-shape — horizontal from oracle door to sub's X, then vertical to sub door
+      const xMin = Math.min(oDoorX, sDoorX) + 1;
+      const xMax = Math.max(oDoorX, sDoorX) - 1;
+      for (let cx = xMin; cx <= xMax; cx++) {
+        for (let off = -halfW; off <= halfW; off++) carve(cx, oDoorY + off);
+      }
+      const yMin = Math.min(oDoorY, sDoorY) + 1;
+      const yMax = Math.max(oDoorY, sDoorY) - 1;
+      for (let cy = yMin; cy <= yMax; cy++) {
+        for (let off = -halfW; off <= halfW; off++) carve(sDoorX + off, cy);
+      }
+    }
   }
 }

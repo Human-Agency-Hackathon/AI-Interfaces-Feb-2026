@@ -1,0 +1,370 @@
+# Agent Dungeon: Architecture
+
+## System Overview
+
+```mermaid
+graph TD
+    A["Python/JS Agent<br/>(any runtime)"] <-->|WebSocket| B["Bridge Server<br/>(WebSocket, port 3001)"]
+    B <-->|WebSocket| C["Phaser Client<br/>(browser, :5173)"]
+
+    A -.- D["LLM / script<br/>decides actions"]
+    B -.- E["Source of truth<br/>validates & broadcasts<br/>spawns agent sessions"]
+    C -.- F["Renders world<br/>as a JRPG"]
+```
+
+Three processes communicate over WebSocket. The Bridge Server is the single source of truth. Agents propose actions; the server validates and broadcasts results; the client renders everything.
+
+---
+
+## Component Breakdown
+
+### 1. Bridge Server (`ha-agent-rpg/server/src/`)
+
+The orchestrator. Owns all state, enforces all rules, and manages agent lifecycles.
+
+#### Core Modules
+
+| File | Responsibility |
+|------|---------------|
+| `index.ts` | Entry point. Starts BridgeServer on port 3001, handles graceful shutdown. |
+| `BridgeServer.ts` | WebSocket hub, message router, game phase manager, navigation handler. The central nervous system (~1000 lines). |
+| `WorldState.ts` | In-memory game state: agents, map, objects, quests, hierarchical map tree. Provides snapshot serialization. |
+| `types.ts` | Re-exports from shared protocol + server-specific message types (player navigation). |
+
+#### Agent Session Management
+
+| File | Responsibility |
+|------|---------------|
+| `AgentSessionManager.ts` | Spawns and manages Claude Agent SDK sessions. One long-running session per agent. Handles knowledge loading, system prompt injection, follow-up messages. |
+| `RpgMcpServer.ts` | Custom MCP server exposing 6 RPG tools to agents (SummonAgent, RequestHelp, PostFindings, UpdateKnowledge, ClaimQuest, CompleteQuest). |
+| `CustomToolHandler.ts` | Executes the 6 MCP tools. Emits events that BridgeServer listens to for side effects (spawning, broadcasting, quest state). |
+| `SystemPromptBuilder.ts` | Builds dynamic system prompts per agent, including identity, knowledge vault contents, team roster, findings board, and current task. |
+| `EventTranslator.ts` | Converts Claude Agent SDK streaming messages into RPG events (move, speak, think, emote, activity, skill_effect). Maintains per-agent text buffers. |
+
+#### Repository Analysis & Map Generation
+
+| File | Responsibility |
+|------|---------------|
+| `RepoAnalyzer.ts` | Fetches GitHub repo tree + issues via Octokit. Detects languages, filters excluded paths. |
+| `LocalTreeReader.ts` | Walks local filesystem, detects git remote, builds file tree with language detection. |
+| `MapGenerator.ts` | Converts repo structure into game world. Folders become rooms, files become map objects. Procedural room layout with corridors. Lazy-generates tile maps per folder on first visit. |
+
+#### Game Systems
+
+| File | Responsibility |
+|------|---------------|
+| `QuestManager.ts` | Maps GitHub issues to quests. Manages lifecycle: open -> assigned -> in_progress -> done. Enforces valid state transitions. |
+| `FindingsBoard.ts` | Shared discovery board. Agents post findings; persisted as JSON. Surfaced in system prompts. |
+| `KnowledgeVault.ts` | Per-agent persistent memory. Tracks expertise levels, insights, files analyzed, task history. Loaded into system prompt on spawn. |
+
+#### Persistence
+
+| File | Responsibility |
+|------|---------------|
+| `RealmRegistry.ts` | Global registry of analyzed repos. SHA256 hash IDs. Enables "resume" for previously explored codebases. Stored at `~/.agent-rpg-global/`. |
+| `WorldStatePersistence.ts` | Serializes/deserializes full game state for realm resumption. |
+| `GitHelper.ts` | Git metadata helpers (remote URL, commit counts) for realm tracking. |
+
+#### Persistence File Layout
+
+```
+.agent-rpg/
+├── knowledge/
+│   ├── oracle.json              # Per-agent knowledge vault
+│   ├── test_guardian.json
+│   └── doc_scribe.json
+├── findings/
+│   └── board.json               # Shared findings board
+└── logs/
+    ├── oracle/
+    │   └── 2026-02-19.jsonl     # Daily transcript logs
+    └── test_guardian/
+        └── 2026-02-19.jsonl
+```
+
+---
+
+### 2. Phaser Client (`ha-agent-rpg/client/src/`)
+
+A Phaser 3 game running in the browser. Purely a renderer: it receives state from the bridge and draws it. The only messages it sends are player commands from the prompt bar.
+
+#### Entry & Config
+
+| File | Responsibility |
+|------|---------------|
+| `main.ts` | Client orchestrator. Connects WebSocket, manages onboarding screens (title, repo selection), launches Phaser game on `repo:ready`, wires up UI panels. |
+| `config.ts` | Phaser config: 640x480, 32px tiles (20x15 grid), pixel art mode, dark background. |
+| `types.ts` | Client-side protocol type re-exports. |
+
+#### Scenes (Phaser)
+
+| File | Responsibility |
+|------|---------------|
+| `BootScene.ts` | Generates all textures programmatically (no asset files). |
+| `GameScene.ts` | Main gameplay. Renders map via MapRenderer, manages agent sprites, handles action results, processes map changes on navigation. |
+| `UIScene.ts` | Overlay UI layer for dialogue, turn indicators. |
+
+#### Rendering Systems
+
+| File | Responsibility |
+|------|---------------|
+| `MapRenderer.ts` | Renders TileMapData as Phaser tiles (grass, wall, water, door, floor). |
+| `AgentSprite.ts` | Agent visual: colored rectangle sprite with name label, walk animation, idle state. |
+| `MapObjectSprite.ts` | File/config/doc objects on the map. Interactive, clickable. |
+| `EffectSystem.ts` | Skill animations, status effects, visual feedback. |
+| `DialogueSystem.ts` | JRPG dialogue box with typewriter text effect. |
+| `ThoughtBubble.ts` | Floating thought text above agent sprites. |
+| `CameraController.ts` | Camera snap/pan to active agents and door reveals. |
+
+#### UI Panels (DOM overlays)
+
+| File | Responsibility |
+|------|---------------|
+| `PromptBar.ts` | Command input with slash-command autocomplete. Mode selector (manual/supervised/autonomous). Agent focus badge. Sends `player:command` messages. |
+| `QuestLog.ts` | Displays quests by status (open, assigned, in_progress, done). |
+| `MiniMap.ts` | Hierarchical folder tree showing agent and player positions. |
+| `DialogueLog.ts` | Scrolling log of all agent speech and player messages. |
+
+#### Screens (Onboarding)
+
+| File | Responsibility |
+|------|---------------|
+| `TitleScreen.ts` | "New Game" entry screen. |
+| `RepoScreen.ts` | Repo URL input or realm selection for resuming previous sessions. |
+
+#### Network
+
+| File | Responsibility |
+|------|---------------|
+| `WebSocketClient.ts` | Pub-sub WebSocket wrapper with auto-reconnect (2s delay). |
+
+---
+
+### 3. Python Agents (`ha-agent-rpg/agent/`)
+
+Sample agents demonstrating the protocol. Any WebSocket client in any language can be an agent.
+
+| File | Responsibility |
+|------|---------------|
+| `agent.py` | Entry point for scripted agent. Connects, registers, loops on turn messages. |
+| `protocol.py` | Dataclass message builders (RegisterMessage, ActionMessage) + JSON parser. |
+| `behaviors.py` | ScriptedBehavior: cycles through all 6 action types for demo purposes. Handles move computation, target finding. |
+| `llm_agent.py` | LLM-powered agent using Claude API. Supports full conversation history (LLMBehavior) or single-shot (SimpleReflexBehavior). Argparse CLI with mission, color, server URL. |
+| `llm_behavior.py` | LLMBehavior: builds observation from world state, maintains conversation history, calls Claude API, parses JSON action responses. SimpleReflexBehavior: stateless single-shot variant using Haiku. |
+
+---
+
+### 4. Shared Protocol (`ha-agent-rpg/shared/protocol.ts`)
+
+The canonical message contract. Defines every message type exchanged over WebSocket. Mirrored in both server and client `types.ts` files.
+
+Key type groups:
+
+- **Agent identity**: AgentInfo, AgentStats
+- **Actions**: AgentActionMessage, ActionParams (move, speak, skill, interact, emote, wait, think)
+- **World state**: WorldStateMessage, TileMapData, MapObject, MapNode
+- **Game events**: ActionResultMessage, RepoReadyMessage, QuestUpdateMessage, FindingsPostedMessage
+- **Navigation**: RealmListMessage, RealmPresenceMessage, RealmTreeMessage
+
+---
+
+## Key Flows
+
+### Repo Onboarding
+
+```mermaid
+sequenceDiagram
+    participant Player
+    participant Bridge as BridgeServer
+    participant Repo as RepoAnalyzer / LocalTreeReader
+    participant Map as MapGenerator
+    participant Quest as QuestManager
+    participant Client as Phaser Client
+
+    Player->>Bridge: link:repo (URL or path)
+    Bridge->>Repo: Analyze repo tree + issues
+    Repo-->>Bridge: RepoData (tree, issues, languages)
+    Bridge->>Map: generate() from RepoData
+    Map-->>Bridge: Hierarchical map tree
+    Bridge->>Quest: loadQuests() from issues
+    Bridge->>Bridge: Populate WorldState
+    Bridge->>Client: repo:ready (map, quests, objects, stats)
+    Bridge->>Bridge: Auto-spawn Oracle agent
+    Client->>Client: Launch Phaser game
+```
+
+### Agent Turn Cycle
+
+```mermaid
+sequenceDiagram
+    participant Bridge as BridgeServer
+    participant Agent
+    participant LLM as Claude API
+    participant World as WorldState
+    participant Clients as All Clients
+
+    Bridge->>Agent: turn:start { agent_id, turn_id, timeout_ms }
+    Agent->>LLM: World observation prompt
+    LLM-->>Agent: Chosen action (JSON)
+    Agent->>Bridge: agent:action { action, params, turn_id }
+    Bridge->>Bridge: ActionValidator validates
+    Bridge->>World: Apply action (position, HP, etc.)
+    Bridge->>Clients: action:result broadcast
+    Bridge->>Bridge: Advance to next agent's turn
+
+    Note over Bridge,Agent: 5s timeout: auto-wait if no response
+```
+
+### Agent Spawning (SummonAgent)
+
+```mermaid
+sequenceDiagram
+    participant Agent as Active Agent
+    participant Tool as CustomToolHandler
+    participant Bridge as BridgeServer
+    participant World as WorldState
+    participant Session as AgentSessionManager
+    participant Vault as KnowledgeVault
+    participant Clients as All Clients
+
+    Agent->>Tool: SummonAgent MCP tool call
+    Tool->>Bridge: summon:request event
+    Bridge->>Bridge: Validate (max agents, no dupes)
+    Bridge->>World: addAgent() creates record
+    Bridge->>Session: Spawn Claude Agent SDK session
+    Session->>Vault: Load vault for returning agents
+    Session->>Session: SystemPromptBuilder injects context
+    Bridge->>Clients: agent:joined broadcast
+    Bridge->>Clients: world:state update
+```
+
+### Hierarchical Navigation
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Bridge as BridgeServer
+    participant Map as MapGenerator
+    participant Client as Phaser Client
+
+    Agent->>Bridge: Moves onto nav_door MapObject
+    Bridge->>Map: generateFolderMap(subfolder)
+    Note over Map: Lazy generation, cached after first visit
+    Map-->>Bridge: TileMapData + MapObjects
+    Bridge->>Bridge: Update agent nav stack
+    Bridge->>Client: map:change (tiles, objects, spawn position)
+    Client->>Client: Re-render map, reposition agent sprite
+    Bridge->>Client: realm:presence (updates minimap)
+```
+
+### Quest Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> open: MapGenerator creates from GitHub issues
+    open --> assigned: Agent calls ClaimQuest
+    assigned --> in_progress: Agent begins work
+    in_progress --> done: Agent calls CompleteQuest
+    done --> [*]
+
+    note right of open: quest:update broadcast at each transition
+    note right of done: QuestLog panel updates in client
+```
+
+### Knowledge Persistence
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Tool as CustomToolHandler
+    participant Vault as KnowledgeVault
+    participant Disk as .agent-rpg/knowledge/
+    participant Prompt as SystemPromptBuilder
+
+    Agent->>Tool: UpdateKnowledge MCP tool call
+    Tool->>Vault: incrementExpertise() / addInsight()
+    Vault->>Disk: Save {agentId}.json
+
+    Note over Agent,Disk: On next spawn...
+    Prompt->>Disk: Load {agentId}.json
+    Disk-->>Prompt: Previous expertise + insights
+    Prompt->>Agent: Injected into system prompt
+```
+
+---
+
+## Message Protocol (WebSocket)
+
+All messages are JSON with a `type` field for routing.
+
+### Agent -> Server
+
+| Type | Purpose |
+|------|---------|
+| `agent:register` | Join the game with id, name, color |
+| `agent:action` | Submit turn action (move, speak, skill, interact, emote, wait, think) |
+
+### Server -> All
+
+| Type | Purpose |
+|------|---------|
+| `world:state` | Full state snapshot (agents, map, objects, quests) |
+| `action:result` | Result of an agent's action (success/error) |
+| `turn:start` | Signal which agent should act next |
+| `agent:joined` / `agent:left` | Agent lifecycle events |
+| `map:change` | New map data after navigation |
+| `quest:update` | Quest status change |
+| `findings:posted` | New finding on the shared board |
+| `knowledge:level-up` | Agent gained expertise |
+| `spawn:request` | New agent being summoned |
+| `repo:ready` | Repo analyzed, game can start |
+| `realm:list` / `realm:removed` | Realm management |
+
+### Player -> Server
+
+| Type | Purpose |
+|------|---------|
+| `player:command` | Text command from the prompt bar |
+| `player:navigate:enter` / `back` | Manual folder navigation |
+| `link:repo` | Repo URL to analyze |
+
+---
+
+## Configuration & Modes
+
+The client prompt bar supports three autonomy modes:
+
+- **Manual**: Agents wait for player commands before acting
+- **Supervised**: Agents act autonomously but player can intervene
+- **Autonomous**: Agents run fully independently
+
+The bridge server tracks settings including max agents, token budget, permission level (read-only, write-with-approval, full), and autonomy mode.
+
+---
+
+## Build & Run
+
+```
+ha-agent-rpg/
+├── package.json          # Workspace root (server + client workspaces)
+├── server/
+│   └── package.json      # ws, claude-agent-sdk, octokit, vitest
+├── client/
+│   └── package.json      # phaser, vite, vitest
+├── agent/
+│   └── requirements.txt  # websockets, anthropic
+└── scripts/
+    └── start-all.sh      # Kills stale processes, installs deps, starts all 3 components
+```
+
+**Ports**: Bridge 3001, Vite client 5173
+
+**Quick start**: `./scripts/start-all.sh` then open `http://localhost:5173`
+
+---
+
+## Testing
+
+- **Server**: Vitest tests in `server/src/__tests__/` covering FindingsBoard, EventTranslator, WorldStatePersistence, MapGenerator, CustomToolHandler, KnowledgeVault, QuestManager, RealmRegistry
+- **Client**: Build verification (tests planned)
+- **CI**: GitHub Actions with type checking, server tests, codecov upload, quality gate

@@ -98,8 +98,9 @@ export class WorldState {
     color: number,
     role: string,
     realm: string,
+    spawnAt?: { x: number; y: number },
   ): AgentInfo {
-    const pos = this.findSpawnPosition();
+    const pos = spawnAt ?? this.findSpawnPosition();
     const stats: AgentStats = {
       realm_knowledge: {},
       expertise: {},
