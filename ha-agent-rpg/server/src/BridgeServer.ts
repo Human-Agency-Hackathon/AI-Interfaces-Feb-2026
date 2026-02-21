@@ -163,6 +163,8 @@ export class BridgeServer {
       type: 'server:info',
       addresses: this.getLanAddresses(),
       port: this.port,
+      gamePhase: this.gamePhase,
+      activeRealmId: this.activeRealmId ?? null,
     });
 
     // Send current world state if in gameplay phase
@@ -171,11 +173,18 @@ export class BridgeServer {
     }
 
     ws.on('message', (raw) => {
+      let msg: Record<string, unknown>;
       try {
-        const msg = JSON.parse(raw.toString());
-        this.handleMessage(ws, msg);
+        msg = JSON.parse(raw.toString());
       } catch {
         this.send(ws, { type: 'error', message: 'Invalid JSON' });
+        return;
+      }
+      try {
+        this.handleMessage(ws, msg);
+      } catch (err) {
+        console.error('[Bridge] Error handling message:', err);
+        this.send(ws, { type: 'error', message: 'Internal server error' });
       }
     });
 
@@ -435,6 +444,8 @@ export class BridgeServer {
       const workDir = process.env.HOME ?? '/tmp';
       this.repoPath = workDir;
       this.activeRealmId = `brainstorm_${Date.now()}`;
+      this.realmRegistry.setLastActiveRealmId(this.activeRealmId);
+      await this.realmRegistry.save();
 
       // Fresh world state with process
       this.worldState = new WorldState();
@@ -695,6 +706,7 @@ export class BridgeServer {
       // Save realm to registry
       const realmId = this.realmRegistry.generateRealmId(localRepoPath);
       this.activeRealmId = realmId;
+      this.realmRegistry.setLastActiveRealmId(realmId);
       let gitInfo = { lastCommitSha: '', branch: 'main', remoteUrl: null as string | null };
       try {
         gitInfo = await GitHelper.getGitInfo(localRepoPath);
@@ -1108,6 +1120,8 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
 
       // Update lastExplored timestamp
       realm.lastExplored = new Date().toISOString();
+      this.activeRealmId = realm.id;
+      this.realmRegistry.setLastActiveRealmId(realm.id);
       this.realmRegistry.saveRealm(realm);
       await this.realmRegistry.save();
 
@@ -1196,6 +1210,9 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
   }
 
   private async handleRemoveRealm(ws: WebSocket, msg: RemoveRealmMessage): Promise<void> {
+    if (this.realmRegistry.getLastActiveRealmId() === msg.realm_id) {
+      this.realmRegistry.clearLastActiveRealmId();
+    }
     this.realmRegistry.removeRealm(msg.realm_id);
     await this.realmRegistry.save();
     await this.worldStatePersistence.remove(msg.realm_id);
@@ -1934,6 +1951,12 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
   async close(): Promise<void> {
     console.log('[Bridge] Shutting down...');
     this.stopAutonomousMovement();
+
+    // Clear active realm on clean shutdown so we don't auto-load on next start
+    this.realmRegistry.clearLastActiveRealmId();
+    await this.realmRegistry.save().catch((err) => {
+      console.error('[Bridge] Failed to save realm registry on shutdown:', err);
+    });
 
     // Dismiss all active agent sessions
     if (this.sessionManager) {
