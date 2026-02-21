@@ -44,6 +44,10 @@ export class GameScene extends Phaser.Scene {
   private inFortView = false;
   private zoomControls: ZoomControls | null = null;
   private _rosterClickHandler: EventListener | null = null;
+  private isDragging = false;
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private wasdKeys: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key } | null = null;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -64,13 +68,42 @@ export class GameScene extends Phaser.Scene {
       this.wsClient = new WebSocketClient(`ws://${host}:3001`);
     }
 
-    // Setup keyboard controls for player movement (arrow keys only)
+    // Setup keyboard controls for player movement (arrow keys) and camera pan (WASD)
     if (this.input.keyboard) {
       // Disable global key capture so DOM inputs (textarea) receive all key events
       // without Phaser calling preventDefault() on them.
       this.input.keyboard.disableGlobalCapture();
       this.arrowKeys = this.input.keyboard.createCursorKeys();
+      this.wasdKeys = {
+        W: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+        A: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+        S: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+        D: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+      };
     }
+
+    // Drag-to-pan: click and drag on empty space to pan the camera
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Only start drag if no game object was clicked (agent sprites handle their own clicks)
+      const hitObjects = this.input.hitTestPointer(pointer);
+      if (hitObjects.length === 0) {
+        this.isDragging = true;
+        this.dragStartX = pointer.x;
+        this.dragStartY = pointer.y;
+      }
+    });
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.isDragging && pointer.isDown && this.cameraController) {
+        const dx = this.dragStartX - pointer.x;
+        const dy = this.dragStartY - pointer.y;
+        this.cameraController.scrollBy(dx, dy);
+        this.dragStartX = pointer.x;
+        this.dragStartY = pointer.y;
+      }
+    });
+    this.input.on('pointerup', () => {
+      this.isDragging = false;
+    });
 
     this.wsClient.on('world:state', (msg) => {
       const state = msg as unknown as WorldStateMessage;
@@ -100,8 +133,12 @@ export class GameScene extends Phaser.Scene {
           this.minimap = new Minimap(state.map.width, state.map.height);
           this.minimap.onClick((tileX, tileY) => {
             if (this.cameraController) {
+              const TILE_SIZE = state.map.tile_size;
               this.cameraController.clearFollow();
-              this.cameraController.snapTo(tileX, tileY);
+              this.cameraController.snapTo(
+                tileX * TILE_SIZE + TILE_SIZE / 2,
+                tileY * TILE_SIZE + TILE_SIZE / 2,
+              );
             }
           });
           if ((state as any).explored) {
@@ -111,13 +148,24 @@ export class GameScene extends Phaser.Scene {
             this.minimap.setBiomeMap((state as any).biomeMap);
           }
 
-          // Create zoom controls for fog-of-war mode
+          // Create zoom + navigation controls for fog-of-war mode
+          const PAN_STEP = 64;
           this.zoomControls = new ZoomControls({
             onZoomIn: () => this.cameraController?.zoomIn(),
             onZoomOut: () => this.cameraController?.zoomOut(),
             onFit: () => this.cameraController?.fitToMap(
               state.map.width, state.map.height, state.map.tile_size,
             ),
+            onPanUp: () => this.cameraController?.scrollBy(0, -PAN_STEP),
+            onPanDown: () => this.cameraController?.scrollBy(0, PAN_STEP),
+            onPanLeft: () => this.cameraController?.scrollBy(-PAN_STEP, 0),
+            onPanRight: () => this.cameraController?.scrollBy(PAN_STEP, 0),
+            onHome: () => {
+              this.cameraController?.clearFollow();
+              this.cameraController?.fitToMap(
+                state.map.width, state.map.height, state.map.tile_size,
+              );
+            },
           });
         } else {
           // Diorama mode: tile-based rendering
@@ -437,6 +485,28 @@ export class GameScene extends Phaser.Scene {
 
     // Handle player movement input
     this.handlePlayerInput();
+    // Handle WASD camera panning
+    this.handleCameraPan();
+  }
+
+  private handleCameraPan(): void {
+    if (!this.wasdKeys || !this.cameraController || !this.isFogMode) return;
+
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+
+    const PAN_SPEED = 4;
+    let dx = 0;
+    let dy = 0;
+
+    if (this.wasdKeys.W.isDown) dy -= PAN_SPEED;
+    if (this.wasdKeys.S.isDown) dy += PAN_SPEED;
+    if (this.wasdKeys.A.isDown) dx -= PAN_SPEED;
+    if (this.wasdKeys.D.isDown) dx += PAN_SPEED;
+
+    if (dx !== 0 || dy !== 0) {
+      this.cameraController.scrollBy(dx, dy);
+    }
   }
 
   private handlePlayerInput(): void {

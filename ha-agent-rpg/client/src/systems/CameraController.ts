@@ -88,13 +88,12 @@ export class CameraController {
   update(): void {
     if (this.mode === 'follow' && this.followTarget) {
       const cam = this.camera;
-      const targetX = this.followTarget.x * 32 + 16;
-      const targetY = this.followTarget.y * 32 + 16;
-      cam.scrollX += (targetX - cam.scrollX - cam.width / 2) * 0.08;
-      cam.scrollY += (targetY - cam.scrollY - cam.height / 2) * 0.08;
+      cam.scrollX += (this.followTarget.x - cam.scrollX - cam.width / 2) * 0.08;
+      cam.scrollY += (this.followTarget.y - cam.scrollY - cam.height / 2) * 0.08;
     }
   }
 
+  /** Smoothly pan to a pixel position. If agentId is provided, camera will track that agent's movements. */
   panTo(x: number, y: number, agentId?: string): void {
     this.followTarget = { x, y };
     if (agentId) this.followingAgent = agentId;
@@ -103,10 +102,18 @@ export class CameraController {
   snapTo(x: number, y: number): void {
     if (this.mode === 'follow') {
       const cam = this.camera;
-      cam.scrollX = x * 32 + 16 - cam.width / 2;
-      cam.scrollY = y * 32 + 16 - cam.height / 2;
+      cam.scrollX = x - cam.width / 2;
+      cam.scrollY = y - cam.height / 2;
       this.followTarget = { x, y };
     }
+  }
+
+  /** Scroll camera by a pixel delta. Clears any agent follow. */
+  scrollBy(dx: number, dy: number): void {
+    this.followingAgent = null;
+    this.followTarget = null;
+    this.camera.scrollX += dx;
+    this.camera.scrollY += dy;
   }
 
   isFollowing(agentId: string): boolean {
