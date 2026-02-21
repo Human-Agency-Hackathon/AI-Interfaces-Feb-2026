@@ -48,6 +48,7 @@ interface AgentBubbleState {
   tail: Phaser.GameObjects.Triangle;
   type: BubbleType;
   fadeTween?: Phaser.Tweens.Tween;
+  positionTweens?: Phaser.Tweens.Tween[];
   // Track position so stacking can reference it
   anchorX: number;
   anchorY: number;
@@ -59,10 +60,16 @@ interface EdgeIndicatorState {
   label: Phaser.GameObjects.Text;
 }
 
+interface FloatingAnnouncementState {
+  bg: Phaser.GameObjects.Rectangle;
+  text: Phaser.GameObjects.Text;
+}
+
 export class SpeechBubbleManager {
   private scene: Phaser.Scene;
   private bubbles = new Map<string, AgentBubbleState>();
   private edgeIndicators = new Map<string, EdgeIndicatorState>();
+  private floatingAnnouncements: FloatingAnnouncementState[] = [];
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -104,6 +111,11 @@ export class SpeechBubbleManager {
     const state = this.bubbles.get(agentId);
     if (!state) return;
 
+    // Cancel any in-flight position tweens to prevent conflicting animations
+    if (state.positionTweens) {
+      state.positionTweens.forEach(t => t.destroy());
+    }
+
     state.anchorX = x;
     state.anchorY = y;
 
@@ -111,22 +123,24 @@ export class SpeechBubbleManager {
     const dur = 300;
     const ease = 'Power2';
 
-    this.scene.tweens.add({ targets: state.bg, x, y: bubbleY, duration: dur, ease });
-    this.scene.tweens.add({ targets: state.text, x, y: bubbleY, duration: dur, ease });
-    this.scene.tweens.add({
-      targets: state.nameTag,
-      x,
-      y: bubbleY - state.text.height / 2 - BUBBLE_PADDING - 2,
-      duration: dur,
-      ease,
-    });
-    this.scene.tweens.add({
-      targets: state.tail,
-      x: x - TAIL_SIZE,
-      y: bubbleY + state.bg.height / 2,
-      duration: dur,
-      ease,
-    });
+    state.positionTweens = [
+      this.scene.tweens.add({ targets: state.bg, x, y: bubbleY, duration: dur, ease }),
+      this.scene.tweens.add({ targets: state.text, x, y: bubbleY, duration: dur, ease }),
+      this.scene.tweens.add({
+        targets: state.nameTag,
+        x,
+        y: bubbleY - state.text.height / 2 - BUBBLE_PADDING - 2,
+        duration: dur,
+        ease,
+      }),
+      this.scene.tweens.add({
+        targets: state.tail,
+        x: x - TAIL_SIZE,
+        y: bubbleY + state.bg.height / 2,
+        duration: dur,
+        ease,
+      }),
+    ];
 
     this.resolveOverlaps();
   }
@@ -139,6 +153,7 @@ export class SpeechBubbleManager {
     if (!state) return;
 
     if (state.fadeTween) state.fadeTween.destroy();
+    if (state.positionTweens) state.positionTweens.forEach(t => t.destroy());
     state.bg.destroy();
     state.text.destroy();
     state.nameTag.destroy();
@@ -188,6 +203,12 @@ export class SpeechBubbleManager {
     for (const [agentId] of this.edgeIndicators) {
       this.removeEdgeIndicator(agentId);
     }
+    // Clean up any active floating announcements
+    for (const ann of this.floatingAnnouncements) {
+      ann.bg.destroy();
+      ann.text.destroy();
+    }
+    this.floatingAnnouncements = [];
   }
 
   // ── Private: creation ──
@@ -365,23 +386,25 @@ export class SpeechBubbleManager {
   private resolveOverlaps(): void {
     const entries = Array.from(this.bubbles.values())
       .filter(s => s.visible)
-      .sort((a, b) => a.anchorY - b.anchorY);  // top to bottom
+      .sort((a, b) => b.bg.y - a.bg.y);  // bottom to top (highest Y first)
 
-    for (let i = 0; i < entries.length; i++) {
-      for (let j = i + 1; j < entries.length; j++) {
-        const a = entries[i];
-        const b = entries[j];
+    // Process bottom-to-top: for each bubble, check if it overlaps
+    // with the one below it and push it upward. This cascades correctly
+    // because we process in order from bottom to top.
+    for (let i = 1; i < entries.length; i++) {
+      const below = entries[i - 1];
+      const above = entries[i];
 
-        const dx = Math.abs(a.bg.x - b.bg.x);
-        const dy = Math.abs(a.bg.y - b.bg.y);
-        const overlapX = dx < (a.bg.width / 2 + b.bg.width / 2);
-        const overlapY = dy < (a.bg.height / 2 + b.bg.height / 2 + BUBBLE_GAP);
+      const dx = Math.abs(above.bg.x - below.bg.x);
+      const overlapX = dx < (above.bg.width / 2 + below.bg.width / 2);
+      if (!overlapX) continue;
 
-        if (overlapX && overlapY) {
-          // Push the upper one (lower index, already sorted by anchorY) further up
-          const offset = (a.bg.height / 2 + b.bg.height / 2 + BUBBLE_GAP) - dy;
-          this.offsetBubbleY(a, -offset);
-        }
+      const dy = below.bg.y - above.bg.y; // positive when above is actually above
+      const minGap = above.bg.height / 2 + below.bg.height / 2 + BUBBLE_GAP;
+
+      if (dy < minGap) {
+        const offset = minGap - dy;
+        this.offsetBubbleY(above, -offset);
       }
     }
   }
@@ -508,6 +531,10 @@ export class SpeechBubbleManager {
       0x0a0a1e, 0.85,
     ).setStrokeStyle(1, 0x4a4a8a).setDepth(34);
 
+    // Track for cleanup on destroy
+    const entry: FloatingAnnouncementState = { bg: bannerBg, text: bannerText };
+    this.floatingAnnouncements.push(entry);
+
     // Pop-in
     const targets = [bannerBg, bannerText];
     targets.forEach(t => t.setScale(0.8).setAlpha(0));
@@ -528,6 +555,8 @@ export class SpeechBubbleManager {
       delay: duration - 1500,
       ease: 'Power1',
       onComplete: () => {
+        const idx = this.floatingAnnouncements.indexOf(entry);
+        if (idx >= 0) this.floatingAnnouncements.splice(idx, 1);
         bannerBg.destroy();
         bannerText.destroy();
       },
