@@ -21,6 +21,30 @@ export interface AgentSessionConfig {
   mission: string;
   repoPath: string;
   permissionLevel: 'read-only' | 'write-with-approval' | 'full';
+  /** Present when the agent is part of a brainstorming process. */
+  processContext?: ProcessAgentContext;
+}
+
+/** Context injected into an agent's system prompt during a brainstorming process. */
+export interface ProcessAgentContext {
+  /** The user's problem statement */
+  problem: string;
+  /** The process template name, e.g. "Standard Brainstorm" */
+  processName: string;
+  /** Current stage ID */
+  stageId: string;
+  /** Current stage display name */
+  stageName: string;
+  /** What this stage is trying to accomplish */
+  stageGoal: string;
+  /** Zero-based index of this stage in the overall process */
+  stageIndex: number;
+  /** Total number of stages */
+  totalStages: number;
+  /** This agent's persona description */
+  persona: string;
+  /** Artifacts collected from all prior stages: stageId → artifactId → content */
+  priorArtifacts: Record<string, Record<string, string>>;
 }
 
 interface ActiveSession {

@@ -3,6 +3,7 @@ import type {
   ServerMessage,
   AgentRegisterMessage,
   LinkRepoMessage,
+  StartProcessMessage,
   PlayerCommandMessage,
   UpdateSettingsMessage,
   DismissAgentMessage,
@@ -15,6 +16,7 @@ import type {
   MapNode,
   MapNodeSummary,
   MapObject,
+  ProcessState,
 } from './types.js';
 import { WorldState } from './WorldState.js';
 import { RepoAnalyzer, type RepoData } from './RepoAnalyzer.js';
@@ -30,6 +32,7 @@ import { join } from 'node:path';
 import { RealmRegistry } from './RealmRegistry.js';
 import { WorldStatePersistence } from './WorldStatePersistence.js';
 import { GitHelper } from './GitHelper.js';
+import { PROCESS_TEMPLATES, STANDARD_BRAINSTORM, type ProcessDefinition } from './ProcessTemplates.js';
 
 // Agent colors — auto-assigned in spawn order
 const AGENT_COLORS = [
@@ -128,6 +131,9 @@ export class BridgeServer {
       case 'player:link-repo':
         this.handleLinkRepo(ws, msg as unknown as LinkRepoMessage);
         break;
+      case 'player:start-process':
+        this.handleStartProcess(ws, msg as unknown as StartProcessMessage);
+        break;
       case 'player:command':
         this.handlePlayerCommand(ws, msg as unknown as PlayerCommandMessage);
         break;
@@ -184,6 +190,127 @@ export class BridgeServer {
     });
 
     console.log(`[Bridge] External agent registered: ${agent_id} (${name})`);
+  }
+
+  // ── Brainstorming Process ──
+
+  private async handleStartProcess(ws: WebSocket, msg: StartProcessMessage): Promise<void> {
+    try {
+      this.gamePhase = 'analyzing';
+      await this.cleanupCurrentRealm();
+
+      const template = PROCESS_TEMPLATES[msg.processId ?? STANDARD_BRAINSTORM.id] ?? STANDARD_BRAINSTORM;
+      const firstStage = template.stages[0];
+
+      const processState: ProcessState = {
+        processId: template.id,
+        problem: msg.problem,
+        currentStageIndex: 0,
+        status: 'running',
+        collectedArtifacts: {},
+        startedAt: new Date().toISOString(),
+      };
+
+      // Use a stable working dir for persistence (same pattern as repo flow)
+      const workDir = process.env.HOME ?? '/tmp';
+      this.repoPath = workDir;
+
+      // Fresh world state with process
+      this.worldState = new WorldState();
+      this.worldState.setProcessState(processState);
+
+      // Minimal infrastructure (no findings board / transcript logger yet for process flow)
+      this.findingsBoard = new FindingsBoard(workDir);
+      await this.findingsBoard.load();
+      this.transcriptLogger = new TranscriptLogger(workDir);
+      this.toolHandler = new CustomToolHandler(
+        this.findingsBoard,
+        this.questManager,
+        (agentId: string) => this.sessionManager.getVault(agentId),
+        (agentId: string) => {
+          const session = this.sessionManager.getSession(agentId);
+          return session?.config.agentName ?? agentId;
+        },
+      );
+      this.wireToolHandlerEvents();
+      this.sessionManager = new AgentSessionManager(this.findingsBoard, this.toolHandler);
+      this.wireSessionManagerEvents();
+      this.eventTranslator.setObjects([]);
+
+      // Broadcast process started
+      this.broadcast({
+        type: 'process:started',
+        processId: template.id,
+        problem: msg.problem,
+        processName: template.name,
+        currentStageId: firstStage.id,
+        currentStageName: firstStage.name,
+      });
+
+      this.gamePhase = 'playing';
+
+      // Spawn the first stage's agents
+      await this.spawnProcessAgents(template, 0, msg.problem);
+
+      console.log(`[Bridge] Process started: "${msg.problem}" (template: ${template.id})`);
+    } catch (err) {
+      this.gamePhase = 'onboarding';
+      const message = err instanceof Error ? err.message : 'Failed to start process';
+      this.send(ws, { type: 'error', message });
+    }
+  }
+
+  private async spawnProcessAgents(
+    template: ProcessDefinition,
+    stageIndex: number,
+    problem: string,
+  ): Promise<void> {
+    const stage = template.stages[stageIndex];
+    if (!stage) return;
+
+    const agentEntries = stage.roles.map((roleId) => {
+      const roleDef = template.roles.find((r) => r.id === roleId)!;
+      return { agentId: roleId, name: roleDef.name, role: roleDef.name };
+    });
+
+    const result = this.mapGenerator.generateAgentMap(agentEntries);
+    this.worldState.setMap(result.map);
+    this.worldState.setObjects(result.objects);
+    this.eventTranslator.setObjects(result.objects);
+
+    for (const entry of agentEntries) {
+      const roleDef = template.roles.find((r) => r.id === entry.agentId)!;
+      const color = this.nextColor();
+      const pos = result.agentPositions[entry.agentId];
+      this.agentRoomPositions.set(entry.agentId, pos);
+      const agent = this.worldState.addAgent(entry.agentId, entry.name, color, entry.role, '/', pos);
+      this.broadcast({ type: 'agent:joined', agent });
+    }
+
+    this.broadcast(this.worldState.getSnapshot());
+
+    for (const entry of agentEntries) {
+      const roleDef = template.roles.find((r) => r.id === entry.agentId)!;
+      await this.sessionManager.spawnAgent({
+        agentId: entry.agentId,
+        agentName: entry.name,
+        role: entry.role,
+        realm: '/',
+        mission: `You are participating in a brainstorming session.
+
+Problem: ${problem}
+
+Stage: ${stage.name}
+Stage goal: ${stage.goal}
+
+Your role: ${roleDef.name}
+Your persona: ${roleDef.persona}
+
+Engage with the other participants, contribute your perspective, and help the group make progress toward the stage goal.`,
+        repoPath: this.repoPath ?? process.env.HOME ?? '/tmp',
+        permissionLevel: this.settings.permission_level,
+      });
+    }
   }
 
   // ── Repo Analysis ──

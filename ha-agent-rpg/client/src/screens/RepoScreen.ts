@@ -36,13 +36,13 @@ export class RepoScreen {
     // Header
     const title = document.createElement('div');
     title.className = 'screen-title';
-    title.textContent = 'Link Repository';
+    title.textContent = 'Start Brainstorm';
     panel.appendChild(title);
 
     // Subtext
     const subtitle = document.createElement('div');
     subtitle.className = 'screen-subtitle';
-    subtitle.textContent = 'Enter a local repo path or GitHub URL to generate your quest world';
+    subtitle.textContent = 'Describe a problem or question. Agents will brainstorm it together.';
     panel.appendChild(subtitle);
 
     // Form row
@@ -52,7 +52,7 @@ export class RepoScreen {
     this.inputEl = document.createElement('input');
     this.inputEl.type = 'text';
     this.inputEl.className = 'rpg-input';
-    this.inputEl.placeholder = 'Local path or GitHub URL (e.g. /Users/you/project)';
+    this.inputEl.placeholder = 'e.g. How do we reduce user onboarding time by 50%?';
     this.inputEl.spellcheck = false;
     this.inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter') this.handleSubmit();
@@ -61,7 +61,7 @@ export class RepoScreen {
 
     this.submitBtn = document.createElement('button');
     this.submitBtn.className = 'rpg-btn';
-    this.submitBtn.textContent = 'Scan Realm';
+    this.submitBtn.textContent = 'Begin Session';
     this.submitBtn.addEventListener('click', () => this.handleSubmit());
     form.appendChild(this.submitBtn);
 
@@ -76,7 +76,7 @@ export class RepoScreen {
     loadingText.className = 'loading-dots';
     loadingText.textContent = '';
 
-    const textNode = document.createTextNode('Scanning realm');
+    const textNode = document.createTextNode('Starting session');
     loadingText.appendChild(textNode);
 
     for (let i = 0; i < 3; i++) {
