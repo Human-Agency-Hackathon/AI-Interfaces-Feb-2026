@@ -1074,10 +1074,38 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
 
       this.gamePhase = 'playing';
 
-      // Respawn oracle
-      await this.spawnOracle(realm.path);
+      // Check if a brainstorm process was running when state was saved
+      const processState = this.worldState.getProcessState();
+      if (processState && processState.status === 'running') {
+        const template = PROCESS_TEMPLATES[processState.processId];
+        if (template) {
+          // Restore ProcessController from saved state (silent — no events emitted)
+          this.processController = ProcessController.fromJSON(
+            processState,
+            template,
+            this.createProcessDelegate(),
+          );
+          this.wireProcessControllerEvents(this.processController);
 
-      console.log(`[Bridge] Realm resumed: ${realm.displayName}`);
+          // Respawn agents for the current stage with resume context
+          await this.spawnProcessAgents(
+            template,
+            processState.currentStageIndex,
+            processState.problemStatement ?? processState.problem,
+            { resumed: true },
+          );
+
+          console.log(`[Bridge] Realm resumed with running process: ${realm.displayName} (stage ${processState.currentStageIndex})`);
+        } else {
+          console.warn(`[Bridge] Template "${processState.processId}" not found for resumed process, falling back to Oracle`);
+          await this.spawnOracle(realm.path);
+          console.log(`[Bridge] Realm resumed (Oracle fallback): ${realm.displayName}`);
+        }
+      } else {
+        // No running process — spawn Oracle as usual
+        await this.spawnOracle(realm.path);
+        console.log(`[Bridge] Realm resumed: ${realm.displayName}`);
+      }
     } catch (err) {
       this.gamePhase = 'onboarding';
       const message = err instanceof Error ? err.message : 'Failed to resume realm';
