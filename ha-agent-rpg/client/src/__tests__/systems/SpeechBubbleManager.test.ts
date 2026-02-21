@@ -187,20 +187,20 @@ describe('SpeechBubbleManager', () => {
   });
 
   describe('text truncation', () => {
-    it('truncates text longer than 100 chars with ellipsis', () => {
-      const longText = 'a'.repeat(150);
+    it('truncates text longer than 40 chars with ellipsis', () => {
+      const longText = 'a'.repeat(60);
       manager.updateBubble('agent1', 'speak', longText, 100, 200, 0xff0000, 'Hero');
 
       // The text passed to scene.add.text should be truncated
       const textCalls = (scene.add.text as any).mock.calls;
       // First text call is the content text (second is the name tag)
       const contentText = textCalls[0][2] as string;
-      expect(contentText.length).toBeLessThanOrEqual(101); // 100 + ellipsis char
+      expect(contentText.length).toBeLessThanOrEqual(41); // 40 + ellipsis char
       expect(contentText.endsWith('\u2026')).toBe(true);
     });
 
-    it('does not truncate text at or under 100 chars', () => {
-      const shortText = 'a'.repeat(100);
+    it('does not truncate text at or under 40 chars', () => {
+      const shortText = 'a'.repeat(40);
       manager.updateBubble('agent1', 'speak', shortText, 100, 200, 0xff0000, 'Hero');
 
       const textCalls = (scene.add.text as any).mock.calls;
