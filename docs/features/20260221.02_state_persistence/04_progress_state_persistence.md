@@ -14,12 +14,12 @@
 | S6 | Graceful shutdown in index.ts | TODO | Blocked by S4 |
 | S7 | Auto-load last realm on startup | TODO | Blocked by S5 |
 
-### Tier 2: Client-Side Persistence (@Ken)
+### Tier 2: Client-Side Persistence (@Behrang — reassigned from Ken)
 
 | Task | Description | Status | Notes |
 |------|------------|--------|-------|
-| C1 | localStorage identity + realm | TODO | Independent |
-| C2 | Expand server:info with gamePhase | TODO | Server side: Behrang (part of S1). Client side: Ken. |
+| C1 | localStorage identity + realm | TODO | Independent. Reassigned to Behrang (Ken moved to map work). |
+| C2 | Expand server:info with gamePhase | TODO | Server side: Behrang (part of S1). Client side: also Behrang now. |
 | C3 | Auto-resume on refresh in main.ts | TODO | Blocked by C1 + C2 |
 
 ### Tier 3: Robustness (@Pratham)

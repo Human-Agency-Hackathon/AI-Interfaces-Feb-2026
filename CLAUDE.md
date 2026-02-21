@@ -27,7 +27,7 @@ Each team member owns a domain. Respect these boundaries; use the Bulletin Board
 | **Jeff** | Brainstorming Process Design | Stage sequences, agent roles/personas, transition rules, process templates in `skills/`, DESIGN.md methodology |
 | **Pratham** | Agent Memory / Persistence | Redis integration, storage backends, FindingsBoard/KnowledgeVault/WorldStatePersistence implementations, inter-agent comms |
 | **Behrang** | Core Engine / Agent Orchestration | BridgeServer, ProcessController, AgentSessionManager, SystemPromptBuilder, MCP tools, turn system, protocol types |
-| **Ken** | Project Management / Process Design | TASKS.md, CLAUDE.md, sprint planning, process definitions, architecture decisions, unblocking |
+| **Ken** | Map / Visual Integration | Fog-of-war map, BiomeGenerator, MapGenerator, BootScene textures (with Ida), visual integration, PM, TASKS.md, CLAUDE.md |
 
 ## Project Overview
 
