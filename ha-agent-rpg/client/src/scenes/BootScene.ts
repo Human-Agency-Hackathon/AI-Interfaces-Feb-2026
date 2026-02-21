@@ -3,6 +3,17 @@ export class BootScene extends Phaser.Scene {
     super({ key: 'BootScene' });
   }
 
+  preload(): void {
+    // Load room background images from public/rooms/
+    const rooms = [
+      'room-throne', 'room-lab', 'room-library', 'room-armory',
+      'room-greenhouse', 'room-forge', 'room-test-chamber', 'room-dungeon-cell',
+    ];
+    for (const name of rooms) {
+      this.load.image(name, `rooms/${name}.jpg`);
+    }
+  }
+
   create(): void {
     // ─── Tile Textures ───
     this.generateGrassTiles();
