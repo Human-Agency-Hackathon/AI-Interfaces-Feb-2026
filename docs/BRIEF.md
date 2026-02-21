@@ -41,6 +41,10 @@ The `ha-agent-rpg/` directory contains a working prototype:
 - **Persistence layer**: per-agent knowledge vaults, findings board, transcript logs, realm registry for session resumption
 - **CI pipeline**: GitHub Actions with server tests (vitest), type checking, codecov
 
+## Visual Style
+
+The map and world should evoke the look of classic 8-bit RPGs: chunky pixel tiles, limited color palettes, and the charm of NES/SNES-era adventures. We like this retro aesthetic; it keeps the interface playful and readable without requiring polished art assets. All textures are generated programmatically in BootScene to match this style.
+
 ## Target Experience
 
 A developer runs `./scripts/start-all.sh`, opens the browser, and sees a JRPG world. They paste a repo URL (or pick a previously explored one). The system analyzes the repo, generates a dungeon map from its folder structure, and spawns an "Oracle" agent who begins exploring.
