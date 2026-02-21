@@ -5,6 +5,8 @@ import type { AgentThoughtMessage, AgentActivityMessage } from '../types';
 export class UIScene extends Phaser.Scene {
   private dialogueLog!: DialogueLog;
   private statusText!: Phaser.GameObjects.Text;
+  /** Maps agent_id → { name, color } so thought/activity bubbles show display names */
+  private agentInfo = new Map<string, { name: string; color: number }>();
 
   constructor() {
     super({ key: 'UIScene', active: true });
@@ -29,6 +31,11 @@ export class UIScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5).setDepth(50).setName('waitingText');
 
+    // Track agent name/color so thought/activity bubbles can use display names
+    window.addEventListener('agent-joined', ((e: CustomEvent) => {
+      this.agentInfo.set(e.detail.agentId, { name: e.detail.name, color: e.detail.color });
+    }) as EventListener);
+
     // Listen for events from GameScene
     this.events.on('show-dialogue', this.onShowDialogue, this);
     this.events.on('agent-thought', this.onAgentThought, this);
@@ -50,12 +57,15 @@ export class UIScene extends Phaser.Scene {
     const waitingText = this.children.getByName('waitingText');
     if (waitingText) waitingText.destroy();
 
-    // Update status
-    this.statusText.setText(`Active: ${data.agent_id}`);
+    const info = this.agentInfo.get(data.agent_id);
+    const displayName = info?.name ?? data.agent_id;
+    const displayColor = info?.color ?? 0x888888;
+
+    this.statusText.setText(`Active: ${displayName}`);
 
     this.dialogueLog.addEntry({
-      agent_name: data.agent_id,
-      agent_color: 0x888888,
+      agent_name: displayName,
+      agent_color: displayColor,
       text: data.text,
       type: 'think',
       timestamp: Date.now(),
@@ -67,7 +77,9 @@ export class UIScene extends Phaser.Scene {
     const waitingText = this.children.getByName('waitingText');
     if (waitingText) waitingText.destroy();
 
-    this.statusText.setText(`Active: ${data.agent_id}`);
-    this.dialogueLog.addActivity(data.agent_id, data.activity, data.tool_name);
+    const info = this.agentInfo.get(data.agent_id);
+    const displayName = info?.name ?? data.agent_id;
+    this.statusText.setText(`Active: ${displayName}`);
+    this.dialogueLog.addActivity(displayName, data.activity, data.tool_name);
   }
 }
