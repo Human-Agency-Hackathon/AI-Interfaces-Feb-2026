@@ -25,11 +25,11 @@ describe('ZoomControls', () => {
     expect(buttons.length).toBe(3);
   });
 
-  it('positions container fixed at bottom-right', () => {
+  it('positions container fixed at bottom-left', () => {
     const container = document.getElementById('zoom-controls')!;
     expect(container.style.position).toBe('fixed');
     expect(container.style.bottom).toBe('80px');
-    expect(container.style.right).toBe('16px');
+    expect(container.style.left).toBe('8px');
   });
 
   it('clicking + calls onZoomIn', () => {

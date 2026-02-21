@@ -20,6 +20,7 @@ export class Minimap {
   private explored: boolean[][] = [];
   private fortDots: Map<string, { x: number; y: number; color: string }> = new Map();
   private agentDots: Map<string, { x: number; y: number; color: string }> = new Map();
+  private onClickCallback: ((tileX: number, tileY: number) => void) | null = null;
 
   constructor(mapWidth: number, mapHeight: number) {
     this.mapWidth = mapWidth;
@@ -39,9 +40,25 @@ export class Minimap {
       background: ${FOG_COLOR};
       z-index: 100;
       image-rendering: pixelated;
+      cursor: pointer;
     `;
     document.body.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d')!;
+
+    this.canvas.addEventListener('click', (e: MouseEvent) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      const tileX = Math.floor(clickX * (this.mapWidth / MINIMAP_SIZE));
+      const tileY = Math.floor(clickY * (this.mapHeight / MINIMAP_SIZE));
+      if (this.onClickCallback) {
+        this.onClickCallback(tileX, tileY);
+      }
+    });
+  }
+
+  onClick(callback: (tileX: number, tileY: number) => void): void {
+    this.onClickCallback = callback;
   }
 
   setBiomeMap(biomeMap: number[][]): void {

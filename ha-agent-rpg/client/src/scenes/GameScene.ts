@@ -98,6 +98,16 @@ export class GameScene extends Phaser.Scene {
           this.cameraController.updateBounds(state.map.width, state.map.height, state.map.tile_size);
 
           this.minimap = new Minimap(state.map.width, state.map.height);
+          this.minimap.onClick((tileX, tileY) => {
+            if (this.cameraController) {
+              const TILE_SIZE = state.map.tile_size;
+              this.cameraController.clearFollow();
+              this.cameraController.panTo(
+                tileX * TILE_SIZE + TILE_SIZE / 2,
+                tileY * TILE_SIZE + TILE_SIZE / 2,
+              );
+            }
+          });
           if ((state as any).explored) {
             this.minimap.setExplored((state as any).explored);
           }

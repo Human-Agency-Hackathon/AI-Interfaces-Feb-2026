@@ -13,7 +13,7 @@ export class ZoomControls {
     this.container.style.cssText = `
       position: fixed;
       bottom: 80px;
-      right: 16px;
+      left: 8px;
       display: flex;
       flex-direction: column;
       gap: 4px;
