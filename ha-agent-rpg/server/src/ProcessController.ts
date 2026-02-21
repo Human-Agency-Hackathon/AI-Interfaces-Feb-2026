@@ -44,6 +44,8 @@ export class ProcessController extends EventEmitter {
   private context: StageContext | null = null;
   private delegate: ProcessControllerDelegate;
   private stageTurnCounts: Map<string, number> = new Map();
+  /** Per-agent turn counts for parallel stages: "stageId:agentId" -> count */
+  private agentTurnCounts: Map<string, number> = new Map();
   private advancing = false; // guard against concurrent advance calls
 
   constructor(delegate: ProcessControllerDelegate) {
@@ -58,6 +60,7 @@ export class ProcessController extends EventEmitter {
   start(problem: string, template: ProcessDefinition): void {
     this.context = { problem, template, stageIndex: 0 };
     this.stageTurnCounts.clear();
+    this.agentTurnCounts.clear();
     this.advancing = false;
     const stage = template.stages[0];
     if (stage) {
@@ -84,19 +87,30 @@ export class ProcessController extends EventEmitter {
     // Only count turns from agents belonging to this stage
     if (!stage.roles.includes(agentId)) return;
 
-    const count = (this.stageTurnCounts.get(stage.id) ?? 0) + 1;
-    this.stageTurnCounts.set(stage.id, count);
+    // Track per-agent turns (used for parallel completion checks)
+    const agentKey = `${stage.id}:${agentId}`;
+    const agentCount = (this.agentTurnCounts.get(agentKey) ?? 0) + 1;
+    this.agentTurnCounts.set(agentKey, agentCount);
+
+    // Also track aggregate stage turns (used for sequential/single completion)
+    const stageCount = (this.stageTurnCounts.get(stage.id) ?? 0) + 1;
+    this.stageTurnCounts.set(stage.id, stageCount);
 
     const limit = stage.completionCriteria.type === 'turn_count' ? stage.completionCriteria.turns : '∞';
-    console.log(`[ProcessController] Stage "${stage.name}" turn count: ${count}/${limit}`);
+    console.log(`[ProcessController] Stage "${stage.name}" agent "${agentId}" turn: ${agentCount}/${limit} (total: ${stageCount})`);
 
-    if (this.isStageComplete(stage, count)) {
+    if (this.isStageComplete(stage)) {
       await this.advanceStage();
       return;
     }
 
-    // Drive the next agent for sequential turn structures
-    await this.driveNextSequentialAgent(stage, agentId, count);
+    // Drive the next turn based on turn structure type
+    if (stage.turnStructure.type === 'sequential') {
+      await this.driveNextSequentialAgent(stage, agentId);
+    } else if (stage.turnStructure.type === 'parallel') {
+      await this.driveParallelAgent(stage, agentId, agentCount);
+    }
+    // 'single' type: agent drives itself, no follow-up needed
   }
 
   /**
@@ -137,6 +151,7 @@ export class ProcessController extends EventEmitter {
   stop(): void {
     this.context = null;
     this.stageTurnCounts.clear();
+    this.agentTurnCounts.clear();
     this.advancing = false;
   }
 
@@ -149,7 +164,6 @@ export class ProcessController extends EventEmitter {
   private async driveNextSequentialAgent(
     stage: StageDefinition,
     completedAgentId: string,
-    _turnCount: number,
   ): Promise<void> {
     if (stage.turnStructure.type !== 'sequential') return;
     const order = stage.turnStructure.order;
@@ -171,10 +185,44 @@ export class ProcessController extends EventEmitter {
     }
   }
 
-  private isStageComplete(stage: StageDefinition, turnCount: number): boolean {
+  /**
+   * For parallel turn structures, prompt the same agent again if it hasn't
+   * hit its individual turn limit yet. All agents work simultaneously.
+   */
+  private async driveParallelAgent(
+    stage: StageDefinition,
+    agentId: string,
+    agentTurnCount: number,
+  ): Promise<void> {
+    if (stage.completionCriteria.type !== 'turn_count') return;
+    const targetTurns = stage.completionCriteria.turns;
+
+    // Agent still has turns remaining — prompt it again
+    if (agentTurnCount < targetTurns) {
+      try {
+        await this.delegate.sendFollowUp(
+          agentId,
+          `[PROCESS TURN] Continue the ${stage.name} stage (turn ${agentTurnCount + 1} of ${targetTurns}). Build on your previous contributions and use PostFindings to share more ideas with the group.`,
+        );
+      } catch (err) {
+        console.error(`[ProcessController] Failed to send parallel follow-up to "${agentId}":`, err);
+      }
+    }
+  }
+
+  private isStageComplete(stage: StageDefinition): boolean {
     const criteria = stage.completionCriteria;
     if (criteria.type === 'turn_count') {
-      return turnCount >= criteria.turns;
+      if (stage.turnStructure.type === 'parallel') {
+        // Parallel: ALL agents must reach the target turn count
+        return stage.roles.every((roleId) => {
+          const key = `${stage.id}:${roleId}`;
+          return (this.agentTurnCounts.get(key) ?? 0) >= criteria.turns;
+        });
+      }
+      // Sequential/single: use aggregate stage turn count
+      const stageCount = this.stageTurnCounts.get(stage.id) ?? 0;
+      return stageCount >= criteria.turns;
     }
     // explicit_signal: never auto-completes; relies on onExplicitStageComplete
     return false;
@@ -200,10 +248,12 @@ export class ProcessController extends EventEmitter {
 
     this.delegate.broadcast({
       type: 'stage:advanced',
-      completedStageId: currentStage.id,
-      completedStageName: currentStage.name,
-      nextStageId: nextStage?.id ?? null,
-      nextStageName: nextStage?.name ?? null,
+      fromStageId: currentStage.id,
+      fromStageName: currentStage.name,
+      toStageId: nextStage?.id ?? null,
+      toStageName: nextStage?.name ?? null,
+      stageIndex: nextIndex,
+      totalStages: template.stages.length,
     });
 
     if (!nextStage) {

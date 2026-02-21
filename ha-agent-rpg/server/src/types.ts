@@ -386,9 +386,11 @@ export interface ProcessStartedMessage {
 export interface StageAdvancedMessage {
   type: 'stage:advanced';
   fromStageId: string;
-  toStageId: string;
-  toStageName: string;
+  fromStageName: string;
+  toStageId: string | null;
+  toStageName: string | null;
   stageIndex: number;
+  totalStages: number;
 }
 
 export interface StageCompletedMessage {

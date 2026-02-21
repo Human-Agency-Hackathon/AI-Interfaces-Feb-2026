@@ -36,7 +36,7 @@ import { networkInterfaces } from 'node:os';
 import { RealmRegistry } from './RealmRegistry.js';
 import { WorldStatePersistence } from './WorldStatePersistence.js';
 import { GitHelper } from './GitHelper.js';
-import { PROCESS_TEMPLATES, STANDARD_BRAINSTORM, type ProcessDefinition, type StageDefinition } from './ProcessTemplates.js';
+import { PROCESS_TEMPLATES, DEEP_BRAINSTORM, type ProcessDefinition, type StageDefinition } from './ProcessTemplates.js';
 import { ProcessController } from './ProcessController.js';
 
 // Agent colors — auto-assigned in spawn order
@@ -252,7 +252,7 @@ export class BridgeServer {
       this.gamePhase = 'analyzing';
       await this.cleanupCurrentRealm();
 
-      const template = PROCESS_TEMPLATES[msg.processId ?? STANDARD_BRAINSTORM.id] ?? STANDARD_BRAINSTORM;
+      const template = PROCESS_TEMPLATES[msg.processId ?? DEEP_BRAINSTORM.id] ?? DEEP_BRAINSTORM;
       const firstStage = template.stages[0];
 
       const processState: ProcessState = {
@@ -1032,6 +1032,19 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
         finding: data.finding.finding,
         severity: data.finding.severity,
       });
+
+      // Thread findings as stage artifacts so they flow to the next stage
+      if (this.processController) {
+        const currentStage = this.processController.getCurrentStage();
+        if (currentStage) {
+          const artifactId = `finding_${data.agentId}_${Date.now()}`;
+          this.worldState.setArtifact(
+            currentStage.id,
+            artifactId,
+            `[${data.agentName}] ${data.finding.finding}`,
+          );
+        }
+      }
     });
 
     // Knowledge updated
