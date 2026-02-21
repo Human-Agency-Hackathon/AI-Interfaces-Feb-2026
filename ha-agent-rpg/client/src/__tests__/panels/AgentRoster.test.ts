@@ -32,7 +32,10 @@ describe('AgentRoster', () => {
   });
 
   afterEach(() => {
-    roster.destroy();
+    // Guard: some tests (e.g. destroy test) already destroy the roster
+    if (document.getElementById('agent-roster')) {
+      roster.destroy();
+    }
   });
 
   it('creates a container fixed at top-left with z-index 100', () => {
@@ -101,7 +104,5 @@ describe('AgentRoster', () => {
   it('destroy removes the container from the DOM', () => {
     roster.destroy();
     expect(document.getElementById('agent-roster')).toBeNull();
-    // Prevent afterEach double-destroy
-    roster = new AgentRoster(onAgentClick);
   });
 });
