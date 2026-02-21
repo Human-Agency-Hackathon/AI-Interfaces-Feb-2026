@@ -140,7 +140,7 @@ ws.on('agent:activity', (msg) => {
   console.log(`[Activity] ${data.agent_id}: ${data.activity}`);
 });
 
-// Findings posted — surface to DialogueLog
+// Findings posted — surface as floating announcement in game
 ws.on('findings:posted', (msg) => {
   const data = msg as unknown as FindingsPostedMessage;
   console.log(`[Finding] ${data.agent_name} (${data.severity}): ${data.finding}`);
@@ -430,7 +430,7 @@ function startGame(identity: SetupIdentity): void {
       panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
     },
     onPlayerMessage: (text: string) => {
-      // Dispatch event for DialogueLog to pick up (fallback when no spectator)
+      // Dispatch event for floating announcement display
       window.dispatchEvent(
         new CustomEvent('prompt-player-message', { detail: { text } }),
       );

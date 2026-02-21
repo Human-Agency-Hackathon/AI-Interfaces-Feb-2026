@@ -472,6 +472,67 @@ export class SpeechBubbleManager {
     indicator.label.destroy();
     this.edgeIndicators.delete(agentId);
   }
+
+  // ── Floating announcements (system messages, findings, stage transitions) ──
+
+  /**
+   * Show a centered floating text announcement in the game world.
+   * Used for stage transitions, findings, and system messages.
+   * Text appears centered in the camera viewport and fades after the given duration.
+   */
+  showFloatingAnnouncement(
+    text: string,
+    camera: Phaser.Cameras.Scene2D.Camera,
+    duration = 5000,
+    color = '#ffdd44',
+  ): void {
+    const worldView = camera.worldView;
+    const centerX = worldView.x + worldView.width / 2;
+    const centerY = worldView.y + worldView.height * 0.2; // upper portion of screen
+
+    // Semi-transparent banner background
+    const bannerText = this.scene.add.text(centerX, centerY, text, {
+      fontSize: '11px',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      color,
+      align: 'center',
+      wordWrap: { width: worldView.width * 0.8 },
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(35);
+
+    const bannerBg = this.scene.add.rectangle(
+      centerX, centerY,
+      bannerText.width + 24, bannerText.height + 12,
+      0x0a0a1e, 0.85,
+    ).setStrokeStyle(1, 0x4a4a8a).setDepth(34);
+
+    // Pop-in
+    const targets = [bannerBg, bannerText];
+    targets.forEach(t => t.setScale(0.8).setAlpha(0));
+    this.scene.tweens.add({
+      targets,
+      scale: 1,
+      alpha: 1,
+      duration: 200,
+      ease: 'Back.easeOut',
+    });
+
+    // Fade out and destroy
+    this.scene.tweens.add({
+      targets,
+      alpha: 0,
+      y: centerY - 10,
+      duration: 1500,
+      delay: duration - 1500,
+      ease: 'Power1',
+      onComplete: () => {
+        bannerBg.destroy();
+        bannerText.destroy();
+      },
+    });
+  }
 }
 
 // ── Helpers ──

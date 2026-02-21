@@ -44,6 +44,7 @@ export class GameScene extends Phaser.Scene {
   private inFortView = false;
   private zoomControls: ZoomControls | null = null;
   private _rosterClickHandler: EventListener | null = null;
+  private _windowEventHandlers: { event: string; handler: EventListener }[] = [];
 
   constructor() {
     super({ key: 'GameScene' });
@@ -362,12 +363,42 @@ export class GameScene extends Phaser.Scene {
     }) as EventListener;
     window.addEventListener('agent-roster-click', this._rosterClickHandler);
 
-    // Clean up window event listener on scene shutdown
+    // ── Floating announcements: route system-level window events to in-game text ──
+    const addWindowHandler = (event: string, handler: EventListener) => {
+      window.addEventListener(event, handler);
+      this._windowEventHandlers.push({ event, handler });
+    };
+
+    addWindowHandler('stage-announcement', ((e: CustomEvent) => {
+      this.speechBubbleManager.showFloatingAnnouncement(
+        e.detail.text, this.cameras.main, 6000, '#ffdd44',
+      );
+    }) as EventListener);
+
+    addWindowHandler('findings-posted', ((e: CustomEvent) => {
+      const text = `${e.detail.agent_name}: ${e.detail.finding}`;
+      this.speechBubbleManager.showFloatingAnnouncement(
+        text.length > 120 ? text.slice(0, 120) + '\u2026' : text,
+        this.cameras.main, 5000, '#88ccff',
+      );
+    }) as EventListener);
+
+    addWindowHandler('prompt-system-message', ((e: CustomEvent) => {
+      this.speechBubbleManager.showFloatingAnnouncement(
+        e.detail.text, this.cameras.main, 4000, '#aaaacc',
+      );
+    }) as EventListener);
+
+    // Clean up window event listeners on scene shutdown
     this.events.once('shutdown', () => {
       if (this._rosterClickHandler) {
         window.removeEventListener('agent-roster-click', this._rosterClickHandler);
         this._rosterClickHandler = null;
       }
+      for (const { event, handler } of this._windowEventHandlers) {
+        window.removeEventListener(event, handler);
+      }
+      this._windowEventHandlers = [];
     });
 
     // Only connect if we created a standalone fallback (not using shared)

@@ -2,7 +2,7 @@ import type { AgentDetailsMessage } from '../types';
 
 /**
  * Sidebar panel showing an agent's history: findings, insights, actions, thoughts.
- * Follows the same DOM overlay pattern as DialogueLog.
+ * DOM overlay panel in the sidebar.
  */
 export class AgentDetailsPanel {
   private container: HTMLElement;

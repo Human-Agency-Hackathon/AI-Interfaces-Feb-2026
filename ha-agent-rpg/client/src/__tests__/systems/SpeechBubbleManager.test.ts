@@ -238,6 +238,53 @@ describe('SpeechBubbleManager', () => {
     });
   });
 
+  describe('showFloatingAnnouncement', () => {
+    function mockCamera() {
+      return {
+        worldView: { x: 0, y: 0, width: 640, height: 480 },
+      } as unknown as Phaser.Cameras.Scene2D.Camera;
+    }
+
+    it('creates text and background Phaser objects', () => {
+      const camera = mockCamera();
+      manager.showFloatingAnnouncement('Stage complete!', camera);
+
+      // Should create one text and one rectangle for the banner
+      expect(scene.add.text).toHaveBeenCalled();
+      expect(scene.add.rectangle).toHaveBeenCalled();
+    });
+
+    it('positions banner at upper center of camera viewport', () => {
+      const camera = mockCamera();
+      manager.showFloatingAnnouncement('Stage complete!', camera);
+
+      const textCalls = (scene.add.text as any).mock.calls;
+      const lastTextCall = textCalls[textCalls.length - 1];
+      // x should be center of viewport
+      expect(lastTextCall[0]).toBe(320); // 640/2
+      // y should be upper portion (20% from top)
+      expect(lastTextCall[1]).toBe(96); // 480 * 0.2
+    });
+
+    it('starts pop-in and fade-out tweens', () => {
+      const camera = mockCamera();
+      const tweensBefore = (scene as any)._tweens.length;
+      manager.showFloatingAnnouncement('Test message', camera, 5000);
+
+      // Should have added at least 2 tweens (pop-in + fade-out)
+      expect((scene as any)._tweens.length).toBeGreaterThanOrEqual(tweensBefore + 2);
+    });
+
+    it('uses custom color when provided', () => {
+      const camera = mockCamera();
+      manager.showFloatingAnnouncement('Finding!', camera, 5000, '#88ccff');
+
+      const textCalls = (scene.add.text as any).mock.calls;
+      const lastTextCall = textCalls[textCalls.length - 1];
+      expect(lastTextCall[3].color).toBe('#88ccff');
+    });
+  });
+
   describe('destroy', () => {
     it('removes all bubbles and indicators', () => {
       manager.updateBubble('agent1', 'speak', 'Hello', 100, 200, 0xff0000, 'Hero');
