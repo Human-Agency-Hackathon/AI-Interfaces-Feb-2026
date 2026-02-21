@@ -52,6 +52,32 @@ fi
 echo "=== Installing Node dependencies ==="
 cd "$PROJECT_DIR" && npm install
 
+# --- Redis ---
+echo ""
+echo "=== Starting Redis (port 6379) ==="
+REDIS_PID=""
+if command -v redis-server &>/dev/null; then
+  # Check if Redis is already running
+  if redis-cli ping &>/dev/null 2>&1; then
+    echo "  Redis already running — skipping start"
+  else
+    redis-server --daemonize yes --logfile /tmp/redis-agent-rpg.log
+    sleep 1
+    if redis-cli ping &>/dev/null 2>&1; then
+      REDIS_PID=$(redis-cli info server 2>/dev/null | grep "^process_id:" | tr -d '[:space:]' | cut -d: -f2)
+      echo "  Redis started (PID $REDIS_PID)"
+    else
+      echo "  Warning: Redis failed to start — server will fall back to JSON persistence"
+    fi
+  fi
+  export STORAGE_BACKEND=redis
+  echo "  STORAGE_BACKEND=redis"
+else
+  echo "  redis-server not found — install with: brew install redis"
+  echo "  Falling back to JSON persistence (STORAGE_BACKEND=json)"
+  export STORAGE_BACKEND=json
+fi
+
 echo ""
 echo "=== Starting Bridge Server (port 3001) ==="
 cd "$PROJECT_DIR" && npm run dev:server &
@@ -87,13 +113,14 @@ AGENT2_PID=$!
 echo ""
 echo "============================================"
 echo "  All components running!"
-echo "  Bridge Server : ws://localhost:3001  (PID $SERVER_PID)"
-echo "  Phaser Client : http://localhost:5173 (PID $CLIENT_PID)"
-echo "  Agent 1 (Hero): PID $AGENT1_PID"
-echo "  Agent 2 (Mage): PID $AGENT2_PID"
+echo "  Redis          : localhost:6379 (${STORAGE_BACKEND} mode)"
+echo "  Bridge Server  : ws://localhost:3001  (PID $SERVER_PID)"
+echo "  Phaser Client  : http://localhost:5173 (PID $CLIENT_PID)"
+echo "  Agent 1 (Hero) : PID $AGENT1_PID"
+echo "  Agent 2 (Mage) : PID $AGENT2_PID"
 echo "============================================"
 echo "  Press Ctrl+C to stop all."
 echo ""
 
-trap "kill $SERVER_PID $CLIENT_PID $AGENT1_PID $AGENT2_PID 2>/dev/null; exit" INT TERM
+trap "kill $SERVER_PID $CLIENT_PID $AGENT1_PID $AGENT2_PID 2>/dev/null; redis-cli shutdown nosave 2>/dev/null || true; exit" INT TERM
 wait
