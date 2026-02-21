@@ -685,9 +685,10 @@ export class BridgeServer {
 
     const priorArtifacts = this.worldState.getProcessState()?.collectedArtifacts ?? {};
 
-    for (const entry of agentEntries) {
+    // Spawn all agent sessions in parallel (non-blocking SDK calls)
+    const spawnPromises = agentEntries.map((entry) => {
       const roleDef = template.roles.find((r) => r.id === entry.agentId)!;
-      await this.sessionManager.spawnAgent({
+      return this.sessionManager.spawnAgent({
         agentId: entry.agentId,
         agentName: entry.name,
         role: entry.role,
@@ -709,8 +710,11 @@ export class BridgeServer {
             resumeNote: 'You are resuming a paused brainstorm session. Prior stage artifacts are available in your system prompt. Continue where the previous agents left off.',
           } : {}),
         },
+      }).catch((err) => {
+        console.error(`[Bridge] Failed to spawn agent ${entry.agentId}:`, err);
       });
-    }
+    });
+    await Promise.all(spawnPromises);
   }
 
   // ── Repo Analysis ──
