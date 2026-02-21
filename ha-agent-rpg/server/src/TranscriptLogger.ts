@@ -3,7 +3,7 @@
  * Files are written to `.agent-rpg/logs/{agent_id}/{date}.jsonl`.
  */
 
-import { appendFile, mkdir } from 'node:fs/promises';
+import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { sanitizePathComponent } from './PathSafety.js';
 
@@ -35,6 +35,35 @@ export class TranscriptLogger {
     } catch (err) {
       // Non-fatal — log to console but don't crash
       console.error(`[TranscriptLogger] Failed to log for ${agentId}:`, err);
+    }
+  }
+
+  /**
+   * Read all transcript entries for an agent from today's log file.
+   * Returns an empty array if the file doesn't exist.
+   * Malformed JSONL lines are silently skipped.
+   */
+  async readTranscript(agentId: string): Promise<Array<{ timestamp: string; agent_id: string; message: unknown }>> {
+    const safeAgentId = sanitizePathComponent(agentId);
+    const dir = join(this.repoPath, '.agent-rpg', 'logs', safeAgentId);
+    const filePath = join(dir, `${this.dateStr}.jsonl`);
+
+    try {
+      const content = await readFile(filePath, 'utf-8');
+      const entries: Array<{ timestamp: string; agent_id: string; message: unknown }> = [];
+
+      for (const line of content.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          entries.push(JSON.parse(line));
+        } catch {
+          // Skip malformed lines
+        }
+      }
+
+      return entries;
+    } catch {
+      return [];
     }
   }
 }
