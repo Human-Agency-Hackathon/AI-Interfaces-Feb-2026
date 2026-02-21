@@ -543,16 +543,27 @@ export class PromptBar {
       }
     }
 
-    // Show player message in log
-    this.options.onPlayerMessage?.(text);
-
     // Regular message - prefix with focused agent if set
     let messageText = text;
     if (this.focusedAgent) {
       messageText = `${this.focusedAgent}, ${text}`;
     }
 
-    this.ws.send({ type: 'player:command', text: messageText });
+    if (this.spectator) {
+      // Notify caller so they can show attribution locally immediately
+      this.options.onSpectatorMessage?.(this.spectator.name, this.spectator.color, messageText);
+      this.ws.send({
+        type: 'spectator:command',
+        spectator_id: this.spectator.spectator_id,
+        name: this.spectator.name,
+        color: this.spectator.color,
+        text: messageText,
+      });
+    } else {
+      // Legacy: fall back to player:command if no spectator registered
+      this.options.onPlayerMessage?.(text);
+      this.ws.send({ type: 'player:command', text: messageText });
+    }
 
     this.textarea.value = '';
     this.autoResize();
@@ -586,12 +597,23 @@ export class PromptBar {
   }
 
   private sendToAgent(text: string): void {
-    this.options.onPlayerMessage?.(text);
     let messageText = text;
     if (this.focusedAgent) {
       messageText = `${this.focusedAgent}, ${text}`;
     }
-    this.ws.send({ type: 'player:command', text: messageText });
+    if (this.spectator) {
+      this.options.onSpectatorMessage?.(this.spectator.name, this.spectator.color, messageText);
+      this.ws.send({
+        type: 'spectator:command',
+        spectator_id: this.spectator.spectator_id,
+        name: this.spectator.name,
+        color: this.spectator.color,
+        text: messageText,
+      });
+    } else {
+      this.options.onPlayerMessage?.(text);
+      this.ws.send({ type: 'player:command', text: messageText });
+    }
   }
 
   private addSystemMessage(text: string): void {

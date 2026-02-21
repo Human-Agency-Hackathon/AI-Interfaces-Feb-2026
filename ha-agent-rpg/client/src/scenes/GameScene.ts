@@ -31,7 +31,6 @@ export class GameScene extends Phaser.Scene {
   private thoughtBubble!: ThoughtBubble;
   private objects: MapObject[] = [];
   private currentMapDimensions: { width: number; height: number } | null = null;
-  private wasdKeys!: Record<string, Phaser.Input.Keyboard.Key>;
   private arrowKeys!: Phaser.Types.Input.Keyboard.CursorKeys;
   private isPlayerMoving = false;
 
@@ -44,15 +43,12 @@ export class GameScene extends Phaser.Scene {
     this.thoughtBubble = new ThoughtBubble(this);
     this.wsClient = new WebSocketClient('ws://localhost:3001');
 
-    // Setup keyboard controls for player movement
+    // Setup keyboard controls for player movement (arrow keys only)
     if (this.input.keyboard) {
+      // Disable global key capture so DOM inputs (textarea) receive all key events
+      // without Phaser calling preventDefault() on them.
+      this.input.keyboard.disableGlobalCapture();
       this.arrowKeys = this.input.keyboard.createCursorKeys();
-      this.wasdKeys = {
-        w: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-        a: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-        s: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-        d: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-      };
     }
 
     this.wsClient.on('world:state', (msg) => {
@@ -222,20 +218,21 @@ export class GameScene extends Phaser.Scene {
 
   private handlePlayerInput(): void {
     // Don't process input if player is already moving
-    if (this.isPlayerMoving || !this.playerSprite) {
-      return;
-    }
+    if (this.isPlayerMoving || !this.playerSprite) return;
+
+    // Don't steal arrow keys while the user is typing in a text field
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
 
     let direction: 'up' | 'down' | 'left' | 'right' | null = null;
 
-    // Check arrow keys
-    if (this.arrowKeys.up.isDown || this.wasdKeys.w.isDown) {
+    if (this.arrowKeys.up.isDown) {
       direction = 'up';
-    } else if (this.arrowKeys.down.isDown || this.wasdKeys.s.isDown) {
+    } else if (this.arrowKeys.down.isDown) {
       direction = 'down';
-    } else if (this.arrowKeys.left.isDown || this.wasdKeys.a.isDown) {
+    } else if (this.arrowKeys.left.isDown) {
       direction = 'left';
-    } else if (this.arrowKeys.right.isDown || this.wasdKeys.d.isDown) {
+    } else if (this.arrowKeys.right.isDown) {
       direction = 'right';
     }
 

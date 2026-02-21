@@ -3,6 +3,7 @@ import { gameConfig } from './config';
 import { WebSocketClient } from './network/WebSocketClient';
 import { TitleScreen } from './screens/TitleScreen';
 import { RepoScreen } from './screens/RepoScreen';
+import { JoinScreen } from './screens/JoinScreen';
 import { PromptBar } from './panels/PromptBar';
 import { MiniMap } from './panels/MiniMap';
 import { QuestLog } from './panels/QuestLog';
@@ -19,6 +20,11 @@ import type {
   PlayerPresence,
   WorldStateMessage,
   QuestUpdateMessage,
+  SpectatorWelcomeMessage,
+  SpectatorJoinedMessage,
+  SpectatorLeftMessage,
+  SpectatorCommandMessage,
+  SpectatorInfo,
 } from './types';
 
 // ── Connect to the bridge immediately ──
@@ -125,6 +131,82 @@ let phaserGame: Phaser.Game | null = null;
 let promptBar: PromptBar | null = null;
 let miniMap: MiniMap | null = null;
 let questLog: QuestLog | null = null;
+let joinScreen: JoinScreen | null = null;
+
+// Spectator state
+let mySpectatorId: string | null = null;
+const connectedSpectators = new Map<string, SpectatorInfo>();
+
+// ── Spectator Events ──
+
+ws.on('spectator:welcome', (msg) => {
+  const data = msg as unknown as SpectatorWelcomeMessage;
+  mySpectatorId = data.spectator_id;
+  // Full color arrives via spectator:joined broadcast — set partial identity for now
+  promptBar?.setSpectator({ spectator_id: data.spectator_id, name: data.name, color: 0x6a8aff });
+});
+
+ws.on('spectator:joined', (msg) => {
+  const data = msg as unknown as SpectatorJoinedMessage;
+  connectedSpectators.set(data.spectator_id, { spectator_id: data.spectator_id, name: data.name, color: data.color });
+
+  // If this is our own join, update PromptBar with full color info
+  if (data.spectator_id === mySpectatorId) {
+    promptBar?.setSpectator({ spectator_id: data.spectator_id, name: data.name, color: data.color });
+  }
+
+  updateSpectatorList();
+});
+
+ws.on('spectator:left', (msg) => {
+  const data = msg as unknown as SpectatorLeftMessage;
+  connectedSpectators.delete(data.spectator_id);
+  updateSpectatorList();
+});
+
+ws.on('spectator:command', (msg) => {
+  const data = msg as unknown as SpectatorCommandMessage;
+  // Skip echo of own messages (shown locally immediately via onSpectatorMessage callback)
+  if (data.spectator_id === mySpectatorId) return;
+  window.dispatchEvent(new CustomEvent('spectator-command', {
+    detail: { name: data.name, color: data.color, text: data.text, isOwn: false },
+  }));
+});
+
+ws.on('world:state', (msg) => {
+  const state = msg as unknown as WorldStateMessage;
+  // Sync spectator list from world state (catches up after reconnect)
+  if (state.spectators) {
+    connectedSpectators.clear();
+    for (const s of state.spectators) {
+      connectedSpectators.set(s.spectator_id, s);
+    }
+    updateSpectatorList();
+  }
+});
+
+function updateSpectatorList(): void {
+  const listEl = document.getElementById('spectator-list');
+  if (!listEl) return;
+
+  while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+
+  for (const info of connectedSpectators.values()) {
+    const badge = document.createElement('div');
+    badge.className = 'spectator-badge';
+
+    const dot = document.createElement('span');
+    dot.className = 'spectator-dot';
+    dot.style.background = '#' + info.color.toString(16).padStart(6, '0');
+
+    const label = document.createElement('span');
+    label.textContent = info.name + (info.spectator_id === mySpectatorId ? ' (you)' : '');
+
+    badge.appendChild(dot);
+    badge.appendChild(label);
+    listEl.appendChild(badge);
+  }
+}
 
 // ── Start the Phaser game ──
 function startGame(): void {
@@ -143,6 +225,27 @@ function startGame(): void {
   // Launch Phaser
   if (!phaserGame) {
     phaserGame = new Phaser.Game(gameConfig);
+  }
+
+  // Add spectator list panel to sidebar (before quest-log)
+  if (!document.getElementById('spectator-panel')) {
+    const spectatorPanel = document.createElement('div');
+    spectatorPanel.id = 'spectator-panel';
+    spectatorPanel.className = 'spectator-panel';
+
+    const panelTitle = document.createElement('div');
+    panelTitle.className = 'spectator-panel-title';
+    panelTitle.textContent = 'Spectators';
+    spectatorPanel.appendChild(panelTitle);
+
+    const spectatorListEl = document.createElement('div');
+    spectatorListEl.className = 'spectator-list';
+    spectatorListEl.id = 'spectator-list';
+    spectatorPanel.appendChild(spectatorListEl);
+
+    const sidebar = document.getElementById('sidebar')!;
+    const questLogEl = document.getElementById('quest-log')!;
+    sidebar.insertBefore(spectatorPanel, questLogEl);
   }
 
   // Launch PromptBar in the sidebar
@@ -165,12 +268,28 @@ function startGame(): void {
       panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
     },
     onPlayerMessage: (text: string) => {
-      // Dispatch event for DialogueLog to pick up
+      // Dispatch event for DialogueLog to pick up (fallback when no spectator)
       window.dispatchEvent(
         new CustomEvent('prompt-player-message', { detail: { text } }),
       );
     },
+    onSpectatorMessage: (name: string, color: number, text: string) => {
+      // Show own message immediately with attribution before server echo
+      window.dispatchEvent(new CustomEvent('spectator-command', {
+        detail: { name, color, text, isOwn: true },
+      }));
+    },
   });
+
+  // Show join screen overlay — user enters name before commanding agents
+  if (joinScreen) {
+    joinScreen.destroy();
+  }
+  joinScreen = new JoinScreen(({ name, color }) => {
+    ws.send({ type: 'spectator:register', name, color });
+    // Server responds with spectator:welcome which triggers promptBar.setSpectator()
+  });
+  joinScreen.show();
 
   // Instantiate QuestLog
   questLog = new QuestLog('quest-log');
@@ -216,11 +335,25 @@ function stopGame(): void {
   viewport.style.display = 'none';
   viewport.classList.add('screen-hidden');
 
+  // Destroy join screen
+  if (joinScreen) {
+    joinScreen.destroy();
+    joinScreen = null;
+  }
+
   // Destroy PromptBar
   if (promptBar) {
     promptBar.destroy();
     promptBar = null;
   }
+
+  // Remove spectator panel
+  const spectatorPanel = document.getElementById('spectator-panel');
+  if (spectatorPanel) spectatorPanel.remove();
+
+  // Reset spectator state
+  mySpectatorId = null;
+  connectedSpectators.clear();
 
   // Hide quest log panel
   const questPanel = document.getElementById('quest-log');

@@ -819,6 +819,115 @@
       color: #ff8888;
       box-shadow: none;
     }
+
+    /* ── Join Screen Overlay ── */
+    .join-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 26, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+
+    .join-panel {
+      max-width: 480px;
+      width: 90%;
+    }
+
+    .join-label {
+      display: block;
+      font-size: 0.7rem;
+      color: #666688;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+
+    .join-name-input {
+      margin-bottom: 1.25rem;
+    }
+
+    .join-color-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.25rem;
+    }
+
+    .join-color-swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      cursor: pointer;
+      transition: transform 0.1s ease, border-color 0.1s ease;
+      outline: none;
+    }
+
+    .join-color-swatch:hover {
+      transform: scale(1.1);
+    }
+
+    .join-color-swatch.selected {
+      border-color: #fff;
+      transform: scale(1.15);
+    }
+
+    .join-btn {
+      margin-top: 1.5rem;
+      width: 100%;
+    }
+
+    /* ── Spectator Panel (sidebar) ── */
+    .spectator-panel {
+      border-top: 1px solid #1a1a3a;
+      padding: 0.4rem 0.75rem;
+      flex-shrink: 0;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    .spectator-panel-title {
+      font-size: 0.6rem;
+      color: #444466;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.3rem;
+    }
+
+    .spectator-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+
+    .spectator-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.65rem;
+      padding: 0.1rem 0.4rem;
+      background: #111128;
+      border: 1px solid #2a2a5a;
+    }
+
+    .spectator-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Spectator chat bubble ── */
+    .chat-bubble-spectator {
+      align-self: flex-start;
+      background: #1a2035;
+      border: 1px solid #3a3a7a;
+      border-radius: 2px 8px 8px 8px;
+    }
   </style>
 </head>
 <body>

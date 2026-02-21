@@ -43,6 +43,10 @@ export class DialogueLog {
     window.addEventListener('prompt-system-message', ((e: CustomEvent) => {
       this.addSystemMessage(e.detail.text);
     }) as EventListener);
+
+    window.addEventListener('spectator-command', ((e: CustomEvent) => {
+      this.addSpectatorCommand(e.detail.name, e.detail.color, e.detail.text, e.detail.isOwn ?? false);
+    }) as EventListener);
   }
 
   /** Agent speech or thought — called from UIScene */
@@ -98,6 +102,41 @@ export class DialogueLog {
     bubble.appendChild(header);
 
     // Body
+    this.appendBodyWithTruncation(bubble, text);
+
+    this.container.appendChild(bubble);
+    this.entryCount++;
+    this.scrollToBottom();
+  }
+
+  /** Spectator command bubble — right-aligned for self (isOwn), left for others. */
+  addSpectatorCommand(name: string, color: number, text: string, isOwn: boolean): void {
+    this.pruneOldEntries();
+
+    const bubble = document.createElement('div');
+    bubble.className = isOwn
+      ? 'chat-bubble chat-bubble-player'
+      : 'chat-bubble chat-bubble-spectator';
+
+    const header = document.createElement('div');
+    header.className = 'chat-bubble-header';
+    if (isOwn) {
+      header.style.justifyContent = 'flex-end';
+    }
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'chat-agent-name';
+    nameEl.style.color = hexColor(color);
+    nameEl.textContent = isOwn ? '[You]' : `[${name}]`;
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'chat-timestamp';
+    timeEl.textContent = formatTime(Date.now());
+
+    header.appendChild(nameEl);
+    header.appendChild(timeEl);
+    bubble.appendChild(header);
+
     this.appendBodyWithTruncation(bubble, text);
 
     this.container.appendChild(bubble);
