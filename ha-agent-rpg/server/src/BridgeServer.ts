@@ -1193,7 +1193,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
 
     // Generate map if not yet cached on the node
     if (!node.map) {
-      const depth = targetPath.split('/').length;
+      const depth = targetPath === '' ? 0 : targetPath.split('/').length;
       const result = this.mapGenerator.generateFolderMap(node, depth);
       node.map = result.map;
       node.objects = result.objects;
@@ -1268,7 +1268,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
 
     // Generate map if not cached
     if (!node.map) {
-      const depth = targetPath.split('/').length;
+      const depth = targetPath === '' ? 0 : targetPath.split('/').length;
       const result = this.mapGenerator.generateFolderMap(node, depth);
       node.map = result.map;
       node.objects = result.objects;
