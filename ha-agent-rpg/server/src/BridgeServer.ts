@@ -308,6 +308,15 @@ export class BridgeServer {
       }
     }
 
+    // Derive tool list from agent's MCP server type
+    const session = this.sessionManager?.getSession(agentId);
+    const hasBrainstormTools = session?.config.processContext != null;
+    const tools = session
+      ? (hasBrainstormTools
+        ? ['PostFindings', 'UpdateKnowledge', 'CompleteStage']
+        : ['SummonAgent', 'RequestHelp', 'PostFindings', 'UpdateKnowledge', 'ClaimQuest', 'CompleteQuest'])
+      : [];
+
     this.send(ws, {
       type: 'agent:details',
       agent_id: agentId,
@@ -327,6 +336,7 @@ export class BridgeServer {
         thoughts: thoughts.slice(-50),
         actions: actions.slice(-50),
       },
+      tools,
     });
   }
 

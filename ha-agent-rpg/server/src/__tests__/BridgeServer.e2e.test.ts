@@ -427,6 +427,27 @@ describe('BridgeServer E2E', () => {
       const detailMessages = client.messages.filter((m) => m.type === 'agent:details');
       expect(detailMessages).toHaveLength(0);
     });
+
+    it('returns tools array in agent:details response', async () => {
+      const client = await connect();
+
+      client.send({
+        type: 'agent:register',
+        agent_id: 'test-agent-tools',
+        name: 'Tools Agent',
+        color: 0x00ff00,
+      });
+      await client.waitForMessage((m) => m.type === 'agent:joined');
+
+      client.send({
+        type: 'player:get-agent-details',
+        agent_id: 'test-agent-tools',
+      });
+
+      const details = await client.waitForMessage((m) => m.type === 'agent:details');
+      expect(details.tools).toBeDefined();
+      expect(Array.isArray(details.tools)).toBe(true);
+    });
   });
 
   describe('Fog-of-War', () => {
