@@ -1,4 +1,6 @@
-import { getRedisClient } from './RedisClient.js';
+import { getRedisClient, isRedisAvailable } from './RedisClient.js';
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
 
 export interface Finding {
   id: string;
@@ -10,20 +12,47 @@ export interface Finding {
   timestamp: string;
 }
 
+/**
+ * FindingsBoard stores agent findings.
+ * Uses Redis when available; falls back to a JSON file on disk.
+ */
 export class FindingsBoard {
-  private key: string;
+  private redisKey: string;
+  private jsonPath: string;
+  private findings: Finding[] = [];
+  private useRedis = false;
 
   constructor(sessionId: string) {
-    // sessionId is the repoPath or session identifier — hash it into a safe Redis key
     const safe = sessionId.replace(/[^a-zA-Z0-9_\-]/g, '_');
-    this.key = `session:${safe}:findings`;
+    this.redisKey = `session:${safe}:findings`;
+    this.jsonPath = join(sessionId, '.agent-rpg', 'findings', 'board.json');
   }
 
-  // No-op: Redis needs no explicit load step
-  async load(): Promise<void> {}
+  async load(): Promise<void> {
+    this.useRedis = await isRedisAvailable();
 
-  // No-op: every write goes straight to Redis
-  async save(): Promise<void> {}
+    if (this.useRedis) {
+      // Redis handles persistence — nothing to preload
+      return;
+    }
+
+    // JSON fallback: load from disk
+    try {
+      const raw = await readFile(this.jsonPath, 'utf-8');
+      this.findings = JSON.parse(raw) as Finding[];
+    } catch {
+      this.findings = [];
+    }
+  }
+
+  async save(): Promise<void> {
+    if (this.useRedis) return;
+
+    // JSON fallback: persist to disk
+    const dir = join(this.jsonPath, '..');
+    await mkdir(dir, { recursive: true });
+    await writeFile(this.jsonPath, JSON.stringify(this.findings, null, 2));
+  }
 
   async addFinding(finding: Omit<Finding, 'id' | 'timestamp'>): Promise<Finding> {
     const entry: Finding = {
@@ -31,18 +60,31 @@ export class FindingsBoard {
       id: `finding_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       timestamp: new Date().toISOString(),
     };
-    await getRedisClient().rpush(this.key, JSON.stringify(entry));
+
+    if (this.useRedis) {
+      await getRedisClient().rpush(this.redisKey, JSON.stringify(entry));
+    } else {
+      this.findings.push(entry);
+      await this.save();
+    }
+
     return entry;
   }
 
   async getAll(): Promise<Finding[]> {
-    const items = await getRedisClient().lrange(this.key, 0, -1);
-    return items.map((s) => JSON.parse(s) as Finding);
+    if (this.useRedis) {
+      const items = await getRedisClient().lrange(this.redisKey, 0, -1);
+      return items.map((s) => JSON.parse(s) as Finding);
+    }
+    return [...this.findings];
   }
 
   async getRecent(limit = 20): Promise<Finding[]> {
-    const items = await getRedisClient().lrange(this.key, -limit, -1);
-    return items.map((s) => JSON.parse(s) as Finding);
+    if (this.useRedis) {
+      const items = await getRedisClient().lrange(this.redisKey, -limit, -1);
+      return items.map((s) => JSON.parse(s) as Finding);
+    }
+    return this.findings.slice(-limit);
   }
 
   async getSummary(): Promise<string> {

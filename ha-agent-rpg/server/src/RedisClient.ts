@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 
 let client: Redis | null = null;
+let available: boolean | null = null;
 
 export function getRedisClient(): Redis {
   if (!client) {
@@ -8,14 +9,46 @@ export function getRedisClient(): Redis {
       host: process.env.REDIS_HOST ?? 'localhost',
       port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
       password: process.env.REDIS_PASSWORD,
-      lazyConnect: false,
-      retryStrategy: (times) => Math.min(times * 100, 3000),
+      lazyConnect: true,
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        if (times > 3) return null; // stop retrying
+        return Math.min(times * 100, 1000);
+      },
     });
 
     client.on('connect', () => console.log('[Redis] Connected'));
-    client.on('error', (err) => console.error('[Redis] Error:', err.message));
+    client.on('error', () => {
+      // Suppress repeated connection errors — availability is tracked via isRedisAvailable()
+    });
   }
   return client;
+}
+
+/**
+ * Checks whether a Redis server is reachable.
+ * Result is cached for the lifetime of the process.
+ */
+export async function isRedisAvailable(): Promise<boolean> {
+  if (available !== null) return available;
+
+  try {
+    const redis = getRedisClient();
+    await redis.connect();
+    await redis.ping();
+    available = true;
+    console.log('[Redis] Available — using Redis for persistence');
+  } catch {
+    available = false;
+    console.log('[Redis] Not available — falling back to JSON file persistence');
+    // Disconnect the failed client so it doesn't keep retrying
+    if (client) {
+      try { client.disconnect(); } catch { /* ignore */ }
+      client = null;
+    }
+  }
+
+  return available;
 }
 
 export async function closeRedisClient(): Promise<void> {
