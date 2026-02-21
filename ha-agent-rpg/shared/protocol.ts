@@ -407,9 +407,9 @@ export interface ServerInfoMessage {
  */
 export interface StartProcessMessage {
   type: 'player:start-process';
-  /** The brainstorming problem. Optional if repoInput is provided. */
+  /** The brainstorming problem statement. Pass an empty string if repoInput is provided instead. */
   problem: string;
-  /** Optional template ID; defaults to "standard_brainstorm" */
+  /** Optional template ID from PROCESS_TEMPLATES; defaults to "standard_brainstorm" */
   processId?: string;
   /** GitHub HTTPS URL or absolute local path to a codebase (optional). */
   repoInput?: string;
