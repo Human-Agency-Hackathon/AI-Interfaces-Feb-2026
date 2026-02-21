@@ -7,9 +7,11 @@ import { JoinScreen } from './screens/JoinScreen';
 import { PromptBar } from './panels/PromptBar';
 import { MiniMap } from './panels/MiniMap';
 import { QuestLog } from './panels/QuestLog';
+import { StageProgressBar } from './panels/StageProgressBar';
 import type {
   RepoReadyMessage,
   ProcessStartedMessage,
+  StageAdvancedMessage,
   AgentJoinedMessage,
   AgentActivityMessage,
   FindingsPostedMessage,
@@ -71,6 +73,13 @@ ws.on('process:started', (msg) => {
   const data = msg as unknown as ProcessStartedMessage;
   console.log(`[Process] "${data.problem}" — stage: ${data.currentStageName}`);
   startGame();
+  // Set initial stage on progress bar after game starts
+  if (stageProgressBar) {
+    stageProgressBar.setInitialStage(data.currentStageName, data.totalStages);
+  }
+  window.dispatchEvent(new CustomEvent('stage-announcement', {
+    detail: { text: `Brainstorm started: "${data.problem}". Stage: ${data.currentStageName}` },
+  }));
 });
 
 // Legacy flow: repo ready (kept for backwards compatibility during transition)
@@ -83,6 +92,10 @@ ws.on('repo:ready', (_msg) => {
 ws.on('agent:joined', (msg) => {
   const data = msg as unknown as AgentJoinedMessage;
   console.log(`[Agent Joined] ${data.agent.name} (${data.agent.role}) — realm: ${data.agent.realm}`);
+  // Broadcast so UIScene and DialogueLog can show display names instead of raw IDs
+  window.dispatchEvent(new CustomEvent('agent-joined', {
+    detail: { agentId: data.agent.agent_id, name: data.agent.name, color: data.agent.color },
+  }));
 });
 
 // Agent activity updates
@@ -91,10 +104,28 @@ ws.on('agent:activity', (msg) => {
   console.log(`[Activity] ${data.agent_id}: ${data.activity}`);
 });
 
-// Findings posted
+// Findings posted — surface to DialogueLog
 ws.on('findings:posted', (msg) => {
   const data = msg as unknown as FindingsPostedMessage;
   console.log(`[Finding] ${data.agent_name} (${data.severity}): ${data.finding}`);
+  window.dispatchEvent(new CustomEvent('findings-posted', {
+    detail: { agent_name: data.agent_name, finding: data.finding },
+  }));
+});
+
+// Stage advanced — update progress bar and announce in dialogue
+ws.on('stage:advanced', (msg) => {
+  const data = msg as unknown as StageAdvancedMessage;
+  console.log(`[Stage] ${data.fromStageName} -> ${data.toStageName ?? 'DONE'}`);
+  if (stageProgressBar) {
+    stageProgressBar.advance(data.toStageName, data.stageIndex, data.totalStages);
+  }
+  const announcement = data.toStageName
+    ? `Stage complete: ${data.fromStageName}. Entering: ${data.toStageName}...`
+    : `Session complete! Final stage "${data.fromStageName}" finished.`;
+  window.dispatchEvent(new CustomEvent('stage-announcement', {
+    detail: { text: announcement },
+  }));
 });
 
 // Handle errors from server
@@ -155,6 +186,7 @@ let promptBar: PromptBar | null = null;
 let miniMap: MiniMap | null = null;
 let questLog: QuestLog | null = null;
 let joinScreen: JoinScreen | null = null;
+let stageProgressBar: StageProgressBar | null = null;
 
 // Spectator state
 let mySpectatorId: string | null = null;
@@ -249,6 +281,10 @@ function startGame(): void {
   if (!phaserGame) {
     phaserGame = new Phaser.Game(gameConfig);
   }
+
+  // Stage progress bar at top of sidebar
+  if (stageProgressBar) stageProgressBar.destroy();
+  stageProgressBar = new StageProgressBar('sidebar');
 
   // Add spectator list panel to sidebar (before quest-log)
   if (!document.getElementById('spectator-panel')) {
@@ -379,6 +415,12 @@ function stopGame(): void {
   if (promptBar) {
     promptBar.destroy();
     promptBar = null;
+  }
+
+  // Destroy stage progress bar
+  if (stageProgressBar) {
+    stageProgressBar.destroy();
+    stageProgressBar = null;
   }
 
   // Remove spectator panel and server info

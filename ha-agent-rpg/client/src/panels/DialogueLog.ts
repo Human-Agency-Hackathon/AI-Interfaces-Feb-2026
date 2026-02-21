@@ -47,6 +47,14 @@ export class DialogueLog {
     window.addEventListener('spectator-command', ((e: CustomEvent) => {
       this.addSpectatorCommand(e.detail.name, e.detail.color, e.detail.text, e.detail.isOwn ?? false);
     }) as EventListener);
+
+    window.addEventListener('findings-posted', ((e: CustomEvent) => {
+      this.addFinding(e.detail.agent_name, e.detail.finding);
+    }) as EventListener);
+
+    window.addEventListener('stage-announcement', ((e: CustomEvent) => {
+      this.addStageAnnouncement(e.detail.text);
+    }) as EventListener);
   }
 
   /** Agent speech or thought — called from UIScene */
@@ -157,6 +165,48 @@ export class DialogueLog {
     body.style.whiteSpace = 'pre-wrap';
 
     bubble.appendChild(body);
+    this.container.appendChild(bubble);
+    this.entryCount++;
+    this.scrollToBottom();
+  }
+
+  /** Findings posted by an agent during brainstorm */
+  addFinding(agentName: string, finding: string): void {
+    this.pruneOldEntries();
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble chat-bubble-finding';
+
+    const header = document.createElement('div');
+    header.className = 'chat-bubble-header';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'chat-agent-name';
+    nameEl.textContent = agentName;
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'chat-timestamp';
+    timeEl.textContent = formatTime(Date.now());
+
+    header.appendChild(nameEl);
+    header.appendChild(timeEl);
+    bubble.appendChild(header);
+
+    this.appendBodyWithTruncation(bubble, finding);
+
+    this.container.appendChild(bubble);
+    this.entryCount++;
+    this.scrollToBottom();
+  }
+
+  /** Stage transition announcement */
+  addStageAnnouncement(text: string): void {
+    this.pruneOldEntries();
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble chat-bubble-stage-announce';
+    bubble.textContent = text;
+
     this.container.appendChild(bubble);
     this.entryCount++;
     this.scrollToBottom();

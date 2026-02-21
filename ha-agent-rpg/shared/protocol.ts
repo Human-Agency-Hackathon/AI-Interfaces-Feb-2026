@@ -387,6 +387,8 @@ export interface ProcessStartedMessage {
   currentStageId: string;
   /** Display name of the first stage */
   currentStageName: string;
+  /** Total number of stages in the process */
+  totalStages: number;
 }
 
 /** Sent when the current stage ends and the next one begins. */

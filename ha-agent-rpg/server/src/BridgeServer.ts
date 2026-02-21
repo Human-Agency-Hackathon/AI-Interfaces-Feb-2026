@@ -298,6 +298,7 @@ export class BridgeServer {
         processName: template.name,
         currentStageId: firstStage.id,
         currentStageName: firstStage.name,
+        totalStages: template.stages.length,
       });
 
       this.gamePhase = 'playing';

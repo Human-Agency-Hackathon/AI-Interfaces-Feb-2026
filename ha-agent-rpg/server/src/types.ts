@@ -381,6 +381,7 @@ export interface ProcessStartedMessage {
   processName: string;
   currentStageId: string;
   currentStageName: string;
+  totalStages: number;
 }
 
 export interface StageAdvancedMessage {

@@ -881,6 +881,17 @@
       width: 100%;
     }
 
+    /* ── Stage announcement bubble (dialogue log) ── */
+    .chat-bubble-stage-announce {
+      background: #1a1a3a;
+      border: 1px solid #3a3a6a;
+      text-align: center;
+      padding: 0.5rem;
+      font-size: 0.7rem;
+      color: #9999cc;
+      font-style: italic;
+    }
+
     /* ── Spectator Panel (sidebar) ── */
     .spectator-panel {
       border-top: 1px solid #1a1a3a;
@@ -927,6 +938,63 @@
       background: #1a2035;
       border: 1px solid #3a3a7a;
       border-radius: 2px 8px 8px 8px;
+    }
+
+    /* ── Finding bubble ── */
+    .chat-bubble-finding {
+      align-self: flex-start;
+      background: #1a1a10;
+      border: 1px solid #4a4a20;
+      border-left: 3px solid #ccaa44;
+      border-radius: 2px 8px 8px 8px;
+    }
+
+    /* ── Stage Progress Banner (StageProgressBar component) ── */
+    .stage-progress-bar {
+      padding: 0.4rem 0.75rem;
+      background: #0d0d22;
+      border-bottom: 2px solid #2a2a5a;
+      flex-shrink: 0;
+    }
+
+    .stage-progress-label {
+      font-size: 0.78rem;
+      color: #e8e8ff;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+    }
+
+    .stage-progress-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stage-progress-track {
+      flex: 1;
+      height: 3px;
+      background: #1a1a3a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .stage-progress-fill {
+      height: 100%;
+      background: linear-gradient(to right, #4a6aff, #8a44cc);
+      transition: width 0.6s ease;
+      border-radius: 2px;
+    }
+
+    .stage-progress-fill.stage-progress-complete {
+      background: #44cc66;
+    }
+
+    .stage-progress-text {
+      font-size: 0.6rem;
+      color: #6a8aff;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
     }
 
     /* ── Server Info (LAN address) ── */
