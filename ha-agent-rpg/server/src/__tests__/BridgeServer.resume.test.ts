@@ -254,4 +254,43 @@ describe('BridgeServer resume', () => {
       expect((server as any).agentCurrentPath.size).toBe(0);
     });
   });
+
+  describe('autoLoadLastRealm()', () => {
+    it('does nothing when no lastActiveRealmId is set', async () => {
+      // gamePhase starts as 'onboarding' — should stay that way
+      await (server as any).autoLoadLastRealm();
+      expect((server as any).gamePhase).toBe('onboarding');
+    });
+
+    it('does nothing when lastActiveRealmId points to a missing realm', async () => {
+      (server as any).realmRegistry.setLastActiveRealmId('nonexistent');
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await (server as any).autoLoadLastRealm();
+      expect((server as any).gamePhase).toBe('onboarding');
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('not found in registry'));
+      warnSpy.mockRestore();
+    });
+
+    it('falls back to onboarding when worldStatePersistence.load returns null', async () => {
+      // Add a realm to registry so it's found
+      const realm = {
+        id: 'test_realm',
+        path: '/tmp/test-project',
+        name: 'test-project',
+        displayName: 'test-project',
+        lastExplored: '2026-02-21T10:00:00Z',
+        gitInfo: { lastCommitSha: 'abc', branch: 'main', remoteUrl: null },
+        stats: { totalFiles: 1, languages: ['TS'], agentsUsed: 1, findingsCount: 0, questsTotal: 0, questsCompleted: 0 },
+        mapSnapshot: { rooms: 1, tileWidth: 60, tileHeight: 50 },
+      };
+      (server as any).realmRegistry.saveRealm(realm);
+      (server as any).realmRegistry.setLastActiveRealmId('test_realm');
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await (server as any).autoLoadLastRealm();
+      expect((server as any).gamePhase).toBe('onboarding');
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('no saved state'));
+      warnSpy.mockRestore();
+    });
+  });
 });
