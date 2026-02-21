@@ -11,15 +11,15 @@
  *   - activity: fades after 3s delay + 1s fade
  */
 
-const BUBBLE_MAX_WIDTH = 200;
-const BUBBLE_PADDING = 8;
-const BUBBLE_OFFSET_Y = -45;  // above sprite
-const BUBBLE_GAP = 4;
-const MAX_TEXT_LENGTH = 100;
-const TAIL_SIZE = 6;
-const NAME_FONT_SIZE = '8px';
-const TEXT_FONT_SIZE = '9px';
-const ACTIVITY_FONT_SIZE = '8px';
+const BUBBLE_MAX_WIDTH = 64;
+const BUBBLE_PADDING = 4;
+const BUBBLE_OFFSET_Y = -30;  // above sprite
+const BUBBLE_GAP = 3;
+const MAX_TEXT_LENGTH = 40;
+const TAIL_SIZE = 4;
+const NAME_FONT_SIZE = '6px';
+const TEXT_FONT_SIZE = '7px';
+const ACTIVITY_FONT_SIZE = '6px';
 
 // Fade timings per type (ms)
 const FADE_CONFIG: Record<BubbleType, { delay: number; duration: number } | null> = {
@@ -237,7 +237,7 @@ export class SpeechBubbleManager {
 
     // Background
     const bgW = Math.min(textObj.width + BUBBLE_PADDING * 2, BUBBLE_MAX_WIDTH);
-    const bgH = textObj.height + BUBBLE_PADDING * 2 + 10; // +10 for name tag space
+    const bgH = textObj.height + BUBBLE_PADDING * 2 + 6; // +10 for name tag space
     const bg = this.scene.add.rectangle(x, bubbleY, bgW, bgH, style.bgColor, style.bgAlpha)
       .setStrokeStyle(1, style.strokeColor)
       .setDepth(25);
@@ -336,7 +336,7 @@ export class SpeechBubbleManager {
 
     // Resize bg
     const bgW = Math.min(state.text.width + BUBBLE_PADDING * 2, BUBBLE_MAX_WIDTH);
-    const bgH = state.text.height + BUBBLE_PADDING * 2 + 10;
+    const bgH = state.text.height + BUBBLE_PADDING * 2 + 6;
     state.bg.setSize(bgW, bgH);
     state.bg.setPosition(x, bubbleY);
     state.bg.setFillStyle(style.bgColor, style.bgAlpha);
