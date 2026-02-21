@@ -27,13 +27,14 @@ Each team member owns a domain. Respect these boundaries; use the Bulletin Board
 
 This repo is the umbrella for "Agent Dungeon": a visual interface that renders AI sub-agents as characters in a classic JRPG. The main codebase lives in `ha-agent-rpg/`. Project docs live in `docs/`.
 
-See `docs/BRIEF.md` for the full project brief and `docs/ARCHITECTURE.md` for system architecture.
+See `docs/BRIEF.md` for the full project brief, `docs/ARCHITECTURE.md` for system architecture, and `docs/diagrams/` for visual Mermaid diagrams of all key flows.
 
 ## Repo Structure
 
 ```
 AI-Interfaces-Feb-2026/
 ├── docs/                    # Project documentation (BRIEF.md, ARCHITECTURE.md)
+│   └── diagrams/            # Mermaid flow diagrams (READ AT SESSION START)
 ├── ha-agent-rpg/            # Main codebase
 │   ├── shared/protocol.ts   # Canonical message types (source of truth)
 │   ├── server/src/          # Bridge server (TypeScript, WebSocket, port 3001)
@@ -96,6 +97,26 @@ This is a hackathon. Commit and push early and often. Do not accumulate large ch
 
 - **Viewing**: All markdown is authored for Obsidian. Obsidian is the document viewer for this project.
 - **Diagrams**: Always use Mermaid. Never use ASCII art diagrams. Prefer vertical orientation (`graph TD`, top-down) over horizontal (`graph LR`) as it reads better in Obsidian's narrow panes. Sequence diagrams and state diagrams are naturally vertical and fine as-is.
+
+### System Diagrams (`docs/diagrams/`)
+
+**Read these at session start.** `docs/diagrams/` contains Mermaid diagram documents covering all key flows. Read the ones relevant to your work before making changes:
+
+| Document | Read if you're working on... |
+|----------|------------------------------|
+| `system-overview.md` | Anything (start here for orientation) |
+| `agent-lifecycle.md` | Agent spawning, session management, shutdown, AgentSessionManager |
+| `agent-communication.md` | Findings board, inter-agent messaging, system prompts, knowledge vaults |
+| `brainstorm-process.md` | ProcessController, stage transitions, brainstorm skill, personas |
+| `client-rendering.md` | Phaser scenes, UI panels, WebSocket handlers, screen flow |
+| `data-persistence.md` | Redis, knowledge vaults, realm registry, transcript logs |
+
+**Keep diagrams up to date.** Diagrams are living documentation, not a one-time artifact. Follow these rules:
+
+- **When you change a flow**, update the corresponding diagram. If you modify how agents spawn, update `agent-lifecycle.md`. If you add a new message type, update `system-overview.md`. If you change the brainstorm stages, update `brainstorm-process.md`. The diagram should match the code; stale diagrams are worse than no diagrams.
+- **When you add a new subsystem or major feature**, add a diagram for it. Either add a section to an existing diagram doc or create a new file in `docs/diagrams/`. Update `docs/diagrams/README.md` to include it.
+- **When you notice a diagram is wrong**, fix it immediately. Don't leave it for someone else. If you're reading a diagram and the code doesn't match, the diagram is the one that's wrong; update it to reflect reality.
+- **Scope**: You don't need to diagram every helper function. Diagram the flows that cross module boundaries: message routing, event chains, lifecycle transitions, data flow between subsystems. If a new agent session would need to understand it to do their work, it belongs in a diagram.
 
 ## Key Conventions
 
