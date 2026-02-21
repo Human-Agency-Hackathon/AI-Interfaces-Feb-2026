@@ -462,8 +462,279 @@ export const DEEP_BRAINSTORM: ProcessDefinition = {
   ],
 };
 
+/**
+ * Six Thinking Hats — Edward de Bono's parallel thinking method.
+ *
+ * Stage 1: All 6 hats contribute their perspective in parallel (1 turn each).
+ * Stage 2: Blue Hat synthesizes all perspectives and calls CompleteStage when done.
+ */
+export const SIX_THINKING_HATS: ProcessDefinition = {
+  id: 'six_thinking_hats',
+  name: 'Six Thinking Hats',
+  description: "Edward de Bono's parallel thinking method: six role-players each wear a different colored hat (facts, emotions, caution, optimism, creativity, process) to explore a problem from every angle before synthesizing.",
+
+  roles: [
+    {
+      id: 'white_hat',
+      name: 'White Hat',
+      persona: 'You present only verifiable facts and data. No opinions, no speculation.',
+      color: '#FFFFFF',
+    },
+    {
+      id: 'red_hat',
+      name: 'Red Hat',
+      persona: 'You share gut feelings and emotional reactions without justification.',
+      color: '#FF3333',
+    },
+    {
+      id: 'black_hat',
+      name: 'Black Hat',
+      persona: 'You identify risks, problems, and reasons why ideas might fail.',
+      color: '#333333',
+    },
+    {
+      id: 'yellow_hat',
+      name: 'Yellow Hat',
+      persona: 'You find the best-case scenario and articulate the value of ideas.',
+      color: '#FFD700',
+    },
+    {
+      id: 'green_hat',
+      name: 'Green Hat',
+      persona: 'You generate new ideas and alternatives without judgment.',
+      color: '#32CD32',
+    },
+    {
+      id: 'blue_hat',
+      name: 'Blue Hat',
+      persona: 'You manage the thinking process, summarize, and call CompleteStage when the round is done.',
+      color: '#4A90D9',
+    },
+  ],
+
+  stages: [
+    {
+      id: 'hats_round',
+      name: 'Hats Round',
+      goal: 'Each hat contributes one focused perspective on the problem: White Hat shares facts, Red Hat shares feelings, Black Hat flags risks, Yellow Hat identifies value, Green Hat proposes new ideas, Blue Hat observes and keeps track of the process. All perspectives are captured before any synthesis.',
+      roles: ['white_hat', 'red_hat', 'black_hat', 'yellow_hat', 'green_hat', 'blue_hat'],
+      turnStructure: { type: 'parallel' },
+      completionCriteria: { type: 'turn_count', turns: 1 },
+      artifacts: [
+        {
+          id: 'hat_perspectives',
+          label: 'Hat Perspectives',
+          producedBy: 'all',
+        },
+      ],
+    },
+    {
+      id: 'blue_hat_synthesis',
+      name: 'Blue Hat Synthesis',
+      goal: 'The Blue Hat synthesizes all six perspectives into a coherent summary: what the facts say, what emotions signal, what risks to watch, what value exists, and what new ideas emerged. Produce a concise action-oriented conclusion and signal stage completion when done.',
+      roles: ['blue_hat'],
+      turnStructure: { type: 'single', role: 'blue_hat' },
+      completionCriteria: { type: 'explicit_signal' },
+      artifacts: [
+        {
+          id: 'synthesis_summary',
+          label: 'Blue Hat Synthesis',
+          producedBy: 'blue_hat',
+        },
+      ],
+    },
+  ],
+};
+
+/**
+ * SCAMPER — a structured ideation checklist.
+ *
+ * Stage 1: 7 roles each apply one SCAMPER lens in parallel (1 turn each).
+ * Stage 2: Synthesizer integrates the best ideas from all lenses.
+ */
+export const SCAMPER: ProcessDefinition = {
+  id: 'scamper',
+  name: 'SCAMPER',
+  description: 'A structured ideation checklist: seven lenses (Substitute, Combine, Adapt, Modify, Put to other uses, Eliminate, Reverse) applied in parallel, then synthesized into the strongest ideas.',
+
+  roles: [
+    {
+      id: 'substituter',
+      name: 'Substituter',
+      persona: 'You ask: What can be substituted? Explore replacing components, materials, people, processes, or rules with something else.',
+      color: '#FF6B35',
+    },
+    {
+      id: 'combiner',
+      name: 'Combiner',
+      persona: 'You ask: What can be combined? Look for ways to merge ideas, purposes, units, or appeals for a new outcome.',
+      color: '#FFD700',
+    },
+    {
+      id: 'adaptor',
+      name: 'Adaptor',
+      persona: 'You ask: What can be adapted from elsewhere? Find analogous solutions from other domains, industries, or contexts that could transfer here.',
+      color: '#32CD32',
+    },
+    {
+      id: 'modifier',
+      name: 'Modifier',
+      persona: 'You ask: What can be magnified, minimized, or modified? Explore changes in size, shape, frequency, strength, or any other attribute.',
+      color: '#4A90D9',
+    },
+    {
+      id: 'put_to_other_uses',
+      name: 'Put-to-Other-Uses',
+      persona: 'You ask: How can this be used differently? Find new markets, audiences, or applications for an existing idea or resource.',
+      color: '#9370DB',
+    },
+    {
+      id: 'eliminator',
+      name: 'Eliminator',
+      persona: 'You ask: What can be removed or simplified? Look for components, steps, or features that could be stripped away to reveal the essential core.',
+      color: '#DC143C',
+    },
+    {
+      id: 'reverser',
+      name: 'Reverser',
+      persona: 'You ask: What if we reversed or rearranged it? Flip the order, invert assumptions, or turn the problem upside down to find unexpected solutions.',
+      color: '#DEB887',
+    },
+    {
+      id: 'synthesizer',
+      name: 'Synthesizer',
+      persona: 'You identify the strongest ideas across all seven SCAMPER lenses and weave them into a concise, actionable recommendation. You prioritize ideas with the highest originality and feasibility.',
+      color: '#20B2AA',
+    },
+  ],
+
+  stages: [
+    {
+      id: 'scamper_ideation',
+      name: 'SCAMPER Ideation',
+      goal: 'Each agent applies their assigned SCAMPER lens to the problem and generates at least 3-5 concrete ideas from that perspective. All agents work in parallel — do not filter or evaluate yet, just generate.',
+      roles: ['substituter', 'combiner', 'adaptor', 'modifier', 'put_to_other_uses', 'eliminator', 'reverser'],
+      turnStructure: { type: 'parallel' },
+      completionCriteria: { type: 'turn_count', turns: 1 },
+      artifacts: [
+        {
+          id: 'scamper_ideas',
+          label: 'SCAMPER Ideas',
+          producedBy: 'all',
+        },
+      ],
+    },
+    {
+      id: 'scamper_synthesis',
+      name: 'Synthesis',
+      goal: 'Review all ideas from the seven SCAMPER lenses. Identify the top 3-5 ideas with the most promise. For each, explain why it stands out and what a concrete next step would look like. Signal stage completion when done.',
+      roles: ['synthesizer'],
+      turnStructure: { type: 'single', role: 'synthesizer' },
+      completionCriteria: { type: 'explicit_signal' },
+      artifacts: [
+        {
+          id: 'scamper_synthesis_output',
+          label: 'SCAMPER Synthesis',
+          producedBy: 'synthesizer',
+        },
+      ],
+    },
+  ],
+};
+
+/**
+ * RAPID_FIRE — a fast 3-stage template for time-constrained sessions.
+ *
+ * Stage 1: Spark  — 2 ideators post 5 ideas each fast (parallel, 1 turn).
+ * Stage 2: Pick   — 1 critic picks the top 3 and explains why (single, 1 turn).
+ * Stage 3: Go     — 1 executor turns the winner into a concrete action plan (single, explicit_signal).
+ */
+export const RAPID_FIRE: ProcessDefinition = {
+  id: 'rapid_fire',
+  name: 'Rapid Fire',
+  description: 'A fast 3-stage template for time-constrained sessions: two ideators spark 5 ideas each simultaneously, a critic picks the top 3, and an executor builds a concrete action plan around the winner.',
+
+  roles: [
+    {
+      id: 'ideator_a',
+      name: 'Ideator A',
+      persona: 'You post exactly 5 ideas as fast as possible — numbered, one sentence each. No hedging, no explanation. Raw speed is the goal.',
+      color: '#FF6B35',
+    },
+    {
+      id: 'ideator_b',
+      name: 'Ideator B',
+      persona: 'You post exactly 5 ideas as fast as possible — numbered, one sentence each. No hedging, no explanation. Raw speed is the goal.',
+      color: '#FFD700',
+    },
+    {
+      id: 'critic',
+      name: 'Critic',
+      persona: 'You read all ideas from the Spark stage and pick the top 3. For each, give one sentence explaining why it made the cut. Be decisive — no ties.',
+      color: '#DC143C',
+    },
+    {
+      id: 'executor',
+      name: 'Executor',
+      persona: 'You take the top-ranked idea and turn it into a concrete action plan: what to do first, who does it, what success looks like in 1 week. Be specific and actionable. Signal stage completion when done.',
+      color: '#32CD32',
+    },
+  ],
+
+  stages: [
+    {
+      id: 'spark',
+      name: 'Spark',
+      goal: 'Both ideators simultaneously post 5 ideas each — fast, raw, and unfiltered. No discussion, no elaboration. Just get ideas on the board.',
+      roles: ['ideator_a', 'ideator_b'],
+      turnStructure: { type: 'parallel' },
+      completionCriteria: { type: 'turn_count', turns: 1 },
+      artifacts: [
+        {
+          id: 'spark_ideas',
+          label: 'Spark Ideas',
+          producedBy: 'all',
+        },
+      ],
+    },
+    {
+      id: 'pick',
+      name: 'Pick',
+      goal: 'The Critic reads all 10 ideas from the Spark stage and selects the top 3. For each pick, provide one clear sentence explaining why it made the cut over the others.',
+      roles: ['critic'],
+      turnStructure: { type: 'single', role: 'critic' },
+      completionCriteria: { type: 'turn_count', turns: 1 },
+      artifacts: [
+        {
+          id: 'top_picks',
+          label: 'Top 3 Picks',
+          producedBy: 'critic',
+        },
+      ],
+    },
+    {
+      id: 'go',
+      name: 'Go',
+      goal: 'The Executor takes the top-ranked idea from the Pick stage and builds a concrete action plan: (1) the core idea restated in one sentence, (2) the first 3 steps to execute it, (3) who is responsible for each step, (4) what success looks like in one week. Signal stage completion when the plan is ready.',
+      roles: ['executor'],
+      turnStructure: { type: 'single', role: 'executor' },
+      completionCriteria: { type: 'explicit_signal' },
+      artifacts: [
+        {
+          id: 'action_plan',
+          label: 'Action Plan',
+          producedBy: 'executor',
+        },
+      ],
+    },
+  ],
+};
+
 /** All built-in templates, indexed by id */
 export const PROCESS_TEMPLATES: Record<string, ProcessDefinition> = {
   [STANDARD_BRAINSTORM.id]: STANDARD_BRAINSTORM,
   [DEEP_BRAINSTORM.id]: DEEP_BRAINSTORM,
+  [SIX_THINKING_HATS.id]: SIX_THINKING_HATS,
+  [SCAMPER.id]: SCAMPER,
+  [RAPID_FIRE.id]: RAPID_FIRE,
 };
