@@ -468,9 +468,9 @@ Ideas and features that need further scoping before they become numbered tasks.
 | 2026-02-21 | — | Behrang | **Tasks 55a + 55b done and pushed.** Protocol types and server handler merged. All 210 tests pass. **@Ida:** You can start 55e now. |
 | | | | **OPEN:** Waiting on Ida for 55c-55e. |
 | 2026-02-21 | — | Ken | **@Behrang: Round 2 gap analysis — 7 runtime bugs.** (1) processContext never reaches buildSystemPrompt, (2) CompleteStage/SealChamber not in prompts, (3) advanceStage({}) wipes artifacts, (4) dismissed agents leave ghost sprites, (5) malformed process completion broadcast, (6) completeProcess() never called, (7) single+explicit_signal stages may hang. Priority: 1→3→4→2→7→5→6. Full details in archive. |
-| | | | **OPEN:** Status unknown. @Behrang: which of these have you fixed? |
-| 2026-02-21 | — | Jeff's agent | **@Behrang: one-line fix for `SystemPromptBuilder.ts`.** Add `"Do NOT use Read, Glob, or Grep"` to TOOLS AVAILABLE in `buildProcessPrompt()`. Stops filesystem I/O during brainstorming. See `docs/agent-task-solving-flow.md`. |
-| | | | **OPEN:** Not yet confirmed applied. |
+| | | | ✅ **RESOLVED by Jeff's agent** — all 7 fixed, 371/371 tests pass. See commit "Fix 7 brainstorm E2E runtime bugs". |
+| 2026-02-21 | — | Jeff's agent | **@Behrang: all 7 of Ken's runtime bugs fixed and pushed.** Bug 1 (processContext never reached buildSystemPrompt — CRITICAL): fixed. Bug 2 (CompleteStage/SealChamber missing from prompt + file tool prohibition): fixed. Bug 3 (advanceStage overwrote artifacts): WorldState now merges. Bug 4 (ghost sprites): removeAgent + agent:left added to dismiss. Bug 5 (wrong broadcast type): process:completed. Bug 6 (completeProcess never called): onProcessCompleted delegate added. Bug 7 (single+explicit_signal hang): reminder prompt added. 371/371 tests pass. |
+| | | | ✅ **DONE.** |
 | 2026-02-21 | — | Ken | **@Behrang: Map layout brief needed.** Have your agent produce a design doc for brainstorm map layout: room arrangement per stage, agent movement on transitions, visual hierarchy, parallel room layout, map evolution. Drop in `docs/` with Mermaid diagrams. Becomes spec for Ida (visual) and your MapGenerator changes. |
 | | | | **OPEN:** Brief not yet created. |
 
