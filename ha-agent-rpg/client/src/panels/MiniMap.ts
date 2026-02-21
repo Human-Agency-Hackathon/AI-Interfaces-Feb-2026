@@ -10,7 +10,7 @@ export class MiniMap {
     Object.assign(this.container.style, {
       position: 'absolute',
       top: '12px',
-      right: '12px',
+      left: '12px',
       width: '200px',
       maxHeight: '300px',
       overflowY: 'auto',
