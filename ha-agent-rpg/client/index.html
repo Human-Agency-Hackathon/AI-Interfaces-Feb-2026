@@ -1059,6 +1059,97 @@
       white-space: nowrap;
     }
 
+    /* ── In-game Toast Notifications (Task 24/25) ── */
+    #toast-container {
+      position: absolute;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      pointer-events: none;
+      min-width: 260px;
+      max-width: 480px;
+    }
+    .toast {
+      background: #0d0d22;
+      border: 1px solid #3a3a6a;
+      border-radius: 3px;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.7rem;
+      color: #c8c8e8;
+      letter-spacing: 0.04em;
+      opacity: 0;
+      animation: toast-in 0.2s ease forwards, toast-out 0.3s ease 3.7s forwards;
+      pointer-events: auto;
+    }
+    .toast.toast-error {
+      border-color: #cc4444;
+      color: #ff8888;
+    }
+    .toast.toast-warn {
+      border-color: #aa8800;
+      color: #ffcc44;
+    }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toast-out {
+      from { opacity: 1; }
+      to   { opacity: 0; }
+    }
+
+    /* ── Process Loading Overlay (Task 26) ── */
+    #process-loading-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 5, 18, 0.82);
+      z-index: 150;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    #process-loading-overlay.visible {
+      display: flex;
+    }
+    .loading-spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid #2a2a5a;
+      border-top-color: #6a8aff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-label {
+      font-size: 0.7rem;
+      color: #6a8aff;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    #reconnect-banner {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #5a3a00;
+      color: #ffcc44;
+      font-size: 0.65rem;
+      text-align: center;
+      padding: 0.3rem;
+      letter-spacing: 0.08em;
+      z-index: 400;
+    }
+    #reconnect-banner.visible { display: block; }
+
     /* ── Session Complete Overlay ── */
     #session-complete-overlay {
       display: none;
@@ -1159,6 +1250,18 @@
 
   <!-- Game Viewport (Phaser + Sidebar) -->
   <div id="game-viewport" class="screen-hidden">
+    <!-- Reconnect banner (Task 25) -->
+    <div id="reconnect-banner">&#9888; Connection lost — reconnecting...</div>
+
+    <!-- Toast container (Task 24/25) -->
+    <div id="toast-container"></div>
+
+    <!-- Process loading overlay (Task 26) -->
+    <div id="process-loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-label" id="loading-label">Starting brainstorm...</div>
+    </div>
+
     <!-- Session complete overlay — shown when process:completed fires -->
     <div id="session-complete-overlay">
       <div class="session-complete-card">

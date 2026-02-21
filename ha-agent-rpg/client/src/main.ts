@@ -34,6 +34,28 @@ const wsHost = window.location.hostname || 'localhost';
 const ws = new WebSocketClient(`ws://${wsHost}:3001`);
 ws.connect();
 
+// ── Toast notifications (Task 24/25) ──
+function showToast(message: string, type: 'error' | 'warn' | 'info' = 'info'): void {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast${type === 'error' ? ' toast-error' : type === 'warn' ? ' toast-warn' : ''}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4200);
+}
+
+// ── Loading overlay helpers (Task 26) ──
+function showLoadingOverlay(label = 'Starting brainstorm...'): void {
+  const el = document.getElementById('process-loading-overlay');
+  const lbl = document.getElementById('loading-label');
+  if (lbl) lbl.textContent = label;
+  el?.classList.add('visible');
+}
+function hideLoadingOverlay(): void {
+  document.getElementById('process-loading-overlay')?.classList.remove('visible');
+}
+
 // ── Screen instances ──
 let splashScreen: SplashScreen;
 let setupScreen: SetupScreen;
@@ -54,6 +76,8 @@ setupScreen = new SetupScreen(
     pendingIdentity = setupScreen.getIdentity();
     setupScreen.showLoading();
     ws.send({ type: 'player:start-process', problem });
+    // Show in-game loading overlay once game viewport is visible (Task 26)
+    setTimeout(() => showLoadingOverlay('Spawning agents...'), 100);
   },
   () => {
     setupScreen.hide();
@@ -68,6 +92,7 @@ ws.on('process:started', (msg) => {
   const data = msg as unknown as ProcessStartedMessage;
   console.log(`[Process] "${data.problem}" — stage: ${data.currentStageName}`);
   startGame(pendingIdentity ?? { name: 'Spectator', color: 0xc45a28 });
+  showLoadingOverlay('Spawning agents...');
   // Set initial stage on progress bar after game starts
   if (stageProgressBar) {
     stageProgressBar.setInitialStage(data.currentStageName, data.totalStages);
@@ -83,8 +108,9 @@ ws.on('repo:ready', (_msg) => {
   startGame(pendingIdentity ?? { name: 'Spectator', color: 0xc45a28 });
 });
 
-// When an agent joins during gameplay
+// When an agent joins during gameplay — clear loading overlay (Task 26)
 ws.on('agent:joined', (msg) => {
+  hideLoadingOverlay();
   const data = msg as unknown as AgentJoinedMessage;
   console.log(`[Agent Joined] ${data.agent.name} (${data.agent.role}) — realm: ${data.agent.realm}`);
   // Broadcast so UIScene and DialogueLog can show display names instead of raw IDs
@@ -147,10 +173,36 @@ ws.on('process:completed', (msg) => {
   }, { once: true });
 });
 
-// Handle errors from server
+// Handle errors from server (Task 24)
+// During gameplay: show an in-game toast. During setup: show in the form.
 ws.on('error', (msg) => {
   const data = msg as unknown as ErrorMessage;
-  setupScreen.showError(data.message);
+  if (gameStarted) {
+    showToast(data.message, 'error');
+  } else {
+    hideLoadingOverlay();
+    setupScreen.showError(data.message);
+  }
+});
+
+// Agent activity — surface agent errors as toasts during gameplay (Task 25)
+ws.on('agent:activity', (msg) => {
+  const data = msg as unknown as AgentActivityMessage;
+  if (gameStarted && data.activity?.startsWith('Error:')) {
+    showToast(`Agent error: ${data.activity.slice(7)}`, 'warn');
+  }
+});
+
+// WebSocket reconnect banner (Task 25)
+ws.on('ws:disconnected', () => {
+  if (gameStarted) {
+    document.getElementById('reconnect-banner')?.classList.add('visible');
+    showLoadingOverlay('Reconnecting...');
+  }
+});
+ws.on('ws:connected', () => {
+  document.getElementById('reconnect-banner')?.classList.remove('visible');
+  if (gameStarted) hideLoadingOverlay();
 });
 
 // Quest updates from world state
@@ -399,8 +451,10 @@ function startGame(identity: SetupIdentity): void {
 function stopGame(): void {
   gameStarted = false;
 
-  // Dismiss completion overlay if visible
+  // Dismiss overlays
   document.getElementById('session-complete-overlay')?.classList.remove('visible');
+  hideLoadingOverlay();
+  document.getElementById('reconnect-banner')?.classList.remove('visible');
 
   // Hide game viewport
   const viewport = document.getElementById('game-viewport')!;
