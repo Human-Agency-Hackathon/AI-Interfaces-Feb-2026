@@ -316,6 +316,23 @@ export class GameScene extends Phaser.Scene {
     if (!sharedWs) {
       this.wsClient.connect();
     }
+
+    // Replay any buffered messages that arrived before this scene was ready.
+    // The server sends world:state immediately after process:started, but Phaser
+    // needs time to boot (BootScene textures → GameScene create). main.ts buffers
+    // these early messages in the registry so we can replay them now.
+    const bufferedState = this.registry.get('bufferedWorldState') as Record<string, unknown> | undefined;
+    if (bufferedState) {
+      this.registry.remove('bufferedWorldState');
+      this.wsClient.emit('world:state', bufferedState);
+    }
+    const bufferedJoins = this.registry.get('bufferedAgentJoins') as Record<string, unknown>[] | undefined;
+    if (bufferedJoins) {
+      this.registry.remove('bufferedAgentJoins');
+      for (const join of bufferedJoins) {
+        this.wsClient.emit('agent:joined', join);
+      }
+    }
   }
 
   /** Called by Phaser when the scene shuts down (e.g. game.destroy()) */

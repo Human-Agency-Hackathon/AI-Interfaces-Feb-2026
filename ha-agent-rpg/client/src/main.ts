@@ -46,6 +46,20 @@ function showToast(message: string, type: 'error' | 'warn' | 'info' = 'info'): v
 }
 
 
+// ── Buffer early messages that arrive before GameScene is ready ──
+// The server sends world:state and agent:joined right after process:started,
+// but Phaser's BootScene/GameScene take time to initialize. Buffer them here
+// and pass via the game registry so GameScene can replay on create().
+let bufferedWorldState: Record<string, unknown> | null = null;
+const bufferedAgentJoins: Record<string, unknown>[] = [];
+
+ws.on('world:state', (msg) => {
+  bufferedWorldState = msg;
+});
+ws.on('agent:joined', (msg) => {
+  bufferedAgentJoins.push(msg);
+});
+
 // ── Screen instances ──
 let splashScreen: SplashScreen;
 let setupScreen: SetupScreen;
@@ -318,10 +332,16 @@ function startGame(identity: SetupIdentity): void {
   viewport.style.display = 'flex';
   viewport.classList.remove('screen-hidden');
 
-  // Launch Phaser and share the WebSocketClient via registry
+  // Launch Phaser and share the WebSocketClient + buffered messages via registry
   if (!phaserGame) {
     phaserGame = new Phaser.Game(gameConfig);
     phaserGame.registry.set('wsClient', ws);
+    if (bufferedWorldState) {
+      phaserGame.registry.set('bufferedWorldState', bufferedWorldState);
+    }
+    if (bufferedAgentJoins.length > 0) {
+      phaserGame.registry.set('bufferedAgentJoins', [...bufferedAgentJoins]);
+    }
   }
 
   // Stage progress bar at top of sidebar
