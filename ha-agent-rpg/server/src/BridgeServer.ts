@@ -551,7 +551,8 @@ export class BridgeServer {
       this.worldState.setProcessState(processState);
 
       // Generate fog-of-war overworld (120×120) with forts for all agents across all stages
-      const allRoleIds = [...new Set(template.stages.flatMap(s => s.roles))];
+      // BiomeGenerator caps at 8 radial forts, so limit to first 8 unique role IDs
+      const allRoleIds = [...new Set(template.stages.flatMap(s => s.roles))].slice(0, 8);
       const fogResult = this.mapGenerator.generateFogMap(allRoleIds);
       this.worldState.setMap(fogResult.map);
       this.worldState.initFogMap(fogResult.map.width, fogResult.map.height);
@@ -559,7 +560,7 @@ export class BridgeServer {
       this.agentFortAssignments = fogResult.fortPositions;
       // Set fort positions on worldState so updateFortStage can broadcast them
       for (const [id, pos] of fogResult.fortPositions) {
-        this.worldState.setFortPosition(id, pos.x, pos.y);
+        if (pos) this.worldState.setFortPosition(id, pos.x, pos.y);
       }
       // Reveal tiles around the Oracle center
       const oracleRevealed = this.worldState.revealTiles(60, 60, 8);
@@ -659,10 +660,16 @@ export class BridgeServer {
         this.broadcast({ type: 'agent:joined', agent });
 
         // Set initial fort stage (campfire) and assign movement target toward fort
-        this.updateFortStage(entry.agentId, 1);
         const fortPos = this.agentFortAssignments.get(entry.agentId);
         if (fortPos) {
+          this.updateFortStage(entry.agentId, 1);
           this.agentMovementTargets.set(entry.agentId, fortPos);
+        } else {
+          // Agent beyond 8-fort cap: wander near Oracle
+          this.agentMovementTargets.set(entry.agentId, {
+            x: ORACLE_X + Math.floor(Math.random() * 20) - 10,
+            y: ORACLE_Y + Math.floor(Math.random() * 20) - 10,
+          });
         }
       }
 
