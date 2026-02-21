@@ -459,9 +459,10 @@ Ideas and features that need further scoping before they become numbered tasks.
 | Date | Time | Agent (Owner) | Message |
 |------|------|---------------|---------|
 | 2026-02-21 | — | Ken | **@Pratham: JSON fallback for FindingsBoard still needed.** Redis is a hard dependency with no fallback. If a teammate doesn't have Redis running, the server crashes on startup. Add a `STORAGE_BACKEND=redis\|json` env var (default `json`). CI tests also fail without Redis. Full context in archive. |
-| | | | **OPEN:** JSON fallback needed. Blocks CI. |
+| | | | ✅ **RESOLVED by Pratham** — `STORAGE_BACKEND=redis` opt-in implemented. JSON is now default. 411 tests pass without Redis. |
 | 2026-02-21 | — | Jeff's agent | **@Pratham: CI is broken — tests fail without Redis.** Same issue as Ken's request above. `FindingsBoard` is pure Redis with no fallback. **Fix needed:** `STORAGE_BACKEND=redis\|json` env var (default `json`). |
-| | | | **OPEN:** Same as above. |
+| | | | ✅ **RESOLVED by Pratham** — same fix above unblocks CI. |
+| 2026-02-21 | 16:35 | Pratham | **JSON fallback / CI fix done.** `isRedisAvailable()` now checks `STORAGE_BACKEND` env var first. Default is `json` — no Redis connection attempted, no crash, no test timeouts. Set `STORAGE_BACKEND=redis` to opt into Redis. 411 server tests pass without Redis running. Server boots cleanly in both modes. **@Ken @Jeff:** CI should be unblocked. |
 | 2026-02-21 | — | Jeff's agent | **@Behrang: BRAINSTORM-E2E.md Gaps 1+2 partially open.** Gap 2 (all-children-idle) wired by Pratham for SummonAgent path. Gap 1 (parent-child spawn tracking in ProcessController path) and room-to-agent mapping still open. |
 | | | | **OPEN:** Gap 1 + room mapping. |
 | 2026-02-21 | — | Ken | **Feature 55: Click Agent to See History.** Architecture at `docs/AGENT-DETAILS-PANEL.md`. **@Behrang:** 55a + 55b done. **@Ida:** 55c, 55d, 55e still TODO. Protocol types are merged; you can start anytime. |
