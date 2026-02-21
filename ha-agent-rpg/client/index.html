@@ -383,6 +383,106 @@
       gap: 0.4rem;
     }
 
+    /* ── Agent Details Panel ── */
+    #agent-details-panel {
+      overflow-y: auto;
+      border-bottom: 2px solid #2a2a5a;
+      background: #0d0d20;
+      transition: max-height 0.3s ease;
+      max-height: 60%;
+      flex-shrink: 0;
+    }
+    #agent-details-panel.agent-details-hidden {
+      display: none;
+    }
+    .agent-details-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0.75rem;
+      background: #151530;
+      border-bottom: 1px solid #2a2a5a;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .agent-details-name {
+      font-family: monospace;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+    .agent-details-role {
+      font-family: monospace;
+      font-size: 0.7rem;
+      color: #8888aa;
+    }
+    .agent-details-close {
+      cursor: pointer;
+      color: #888;
+      font-size: 1rem;
+      background: none;
+      border: none;
+      padding: 0.2rem 0.4rem;
+    }
+    .agent-details-close:hover {
+      color: #ff6644;
+    }
+    .agent-details-section {
+      border-bottom: 1px solid #1a1a3a;
+    }
+    .agent-details-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #aaaacc;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      user-select: none;
+    }
+    .agent-details-section-header:hover {
+      background: #1a1a35;
+    }
+    .agent-details-section-toggle {
+      font-size: 0.6rem;
+      transition: transform 0.2s;
+    }
+    .agent-details-section.collapsed .agent-details-section-toggle {
+      transform: rotate(-90deg);
+    }
+    .agent-details-section-body {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 0 0.75rem 0.4rem;
+    }
+    .agent-details-section.collapsed .agent-details-section-body {
+      display: none;
+    }
+    .agent-details-item {
+      font-family: monospace;
+      font-size: 0.7rem;
+      color: #ccccdd;
+      padding: 0.2rem 0;
+      border-bottom: 1px solid #12122a;
+      line-height: 1.4;
+      word-wrap: break-word;
+    }
+    .agent-details-item-time {
+      font-size: 0.6rem;
+      color: #666688;
+      margin-left: 0.3rem;
+    }
+    .agent-details-loading {
+      padding: 1rem;
+      text-align: center;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #666688;
+    }
+
     /* ── Chat Bubbles ── */
     .chat-bubble {
       max-width: 90%;
@@ -989,6 +1089,7 @@
   <div id="game-viewport" class="screen-hidden">
     <div id="game-container"></div>
     <div id="sidebar">
+      <div id="agent-details-panel" class="agent-details-hidden"></div>
       <div id="dialogue-log"></div>
       <div id="quest-log" style="display:none; overflow-y:auto; flex:0 0 auto; max-height:40%; border-top:1px solid #2a2a5a; padding:0.5rem;"></div>
       <div id="settings-panel" style="display:none; padding: 1rem; border-top: 1px solid #2a2a5a;">
