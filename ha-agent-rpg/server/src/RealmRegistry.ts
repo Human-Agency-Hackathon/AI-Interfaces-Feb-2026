@@ -2,12 +2,13 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { RealmEntry } from './types.js';
+import type { IRealmRegistry } from './interfaces/index.js';
 
 interface RealmRegistryData {
   realms: RealmEntry[];
 }
 
-export class RealmRegistry {
+export class RealmRegistry implements IRealmRegistry {
   private realms: RealmEntry[] = [];
   private filePath: string;
 

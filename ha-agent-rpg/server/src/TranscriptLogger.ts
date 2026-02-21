@@ -6,8 +6,9 @@
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { sanitizePathComponent } from './PathSafety.js';
+import type { ITranscriptLogger } from './interfaces/index.js';
 
-export class TranscriptLogger {
+export class TranscriptLogger implements ITranscriptLogger {
   private repoPath: string;
   private dateStr: string;
 

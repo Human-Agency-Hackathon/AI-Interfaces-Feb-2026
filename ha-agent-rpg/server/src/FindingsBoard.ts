@@ -2,6 +2,7 @@ import { getRedisClient, isRedisAvailable } from './RedisClient.js';
 import { redisPubSub } from './RedisPubSub.js';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
+import type { IFindingsBoard } from './interfaces/index.js';
 
 export interface Finding {
   id: string;
@@ -17,7 +18,7 @@ export interface Finding {
  * FindingsBoard stores agent findings.
  * Uses Redis when available; falls back to a JSON file on disk.
  */
-export class FindingsBoard {
+export class FindingsBoard implements IFindingsBoard {
   private redisKey: string;
   private jsonPath: string;
   private findings: Finding[] = [];

@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { sanitizePathComponent } from './PathSafety.js';
+import type { IKnowledgeVault } from './interfaces/index.js';
 
 export interface AgentKnowledge {
   agent_id: string;
@@ -14,7 +15,7 @@ export interface AgentKnowledge {
   files_analyzed: string[];
 }
 
-export class KnowledgeVault {
+export class KnowledgeVault implements IKnowledgeVault {
   private knowledge: AgentKnowledge;
   private filePath: string;
 
