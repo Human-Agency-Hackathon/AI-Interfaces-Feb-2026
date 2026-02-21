@@ -198,6 +198,10 @@ export class GameScene extends Phaser.Scene {
       this.events.emit('realm-tree', data.root);
     });
 
+    this.wsClient.on('agent:details', (msg) => {
+      this.scene.get('UIScene').events.emit('agent-details-loaded', msg);
+    });
+
     // Player nav door clicks
     this.events.on('nav-click', (obj: MapObject) => {
       if (obj.type === 'nav_door') {
@@ -330,6 +334,17 @@ export class GameScene extends Phaser.Scene {
       if (this.cameraController) {
         this.cameraController.panTo(sprite.getX(), sprite.getY(), agent.agent_id);
       }
+      // Request agent details from server
+      this.wsClient.send({
+        type: 'player:get-agent-details',
+        agent_id: agent.agent_id,
+      });
+      // Tell UIScene to show loading state
+      this.scene.get('UIScene').events.emit('show-agent-details', {
+        agent_id: agent.agent_id,
+        name: agent.name,
+        color: agent.color,
+      });
     });
   }
 

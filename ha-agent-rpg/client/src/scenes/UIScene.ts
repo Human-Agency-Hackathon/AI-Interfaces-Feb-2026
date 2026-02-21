@@ -1,12 +1,14 @@
 import { DialogueLog } from '../panels/DialogueLog';
+import { AgentDetailsPanel } from '../panels/AgentDetailsPanel';
 import type { DialogueData } from '../systems/DialogueSystem';
-import type { AgentThoughtMessage, AgentActivityMessage } from '../types';
+import type { AgentThoughtMessage, AgentActivityMessage, AgentDetailsMessage } from '../types';
 
 export class UIScene extends Phaser.Scene {
   private dialogueLog!: DialogueLog;
   private statusText!: Phaser.GameObjects.Text;
   /** Maps agent_id → { name, color } so thought/activity bubbles show display names */
   private agentInfo = new Map<string, { name: string; color: number }>();
+  private agentDetailsPanel!: AgentDetailsPanel;
 
   constructor() {
     super({ key: 'UIScene', active: true });
@@ -40,6 +42,17 @@ export class UIScene extends Phaser.Scene {
     this.events.on('show-dialogue', this.onShowDialogue, this);
     this.events.on('agent-thought', this.onAgentThought, this);
     this.events.on('agent-activity', this.onAgentActivity, this);
+
+    // Agent details panel
+    this.agentDetailsPanel = new AgentDetailsPanel('agent-details-panel');
+
+    this.events.on('show-agent-details', (data: { agent_id: string; name: string; color: number }) => {
+      this.agentDetailsPanel.show(data.agent_id, data.name, data.color);
+    });
+
+    this.events.on('agent-details-loaded', (data: AgentDetailsMessage) => {
+      this.agentDetailsPanel.populateData(data);
+    });
   }
 
   private onShowDialogue(data: DialogueData): void {
