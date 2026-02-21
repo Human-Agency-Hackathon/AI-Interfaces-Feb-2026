@@ -54,6 +54,7 @@ interface ActiveSession {
   abortController: AbortController;
   status: 'starting' | 'running' | 'idle' | 'stopped';
   pendingPrompts: string[];
+  autoSaveInterval: ReturnType<typeof setInterval>;
 }
 
 const PERMISSION_MAP: Record<
@@ -118,12 +119,18 @@ export class AgentSessionManager extends EventEmitter {
 
     const abortController = new AbortController();
 
+    // Periodic auto-save: flush vault every 60 s so a crash loses ≤ 1 min of knowledge
+    const autoSaveInterval = setInterval(() => {
+      vault.save().catch(() => { /* best-effort */ });
+    }, 60_000);
+
     const session: ActiveSession = {
       config,
       vault,
       abortController,
       status: 'starting',
       pendingPrompts: [],
+      autoSaveInterval,
     };
 
     this.sessions.set(config.agentId, session);
@@ -169,6 +176,7 @@ export class AgentSessionManager extends EventEmitter {
       return;
     }
 
+    clearInterval(session.autoSaveInterval);
     session.abortController.abort();
     session.status = 'stopped';
 

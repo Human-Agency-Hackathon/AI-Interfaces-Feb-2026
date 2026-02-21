@@ -37,6 +37,7 @@ import { LocalTreeReader, type LocalRepoData } from './LocalTreeReader.js';
 import { TranscriptLogger } from './TranscriptLogger.js';
 import { join } from 'node:path';
 import { networkInterfaces } from 'node:os';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { RealmRegistry } from './RealmRegistry.js';
 import { WorldStatePersistence } from './WorldStatePersistence.js';
 import { GitHelper } from './GitHelper.js';
@@ -94,6 +95,7 @@ export class BridgeServer {
     permission_level: 'read-only',
     autonomy_mode: 'supervised',
   };
+  private settingsFilePath: string;
 
   constructor(port: number) {
     this.port = port;
@@ -103,10 +105,14 @@ export class BridgeServer {
     const agentRpgHome = join(process.env.HOME ?? '/tmp', '.agent-rpg-global');
     this.realmRegistry = new RealmRegistry(agentRpgHome);
     this.worldStatePersistence = new WorldStatePersistence(agentRpgHome);
+    this.settingsFilePath = join(agentRpgHome, '.agent-rpg', 'settings.json');
 
-    // Load realm registry on startup
+    // Load realm registry and persisted settings on startup
     this.realmRegistry.load().catch((err) => {
       console.error('[Bridge] Failed to load realm registry:', err);
+    });
+    this.loadSettings().catch((err) => {
+      console.error('[Bridge] Failed to load settings:', err);
     });
 
     // Initialise Redis pub/sub (fire-and-forget — degrades gracefully if unavailable)
@@ -899,6 +905,25 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
   private handleUpdateSettings(_ws: WebSocket, msg: UpdateSettingsMessage): void {
     this.settings = { ...this.settings, ...msg.settings };
     console.log('[Bridge] Settings updated:', this.settings);
+    this.saveSettings().catch((err) => {
+      console.error('[Bridge] Failed to persist settings:', err);
+    });
+  }
+
+  private async loadSettings(): Promise<void> {
+    try {
+      const raw = await readFile(this.settingsFilePath, 'utf-8');
+      const saved = JSON.parse(raw) as Partial<SessionSettings>;
+      this.settings = { ...this.settings, ...saved };
+      console.log('[Bridge] Settings loaded from disk:', this.settings);
+    } catch {
+      // File not found or parse error — use defaults
+    }
+  }
+
+  private async saveSettings(): Promise<void> {
+    await mkdir(join(this.settingsFilePath, '..'), { recursive: true });
+    await writeFile(this.settingsFilePath, JSON.stringify(this.settings, null, 2), 'utf-8');
   }
 
   // ── Agent Dismissal ──
