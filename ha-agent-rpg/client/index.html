@@ -1163,38 +1163,6 @@
       to   { opacity: 0; }
     }
 
-    /* ── Process Loading Overlay (Task 26) ── */
-    #process-loading-overlay {
-      display: none;
-      position: absolute;
-      inset: 0;
-      background: rgba(5, 5, 18, 0.82);
-      z-index: 150;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    #process-loading-overlay.visible {
-      display: flex;
-    }
-    .loading-spinner {
-      width: 28px;
-      height: 28px;
-      border: 2px solid #2a2a5a;
-      border-top-color: #6a8aff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    .loading-label {
-      font-size: 0.7rem;
-      color: #6a8aff;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
     #reconnect-banner {
       display: none;
       position: absolute;
@@ -1316,12 +1284,6 @@
 
     <!-- Toast container (Task 24/25) -->
     <div id="toast-container"></div>
-
-    <!-- Process loading overlay (Task 26) -->
-    <div id="process-loading-overlay">
-      <div class="loading-spinner"></div>
-      <div class="loading-label" id="loading-label">Starting brainstorm...</div>
-    </div>
 
     <!-- Session complete overlay — shown when process:completed fires -->
     <div id="session-complete-overlay">

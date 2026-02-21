@@ -34,17 +34,17 @@ export class AgentSprite {
     this.logicalY = py;
 
     // Shadow ellipse under feet (enlarged to match scaled sprite)
-    this.shadow = scene.add.ellipse(px, py + 10, 22, 8, 0x000000, 0.3)
+    this.shadow = scene.add.ellipse(px, py + 14, 28, 10, 0x000000, 0.3)
       .setDepth(9);
 
-    // Character sprite (shifted up slightly from tile center, scaled 1.5× for visibility)
-    this.sprite = scene.add.image(px, py - 2, textureKey)
+    // Character sprite (shifted up slightly from tile center, scaled 2.5× for visibility)
+    this.sprite = scene.add.image(px, py - 6, textureKey)
       .setDepth(10)
-      .setScale(1.5);
+      .setScale(2.5);
 
     // Name label with stroke for readability
-    this.nameLabel = scene.add.text(px, py - 18, agent.name, {
-      fontSize: '10px',
+    this.nameLabel = scene.add.text(px, py - 28, agent.name, {
+      fontSize: '11px',
       fontFamily: 'monospace',
       color: '#ffffff',
       stroke: '#000000',
@@ -54,12 +54,12 @@ export class AgentSprite {
 
     // Status dot
     this.statusDot = scene.add.circle(
-      px + this.nameLabel.width / 2 + 6, py - 18, 3, 0x888888,
+      px + this.nameLabel.width / 2 + 6, py - 28, 3, 0x888888,
     ).setDepth(12);
 
     // Role label
-    this.roleLabel = scene.add.text(px, py + 16, agent.role || '', {
-      fontSize: '8px',
+    this.roleLabel = scene.add.text(px, py + 20, agent.role || '', {
+      fontSize: '9px',
       fontFamily: 'monospace',
       color: '#aaaacc',
       stroke: '#000000',
@@ -215,13 +215,13 @@ export class AgentSprite {
 
     // Character sprite
     this.scene.tweens.add({
-      targets: this.sprite, x: targetX, y: targetY - 2, duration: dur, ease,
+      targets: this.sprite, x: targetX, y: targetY - 6, duration: dur, ease,
     });
 
-    // Walk squash-bounce (relative to the 1.5× base scale)
+    // Walk squash-bounce (relative to the 2.5× base scale)
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleY: { from: 1.5, to: 1.32 },
+      scaleY: { from: 2.5, to: 2.2 },
       duration: dur / 2,
       yoyo: true,
       ease: 'Sine.easeInOut',
@@ -229,26 +229,26 @@ export class AgentSprite {
 
     // Shadow
     this.scene.tweens.add({
-      targets: this.shadow, x: targetX, y: targetY + 10, duration: dur, ease,
+      targets: this.shadow, x: targetX, y: targetY + 14, duration: dur, ease,
     });
 
     // Name label
     this.scene.tweens.add({
-      targets: this.nameLabel, x: targetX, y: targetY - 18, duration: dur, ease,
+      targets: this.nameLabel, x: targetX, y: targetY - 28, duration: dur, ease,
     });
 
     // Status dot
     this.scene.tweens.add({
       targets: this.statusDot,
       x: targetX + this.nameLabel.width / 2 + 6,
-      y: targetY - 18,
+      y: targetY - 28,
       duration: dur,
       ease,
     });
 
     // Role label
     this.scene.tweens.add({
-      targets: this.roleLabel, x: targetX, y: targetY + 16, duration: dur, ease,
+      targets: this.roleLabel, x: targetX, y: targetY + 20, duration: dur, ease,
     });
   }
 
@@ -311,7 +311,7 @@ export class AgentSprite {
   playIdle(): void {
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleY: 1.38,  // relative to 1.5× base scale
+      scaleY: 2.3,  // relative to 2.5× base scale
       duration: 200,
       yoyo: true,
       ease: 'Sine.easeInOut',
