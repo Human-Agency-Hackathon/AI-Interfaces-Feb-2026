@@ -1085,12 +1085,15 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
 
       this.gamePhase = 'playing';
 
-      // Check if a brainstorm process was running when state was saved
+      // ── S5: Process-aware resume ──────────────────────────────────────────
       const processState = this.worldState.getProcessState();
       if (processState && processState.status === 'running') {
         const template = PROCESS_TEMPLATES[processState.processId];
         if (template) {
-          // Restore ProcessController from saved state (silent — no events emitted)
+          // Restore active realm ID so scheduleSave() keeps writing
+          this.activeRealmId = msg.realm_id;
+
+          // Reconstruct ProcessController from saved turn counts (no start() — would reset counts)
           this.processController = ProcessController.fromJSON(
             processState,
             template,
@@ -1098,17 +1101,31 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
           );
           this.wireProcessControllerEvents(this.processController);
 
+          const currentStage = template.stages[processState.currentStageIndex];
+          const problem = processState.problemStatement ?? processState.problem;
+
+          // Tell the client a process is resuming so it enters game mode
+          this.broadcast({
+            type: 'process:started',
+            processId: template.id,
+            processName: template.name,
+            problem,
+            currentStageId: currentStage?.id ?? '',
+            currentStageName: currentStage?.name ?? '',
+            totalStages: template.stages.length,
+          });
+
           // Respawn agents for the current stage with resume context
           await this.spawnProcessAgents(
             template,
             processState.currentStageIndex,
-            processState.problemStatement ?? processState.problem,
+            problem,
             { resumed: true },
           );
 
-          console.log(`[Bridge] Realm resumed with running process: ${realm.displayName} (stage ${processState.currentStageIndex})`);
+          console.log(`[Bridge] Process resumed: "${problem}" at stage "${currentStage?.name}" (${processState.currentStageIndex + 1}/${template.stages.length})`);
         } else {
-          console.warn(`[Bridge] Template "${processState.processId}" not found for resumed process, falling back to Oracle`);
+          console.warn(`[Bridge] Template "${processState.processId}" not found, falling back to Oracle`);
           await this.spawnOracle(realm.path);
           console.log(`[Bridge] Realm resumed (Oracle fallback): ${realm.displayName}`);
         }
