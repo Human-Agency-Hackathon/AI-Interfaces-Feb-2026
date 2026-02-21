@@ -1,5 +1,6 @@
 import { BridgeServer } from './BridgeServer.js';
 import { closeRedisClient } from './RedisClient.js';
+import { redisPubSub } from './RedisPubSub.js';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
@@ -7,6 +8,7 @@ const server = new BridgeServer(PORT);
 
 const shutdown = async () => {
   await server.close();
+  await redisPubSub.close();
   await closeRedisClient();
   process.exit(0);
 };

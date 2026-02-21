@@ -39,6 +39,7 @@ import { WorldStatePersistence } from './WorldStatePersistence.js';
 import { GitHelper } from './GitHelper.js';
 import { PROCESS_TEMPLATES, DEEP_BRAINSTORM, type ProcessDefinition, type StageDefinition } from './ProcessTemplates.js';
 import { ProcessController } from './ProcessController.js';
+import { redisPubSub } from './RedisPubSub.js';
 
 // Agent colors — auto-assigned in spawn order
 const AGENT_COLORS = [
@@ -81,6 +82,8 @@ export class BridgeServer {
   private spectatorSockets = new Map<string, WebSocket>();        // spectatorId → socket
   private spectatorInfo = new Map<string, SpectatorInfo>();       // spectatorId → identity
   private processController: ProcessController | null = null;
+  private spawnParent = new Map<string, string>();       // childId → parentId
+  private spawnChildren = new Map<string, Set<string>>(); // parentId → Set<childId>
   private settings: SessionSettings = {
     max_agents: 5,
     token_budget_usd: 2.0,
@@ -100,6 +103,11 @@ export class BridgeServer {
     // Load realm registry on startup
     this.realmRegistry.load().catch((err) => {
       console.error('[Bridge] Failed to load realm registry:', err);
+    });
+
+    // Initialise Redis pub/sub (fire-and-forget — degrades gracefully if unavailable)
+    redisPubSub.init().catch((err) => {
+      console.error('[Bridge] RedisPubSub init error:', err);
     });
 
     this.wss = new WebSocketServer({ port });
@@ -637,8 +645,8 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     realm: string;
     mission: string;
     priority: string;
-  }): Promise<void> {
-    if (!this.repoPath) return;
+  }): Promise<string | null> {
+    if (!this.repoPath) return null;
 
     const activeCount = this.sessionManager.getActiveAgentIds().length;
     if (activeCount >= this.settings.max_agents) {
@@ -649,7 +657,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
         agent_id: request.requestingAgent,
         activity: `Spawn request denied: max agents (${this.settings.max_agents}) reached`,
       });
-      return;
+      return null;
     }
 
     // Generate a safe agent ID
@@ -663,7 +671,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     // Check if already exists
     if (this.sessionManager.getActiveAgentIds().includes(agentId)) {
       console.log(`[Bridge] Spawn denied: agent "${agentId}" already active`);
-      return;
+      return null;
     }
 
     const color = this.nextColor();
@@ -705,6 +713,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     });
 
     console.log(`[Bridge] Agent spawned: ${agentId} (${request.name}, realm: ${request.realm})`);
+    return agentId;
   }
 
   // ── Player Commands ──
@@ -1037,6 +1046,37 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
           console.error('[Bridge] ProcessController error on agent idle:', err);
         });
       }
+
+      // Gap 2: if all siblings are idle, wake the parent with consolidated findings
+      const parentId = this.spawnParent.get(agentId);
+      if (parentId && this.sessionManager.getSession(parentId)?.status === 'idle') {
+        const siblings = this.spawnChildren.get(parentId) ?? new Set<string>();
+        const allIdle = siblings.size > 0 && [...siblings].every(
+          (id) => this.worldState.agents.get(id)?.status === 'idle',
+        );
+        if (allIdle) {
+          this.findingsBoard.getRecent(50).then((findings) => {
+            const summary = findings.map((f) => `[${f.agent_name}] ${f.finding}`).join('\n');
+            this.sessionManager.sendFollowUp(
+              parentId,
+              `All sub-agents have completed. Findings:\n\n${summary}\n\nContinue with the next phase.`,
+            ).catch((err) => {
+              console.error('[Bridge] Failed to send follow-up to parent:', err);
+            });
+            // Clean up tracking maps
+            siblings.forEach((id) => this.spawnParent.delete(id));
+            this.spawnChildren.delete(parentId);
+          }).catch((err) => {
+            console.error('[Bridge] Failed to get findings for parent follow-up:', err);
+          });
+        }
+      }
+
+      // Publish idle event to Redis pub/sub channel
+      redisPubSub.publish(
+        'agent:idle:broadcast',
+        JSON.stringify({ agentId, timestamp: new Date().toISOString() }),
+      ).catch(() => {});
     });
 
     // Agent was dismissed
@@ -1059,7 +1099,14 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
   private wireToolHandlerEvents(): void {
     // SummonAgent request
     this.toolHandler.on('summon:request', (request: any) => {
-      this.spawnRequestedAgent(request).catch((err) => {
+      this.spawnRequestedAgent(request).then((spawnedId) => {
+        if (spawnedId && request.requestingAgent) {
+          this.spawnParent.set(spawnedId, request.requestingAgent);
+          const children = this.spawnChildren.get(request.requestingAgent) ?? new Set<string>();
+          children.add(spawnedId);
+          this.spawnChildren.set(request.requestingAgent, children);
+        }
+      }).catch((err) => {
         console.error('[Bridge] Failed to spawn requested agent:', err);
       });
     });

@@ -51,6 +51,25 @@ export async function isRedisAvailable(): Promise<boolean> {
   return available;
 }
 
+/**
+ * Creates a fresh ioredis instance with the same config as the main client.
+ * Required for pub/sub subscriber mode — a subscribed client cannot issue
+ * regular commands, so it must use a dedicated connection.
+ */
+export function getRedisClientDuplicate(): Redis {
+  return new Redis({
+    host: process.env.REDIS_HOST ?? 'localhost',
+    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+    password: process.env.REDIS_PASSWORD,
+    lazyConnect: true,
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times) => {
+      if (times > 3) return null;
+      return Math.min(times * 100, 1000);
+    },
+  });
+}
+
 export async function closeRedisClient(): Promise<void> {
   if (client) {
     await client.quit();

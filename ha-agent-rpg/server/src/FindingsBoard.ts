@@ -1,4 +1,5 @@
 import { getRedisClient, isRedisAvailable } from './RedisClient.js';
+import { redisPubSub } from './RedisPubSub.js';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 
@@ -67,6 +68,9 @@ export class FindingsBoard {
       this.findings.push(entry);
       await this.save();
     }
+
+    // Broadcast finding to any pub/sub subscribers (no-op if Redis unavailable)
+    redisPubSub.publish('findings:broadcast', JSON.stringify(entry)).catch(() => {});
 
     return entry;
   }
