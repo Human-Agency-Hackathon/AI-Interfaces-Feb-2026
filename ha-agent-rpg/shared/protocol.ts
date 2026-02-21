@@ -285,6 +285,7 @@ export interface AgentDetailsMessage {
     thoughts: Array<{ text: string; timestamp: string }>;
     actions: Array<{ tool: string; input: string; timestamp: string }>;
   };
+  tools: string[];
 }
 
 export interface SessionSettings {
