@@ -19,23 +19,26 @@ const LOADING_MESSAGES = [
   'Lighting the torches\u2026',
   'Summoning your council of advisors\u2026',
   'Preparing the brainstorm chambers\u2026',
+  'Cloning the repository\u2026',
+  'Exploring the codebase\u2026',
 ];
 
 export class SetupScreen {
   private container: HTMLElement;
-  private onSubmit: (problem: string) => void;
+  private onSubmit: (problem: string, repoInput?: string) => void;
   private onBack: () => void;
 
   private formEl: HTMLElement | null = null;
   private nameInput: HTMLInputElement | null = null;
   private problemTextarea: HTMLTextAreaElement | null = null;
+  private repoInput: HTMLInputElement | null = null;
   private submitBtn: HTMLButtonElement | null = null;
   private loadingEl: HTMLElement | null = null;
   private errorArea: HTMLElement | null = null;
   private selectedColor = COLORS[Math.floor(Math.random() * COLORS.length)];
 
   constructor(
-    onSubmit: (problem: string) => void,
+    onSubmit: (problem: string, repoInput?: string) => void,
     onBack: () => void,
   ) {
     this.container = document.getElementById('setup-screen')!;
@@ -130,6 +133,24 @@ export class SetupScreen {
 
     this.formEl.appendChild(problemSection);
 
+    // ── Repo Section ──
+    const repoSection = document.createElement('div');
+    repoSection.className = 'setup-section';
+
+    const repoLabel = document.createElement('label');
+    repoLabel.className = 'setup-label';
+    repoLabel.textContent = 'GitHub URL or Local Folder Path (optional)';
+    repoSection.appendChild(repoLabel);
+
+    this.repoInput = document.createElement('input');
+    this.repoInput.type = 'text';
+    this.repoInput.className = 'rpg-input setup-repo-input';
+    this.repoInput.placeholder = 'e.g. https://github.com/owner/repo or /Users/alice/myproject';
+    this.repoInput.spellcheck = false;
+    repoSection.appendChild(this.repoInput);
+
+    this.formEl.appendChild(repoSection);
+
     // ── Submit Button ──
     const submitRow = document.createElement('div');
     submitRow.className = 'setup-submit-row';
@@ -204,18 +225,19 @@ export class SetupScreen {
 
     const name = this.nameInput.value.trim();
     const problem = this.problemTextarea.value.trim();
+    const repoInput = this.repoInput?.value.trim() || undefined;
 
     if (!name) {
       this.nameInput.focus();
       return;
     }
-    if (!problem) {
+    if (!problem && !repoInput) {
       this.problemTextarea.focus();
       return;
     }
 
     this.clearError();
-    this.onSubmit(problem);
+    this.onSubmit(problem, repoInput);
   }
 
   getIdentity(): SetupIdentity {
