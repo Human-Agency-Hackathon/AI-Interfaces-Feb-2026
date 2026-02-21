@@ -6,6 +6,7 @@ export class AgentSprite {
   private scene: Phaser.Scene;
   private sprite: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Ellipse;
+  private glow: Phaser.GameObjects.Arc;
   private nameLabel: Phaser.GameObjects.Text;
   private statusDot: Phaser.GameObjects.Arc;
   private roleLabel: Phaser.GameObjects.Text;
@@ -32,6 +33,19 @@ export class AgentSprite {
     const py = agent.y * TILE_SIZE + TILE_SIZE / 2;
     this.logicalX = px;
     this.logicalY = py;
+
+    // Glow aura for fog-of-war visibility and larger click target
+    this.glow = scene.add.circle(px, py, 24, agent.color, 0.3)
+      .setDepth(8);
+    scene.tweens.add({
+      targets: this.glow,
+      alpha: { from: 0.3, to: 0.12 },
+      scale: { from: 1, to: 1.4 },
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
 
     // Shadow ellipse under feet (enlarged to match scaled sprite)
     this.shadow = scene.add.ellipse(px, py + 14, 28, 10, 0x000000, 0.3)
@@ -196,11 +210,13 @@ export class AgentSprite {
 
   setInteractive(): this {
     this.sprite.setInteractive({ useHandCursor: true });
+    this.glow.setInteractive({ useHandCursor: true });
     return this;
   }
 
   on(event: string, fn: () => void): this {
     this.sprite.on(event, fn);
+    this.glow.on(event, fn);
     return this;
   }
 
@@ -225,6 +241,11 @@ export class AgentSprite {
       duration: dur / 2,
       yoyo: true,
       ease: 'Sine.easeInOut',
+    });
+
+    // Glow
+    this.scene.tweens.add({
+      targets: this.glow, x: targetX, y: targetY, duration: dur, ease,
     });
 
     // Shadow
@@ -365,6 +386,7 @@ export class AgentSprite {
 
   destroy(): void {
     this.sprite.destroy();
+    this.glow.destroy();
     this.shadow.destroy();
     this.nameLabel.destroy();
     this.statusDot.destroy();
