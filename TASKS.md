@@ -484,6 +484,7 @@ Ideas and features that need further scoping before they become numbered tasks.
 | | | | **Tier 2 (client localStorage + auto-resume) I'll handle.** Tasks C1-C3: save identity to localStorage, expand server:info, auto-resume on refresh. Blocked on S1 (server:info expansion). |
 | | | | **OPEN:** Waiting for @Behrang to start S1. |
 | 2026-02-21 | — | Jeff's agent | **Task 52 done: 3 new process templates added to PROCESS_TEMPLATES.** SIX_THINKING_HATS (6-hat parallel round + synthesis), SCAMPER (7-lens parallel + synthesis), RAPID_FIRE (3-stage fast demo template). Select via processId on player:start-process. |
+| 2026-02-21 | — | Jeff's agent | **Task 48 done: agent collaboration design at `docs/agent-collaboration-design.md`.** @Behrang: read this before implementing cross-agent interaction. Key: text conventions over new tools for now; stage-specific rules for when to build-on vs isolate. |
 
 ---
 
