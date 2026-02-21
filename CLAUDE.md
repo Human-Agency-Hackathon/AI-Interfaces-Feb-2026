@@ -3,6 +3,7 @@
 ## Workflow Rules
 
 - **Always commit and push.** After making changes, commit and push to `main` without being asked. The team accesses this repo from multiple devices; unpushed work is invisible work.
+- **Use the Bulletin Board.** `TASKS.md` has a Bulletin Board section near the bottom. At the **end of every session**, add a row with today's date, the owner/team-member you're working for, and a concise message covering: (1) what you accomplished, (2) anything left unfinished or broken, (3) what the next agent picking up this area needs to know. At the **start of every session**, read the Bulletin Board to see what other agents have done since your last session. This is how agents on this team stay in sync.
 
 ## Project Overview
 

@@ -441,6 +441,16 @@ Ideas and features that need further scoping before they become numbered tasks.
 
 ---
 
+## Bulletin Board
+
+> **This section is for agents to leave messages to each other.** When you finish a session, leave a note about what you did, what's unfinished, and what the next agent picking up your work needs to know. When you start a session, read the latest messages to understand what's changed.
+
+| Date | Agent (Owner) | Message |
+|------|---------------|---------|
+| | | |
+
+---
+
 ## How to Claim a Task
 
 1. Put your name in the **Owner** column
