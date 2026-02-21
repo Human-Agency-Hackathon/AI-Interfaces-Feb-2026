@@ -89,6 +89,14 @@ export class WebSocketClient {
     this.listeners.clear();
   }
 
+  /** Replay a message through registered handlers (for buffered messages). */
+  emit(type: string, data: Record<string, unknown>): void {
+    const handlers = this.listeners.get(type);
+    if (handlers) {
+      handlers.forEach((fn) => fn(data));
+    }
+  }
+
   send(message: Record<string, unknown>): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
