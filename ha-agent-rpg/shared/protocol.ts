@@ -392,6 +392,10 @@ export interface ServerInfoMessage {
   addresses: string[];
   /** WebSocket port */
   port: number;
+  /** Current game phase */
+  gamePhase: 'onboarding' | 'analyzing' | 'playing';
+  /** Active realm ID if in playing phase, null otherwise */
+  activeRealmId: string | null;
 }
 
 // ── Messages: Player → Server (Process) ──
@@ -403,10 +407,12 @@ export interface ServerInfoMessage {
  */
 export interface StartProcessMessage {
   type: 'player:start-process';
-  /** The brainstorming problem, e.g. "How do we reduce onboarding time by 50%?" */
+  /** The brainstorming problem. Optional if repoInput is provided. */
   problem: string;
-  /** Optional template ID from PROCESS_TEMPLATES; defaults to "standard_brainstorm" */
+  /** Optional template ID; defaults to "standard_brainstorm" */
   processId?: string;
+  /** GitHub HTTPS URL or absolute local path to a codebase (optional). */
+  repoInput?: string;
 }
 
 // ── Messages: Server → All (Process) ──
@@ -498,6 +504,20 @@ export interface FortExitMessage {
   type: 'fort:exit';
 }
 
+export interface PlayerNavigateEnterMessage {
+  type: 'player:navigate-enter';
+  target_path: string;
+}
+
+export interface PlayerNavigateBackMessage {
+  type: 'player:navigate-back';
+}
+
+export interface PlayerMoveMessage {
+  type: 'player:move';
+  direction: 'up' | 'down' | 'left' | 'right';
+}
+
 // ── Union types ──
 export type ClientMessage =
   | AgentRegisterMessage
@@ -514,7 +534,10 @@ export type ClientMessage =
   | SpectatorRegisterMessage
   | SpectatorCommandMessage
   | FortClickMessage
-  | FortExitMessage;
+  | FortExitMessage
+  | PlayerNavigateEnterMessage
+  | PlayerNavigateBackMessage
+  | PlayerMoveMessage;
 
 export type ServerMessage =
   | WorldStateMessage
