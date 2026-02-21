@@ -12,7 +12,7 @@ stateDiagram-v2
     Loading --> Playing: process:started received
 
     Playing --> SessionComplete: process:completed
-    SessionComplete --> Playing: "Read Dialogue Log"
+    SessionComplete --> Playing: "Keep Reading"
     SessionComplete --> SetupScreen: "New Session"
 
     Playing --> SetupScreen: /quit command
@@ -21,19 +21,20 @@ stateDiagram-v2
     note right of SetupScreen: Name + color picker +<br/>problem textarea<br/>(all in one form)
     note right of Loading: SetupScreen.showLoading()<br/>+ process-loading-overlay<br/>"Spawning agents..."
     note right of Playing: Phaser game active<br/>+ DOM panels visible
-    note right of SessionComplete: Overlay with options:<br/>Read log, Export, New session
+    note right of SessionComplete: Overlay with options:<br/>Keep reading, Export, New session
 ```
 
 ---
 
 ## Phaser Scene Lifecycle
 
-Three scenes run in sequence. BootScene runs once; GameScene and UIScene run for the session.
+Three scenes run in sequence. BootScene runs once; GameScene and UIScene run for the session. Agent speech/thought/activity is rendered by SpeechBubbleManager as in-world bubbles above sprites (replacing the old DialogueLog sidebar panel and ThoughtBubble float-up).
 
 ```mermaid
 sequenceDiagram
     participant Boot as BootScene
     participant Game as GameScene
+    participant SBM as SpeechBubbleManager
     participant UI as UIScene
     participant WS as WebSocketClient
 
@@ -44,6 +45,7 @@ sequenceDiagram
     Boot->>Game: scene.start('GameScene')
     Boot->>UI: scene.launch('UIScene')
     Note over Game,UI: Both scenes run simultaneously
+    Game->>SBM: new SpeechBubbleManager(this)
 
     WS-->>Game: world:state (initial)
 
@@ -59,9 +61,22 @@ sequenceDiagram
 
     Game->>Game: Create AgentSprites for each agent
 
-    WS-->>Game: action:result (agent moves, speaks, etc.)
-    Game->>Game: Animate sprites
-    Game->>UI: Emit show-dialogue, agent-thought, agent-activity
+    WS-->>Game: action:result (speak/think)
+    Game->>SBM: updateBubble(agentId, type, text, ...)
+    Note over SBM: Per-agent bubble above sprite
+
+    WS-->>Game: agent:thought
+    Game->>SBM: updateBubble(agentId, 'think', ...)
+    Game->>UI: Emit agent-thought (status text only)
+
+    WS-->>Game: agent:activity
+    Game->>SBM: updateBubble(agentId, 'activity', ...)
+
+    WS-->>Game: action:result (move)
+    Game->>SBM: repositionBubble(agentId, x, y)
+    Note over SBM: Bubble follows sprite with tween
+
+    Note over SBM: Per-frame update():<br/>off-screen detection,<br/>edge indicators,<br/>overlap stacking
 
     WS-->>Game: fog:reveal (fog-of-war mode only)
     Game->>Game: Reveal tiles on MapRenderer + Minimap
@@ -98,23 +113,26 @@ graph TD
         GS1["Sync agent sprites<br/>(create/update/remove)"]
         GS2["Animate: walkTo, emote,<br/>skill effect, interact"]
         GS3["Create new AgentSprite"]
-        GS4["Destroy AgentSprite"]
-        GS5["Fade out → new map → fade in"]
+        GS4["Destroy AgentSprite +<br/>removeBubble"]
+        GS5["Fade out -> new map -> fade in"]
         GS6["Reveal fog tiles +<br/>update Minimap"]
         GS7["Create/upgrade FortSprite"]
         GS8["Enter fort interior<br/>(switch to diorama)"]
     end
 
-    subgraph UIScene ["UIScene + Panels"]
-        UI1["DialogueLog entry (speak)"]
-        UI2["DialogueLog entry (thought)"]
-        UI3["DialogueLog entry (activity)"]
-        UI4["DialogueLog entry (finding)"]
-        UI5["DialogueLog entry (stage announcement)"]
-        UI6["AgentDetailsPanel<br/>(show on agent click)"]
+    subgraph Bubbles ["SpeechBubbleManager (in-world)"]
+        SB1["Speech bubble (speak)<br/>persists until replaced"]
+        SB2["Thought bubble (think)<br/>fades after 4s + 2s"]
+        SB3["Activity bubble (activity)<br/>fades after 3s + 1s"]
+        SB4["repositionBubble<br/>(follows agent on move)"]
     end
 
-    subgraph Panels ["DOM Panels (main.ts)"]
+    subgraph UIScene ["UIScene (minimal)"]
+        UI1["statusText<br/>(active agent indicator)"]
+        UI2["AgentDetailsPanel<br/>(show on agent click)"]
+    end
+
+    subgraph Panels ["DOM Sidebar Panels (collapsible)"]
         P1["MiniMap: realm tree + presence"]
         P2["QuestLog: quest status"]
         P3["StageProgressBar: stage indicator"]
@@ -125,22 +143,78 @@ graph TD
     WS1 --> GS1
     WS1 --> P1
     WS1 --> P2
-    WS2 --> GS2
-    WS2 --> UI1
+    WS2 -->|"speak/think"| SB1
+    WS2 -->|"speak/think"| SB2
+    WS2 -->|"move"| GS2
+    WS2 -->|"move"| SB4
     WS3 --> GS3
     WS4 --> GS4
     WS5 --> GS5
-    WS6 --> UI2
-    WS7 --> UI3
-    WS8 --> UI4
-    WS9 --> UI5
+    WS6 --> SB2
+    WS6 -->|"status text"| UI1
+    WS7 --> SB3
     WS9 --> P3
-    WS10 --> UI6
+    WS10 --> UI2
     WS11 --> GS6
     WS12 --> GS7
     WS13 --> GS8
     WS14 --> P4
     WS15 --> P5
+```
+
+---
+
+## SpeechBubbleManager
+
+Replaces the old ThoughtBubble (ephemeral float-up) and DialogueLog (sidebar scrollback) with persistent, per-agent speech bubbles rendered directly in the Phaser game world above each agent's sprite.
+
+```mermaid
+graph TD
+    subgraph Sources ["Message Sources"]
+        Speak["action:result (speak)"]
+        Think1["action:result (think)"]
+        Think2["agent:thought"]
+        Activity["agent:activity"]
+    end
+
+    subgraph Manager ["SpeechBubbleManager"]
+        UB["updateBubble(agentId, type,<br/>text, x, y, color, name)"]
+        RP["repositionBubble(agentId, x, y)<br/>tween follows agent movement"]
+        UF["update(camera)<br/>called every frame"]
+        RB["removeBubble(agentId)<br/>on agent:left"]
+    end
+
+    subgraph BubbleTypes ["Bubble Types (hybrid fade)"]
+        ST["speak: persists until<br/>agent's next message"]
+        TT["think: italic text,<br/>fades after 4s delay + 2s"]
+        AT["activity: tool icons,<br/>fades after 3s delay + 1s"]
+    end
+
+    subgraph Features ["Per-Frame Features"]
+        Stack["Overlap stacking:<br/>push overlapping bubbles<br/>upward with gap"]
+        Edge["Off-screen indicators:<br/>colored arrow + name label<br/>clamped to viewport edge"]
+        Vis["Visibility toggle:<br/>hide bubble when agent<br/>leaves viewport"]
+    end
+
+    subgraph Anatomy ["Bubble Anatomy (Phaser objects)"]
+        BG["Rectangle background<br/>depth 25, styled per type"]
+        Name["Name tag (agent color)<br/>depth 27, uppercase"]
+        Text["Text content (monospace)<br/>depth 26, word-wrapped"]
+        Tail["Triangle tail (speak only)<br/>depth 25, points to sprite"]
+    end
+
+    Speak --> UB
+    Think1 --> UB
+    Think2 --> UB
+    Activity --> UB
+
+    UB --> ST
+    UB --> TT
+    UB --> AT
+
+    UF --> Stack
+    UF --> Edge
+    UF --> Vis
 ```
 
 ---
@@ -359,20 +433,24 @@ sequenceDiagram
 
 ## DOM Panel Layout
 
-UI panels are HTML elements positioned around the Phaser canvas.
+UI panels are HTML elements positioned around the Phaser canvas. The sidebar is collapsible via a toggle button (`<<` / `>>`). Agent dialogue is no longer in the sidebar; it is rendered as in-world speech bubbles by SpeechBubbleManager directly above agent sprites in the Phaser canvas.
 
 ```
 +--------------------------------------------------+
-|  [Stage 3 of 9: Convergent Thinking]             |  <- StageProgressBar
-+--------------------------------------------------+
-|                                  |                |
-|                                  | Spectators     |
-|     Phaser Canvas (640x480)      | (viewer list)  |
-|                                  |                |
-|  Diorama mode:                   +----------------+
-|     - Room background            |                |
-|     - Agent sprites              | Server Info    |
-|     - Map objects                | (LAN address)  |
+|                                  | [<<] toggle    |
+|                                  +----------------+
+|     Phaser Canvas (640x480)      |                |
+|                                  | StageProgress  |
+|  In-world speech bubbles:        | [3 of 9]       |
+|     AGENT NAME (colored)         +----------------+
+|     "Speech persists until       |                |
+|      next message"               | AgentDetails   |
+|     (think/activity auto-fade)   | (on click)     |
+|                                  +----------------+
+|  Diorama mode:                   |                |
+|     - Room background            | Settings       |
+|     - Agent sprites              | (max agents,   |
+|     - Map objects                |  budget, etc.) |
 |                                  +----------------+
 |  Fog-of-war mode:                |                |
 |     - Tile terrain + fog layer   | QuestLog       |
@@ -380,16 +458,19 @@ UI panels are HTML elements positioned around the Phaser canvas.
 |     - Agent sprites              |                |
 |     - Minimap overlay (top-right)+----------------+
 |                                  |                |
-|                                  | AgentDetails   |
-|                                  | (on click)     |
+|                                  | PromptBar      |
+|                                  | > /command...  |
 +----------------------------------+----------------+
-|                                                   |
-|  DialogueLog (scrolling message history)          |
-|  [Cartographer] The problem boundaries are...     |
-|  [Wild Ideator] What if we tried...               |
-|                                                   |
+
+Sidebar collapsed (toggle shows >>):
 +--------------------------------------------------+
-|  > Type a message or /command...          [Send]  |  <- PromptBar
+|                                               [>>]|
+|                                                   |
+|     Phaser Canvas (full width)                    |
+|                                                   |
+|  Speech bubbles still render above agents         |
+|  in the game world (independent of sidebar)       |
+|                                                   |
 +--------------------------------------------------+
 ```
 
@@ -422,7 +503,6 @@ graph TD
 | `/summon [name]` | Request agent spawn | Server |
 | `/dismiss [name]` | Remove agent | Server |
 | `/focus [name]` | Direct all commands to agent | Local |
-| `/clear` | Clear dialogue log | Local |
 | `/quit` | Return to setup screen | Local |
 | `/approve` | Approve brainstorm gate | Server (ProcessController) |
 | `/inject [idea]` | Add idea to brainstorm | Server (ProcessController) |
