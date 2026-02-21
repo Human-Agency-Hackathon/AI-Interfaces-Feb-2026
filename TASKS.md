@@ -78,57 +78,62 @@ These are working and merged on `main`:
 
 ## What Needs to Be Done
 
-### High Priority: Core Demo Flow
-> These tasks are critical for a working end-to-end demo.
+### High Priority: Pivot to Process-Driven Brainstorming (Behrang)
+
+> The system is pivoting from "analyze a codebase" to "run a brainstorming process." These tasks convert the engine from repo exploration to following a defined process with agents, conditionals, and branching paths. Ordered by dependency.
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 1 | Rearchitect rooms to represent agents instead of folders | Behrang | In Progress | Each agent gets its own room/space on the map rather than rooms mapping 1:1 to repo folders |
-| 2 | Get core end-to-end flow working: repo URL -> analysis -> map -> agents spawn and explore | Behrang | In Progress | The full happy path needs to be validated and any broken handoffs fixed |
-| 3 | Agent orchestration: multi-agent spawning, turn management, coordination | Behrang | In Progress | Oracle summons specialists, agents take turns, share findings |
-| 4 | Verify Claude Agent SDK sessions work with real API keys | | TODO | AgentSessionManager needs live testing with actual Claude sessions |
-| 5 | Fix any WebSocket message ordering/timing issues under real load | | TODO | May surface during integration testing |
+| 1 | Define the Process Schema | Behrang | TODO | Create a data structure (JSON/TS types) that describes a brainstorming workflow: stages, agent roles, conditionals, branching paths, and completion criteria. This is the foundation everything else builds on. Lives in `shared/` so server and client can share it. |
+| 2 | Replace onboarding flow: problem input instead of repo URL | Behrang | TODO | Swap `link:repo` message and RepoScreen with a "brainstorming problem" input. User enters a problem statement; server loads/creates a process definition. RepoAnalyzer and LocalTreeReader become unused. |
+| 3 | Rebuild MapGenerator to create rooms from process stages, not folders | Behrang | TODO | Each room represents a stage or agent workspace in the brainstorming process. Doors connect stages based on the process flow (linear, branching). Objects in rooms represent ideas/artifacts, not files. |
+| 4 | Rewrite agent spawning to be process-driven | Behrang | TODO | Instead of an Oracle that summons specialists ad hoc, the process definition dictates which agents spawn and when. Each stage defines its agent roles (e.g. "Devil's Advocate", "Synthesizer", "Domain Expert"). AgentSessionManager spawns them at the right time based on process state. |
+| 5 | Build the conditional/branching engine | Behrang | TODO | Process paths can branch: if an agent produces output X, go to path Y. Needs a state machine or flow controller that evaluates conditions after each stage completes and routes to the next stage. Conditions could be based on agent output, vote counts, or time limits. |
+| 6 | Update turn system from round-robin to process-driven | Behrang | TODO | Turns shouldn't just cycle through all agents. The current process stage determines who acts: some stages are single-agent, some are parallel discussion, some are sequential. The process definition controls turn order. |
+| 7 | Replace MCP tools with brainstorming tools | Behrang | TODO | Current tools (ClaimQuest, PostFindings, etc.) are codebase-oriented. New tools for brainstorming: ProposeIdea, Critique, Vote, Synthesize, BuildOn (extend another agent's idea), EscalateToHuman. Update RpgMcpServer and CustomToolHandler. |
+| 8 | Update SystemPromptBuilder for process roles | Behrang | TODO | Instead of "you are an Oracle exploring a codebase", prompts become "you are a [role] in stage [N] of a brainstorming session about [problem]. Your job is [stage task]." Include context from previous stages, other agents' outputs, and the process definition. |
+| 9 | Update WorldState to track process state instead of repo state | Behrang | TODO | Remove repo-specific fields (file tree, GitHub issues). Add: current stage, completed stages, branch history, collected ideas/artifacts per stage, agent outputs, vote tallies. Snapshot serialization still works for persistence. |
+| 10 | Update shared protocol types for process events | Behrang | TODO | New message types: `process:start`, `stage:advance`, `stage:complete`, `condition:evaluated`, `branch:taken`, `idea:proposed`, `idea:voted`. Deprecate or remove repo-specific messages (`link:repo`, `repo:ready`, `realm:*`). Update `shared/protocol.ts` first, then server and client types. |
+| 11 | End-to-end integration: problem input -> process loads -> agents spawn -> brainstorm runs -> output | Behrang | TODO | The full happy path for the new flow. Enter a problem, watch agents appear in their rooms, brainstorm through stages, follow conditionals, produce a final synthesis. |
 
 ### High Priority: Polish & Stability
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 6 | Client-side tests (currently "planned" but none written) | | TODO | At minimum: scene lifecycle, WebSocket message handling, panel rendering |
-| 7 | Error handling for failed repo analysis (bad URL, private repo, rate limits) | | TODO | User-facing error messages in the client |
-| 8 | Graceful handling when agent SDK session disconnects or errors | | TODO | Reconnection, error state in UI |
-| 9 | Loading states and feedback during repo analysis (can take time) | | TODO | Progress indicator or spinner in client |
+| 12 | Client-side tests | | TODO | At minimum: scene lifecycle, WebSocket message handling, panel rendering |
+| 13 | Error handling for process loading and agent failures | | TODO | User-facing error messages in the client |
+| 14 | Graceful handling when agent SDK session disconnects or errors | | TODO | Reconnection, error state in UI |
+| 15 | Loading states during process initialization | | TODO | Progress indicator or spinner in client |
 
 ### Medium Priority: Visual & UX
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 10 | Skin the game: replace colored rectangles with real pixel art characters | Ida | In Progress | Oracle, Test Guardian, Doc Scribe, etc. each need distinct sprites |
-| 11 | Splash page and public-facing presentation styles | Ida | In Progress | How we present Agent Dungeon externally; landing page, branding |
-| 12 | Improve tile map aesthetics (dungeon tileset) | Ida | TODO | Current map is functional but basic |
-| 13 | Sound effects and ambient audio | | TODO | Movement, dialogue open/close, skill effects, background music |
-| 14 | Onboarding tutorial or hints for first-time users | | TODO | Explain what they're looking at, how to interact |
-| 15 | Responsive layout or at minimum handle window resize gracefully | | TODO | Currently 640x480 fixed |
+| 16 | Skin the game: replace colored rectangles with real pixel art characters | Ida | In Progress | Agent roles need distinct sprites that match brainstorming personas |
+| 17 | Splash page and public-facing presentation styles | Ida | In Progress | How we present Agent Dungeon externally; landing page, branding |
+| 18 | Improve tile map aesthetics (dungeon tileset) | Ida | TODO | Current map is functional but basic |
+| 19 | Sound effects and ambient audio | | TODO | Movement, dialogue open/close, skill effects, background music |
+| 20 | Onboarding tutorial or hints for first-time users | | TODO | Explain what they're looking at, how to interact |
+| 21 | Responsive layout or at minimum handle window resize gracefully | | TODO | Currently 640x480 fixed |
 
 ### Medium Priority: Agent Intelligence
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 16 | Replace JSON file persistence with Redis for agent memory | Pratham | In Progress | Migrate KnowledgeVault, FindingsBoard, and potentially RealmRegistry from JSON files to Redis. Enables faster reads, cross-session persistence, and scales for multi-agent workloads |
-| 17 | Tune Oracle system prompt for smarter exploration strategies | | TODO | Should prioritize high-value files, not random walk |
-| 18 | Improve specialist agent prompts (Test Guardian, Doc Scribe, etc.) | | TODO | Each role needs distinct behavior patterns |
-| 19 | Agent conversation/collaboration: agents that talk to each other meaningfully | | TODO | Currently agents can speak but coordinated dialogue needs work |
-| 20 | Token budget management to control API costs | | TODO | Server tracks settings but enforcement may need work |
+| 22 | Replace JSON file persistence with Redis for agent memory | Pratham | In Progress | Migrate KnowledgeVault, FindingsBoard, and potentially session/process state from JSON files to Redis. Enables faster reads, cross-session persistence, and scales for multi-agent workloads |
+| 23 | Design brainstorming agent role prompts (Devil's Advocate, Synthesizer, etc.) | | TODO | Each role needs a distinct personality, reasoning style, and behavioral pattern |
+| 24 | Agent conversation/collaboration: agents that respond to and build on each other's ideas | | TODO | Agents need to reference, critique, and extend other agents' outputs |
+| 25 | Token budget management to control API costs | | TODO | Server tracks settings but enforcement may need work |
 
 ### Lower Priority: Features & Extensions
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| 21 | Manual mode: player controls an agent directly from prompt bar | | TODO | Mode selector exists, but manual control flow needs implementation |
-| 22 | Supervised mode: agents propose actions, player approves/rejects | | TODO | Approval UI needed |
-| 23 | Write-with-approval permission level: agents can suggest code changes | | TODO | Currently read-only exploration |
-| 24 | Support for non-GitHub repos (GitLab, Bitbucket, plain local) | | TODO | LocalTreeReader handles local; remote needs expansion |
-| 25 | Export session: save a recording/replay of an exploration session | | TODO | Transcript logs exist but no replay mechanism |
-| 26 | Dashboard view: summary of findings, quests completed, knowledge gained | | TODO | Aggregate view beyond the in-game panels |
+| 26 | Manual mode: player injects ideas directly into the brainstorm | | TODO | Mode selector exists, but manual input flow needs reworking for brainstorming |
+| 27 | Supervised mode: agents propose ideas, player approves/redirects | | TODO | Approval UI needed |
+| 28 | Process template library: prebuilt brainstorming workflows users can pick from | | TODO | e.g. "Six Thinking Hats", "SCAMPER", "Design Sprint", custom |
+| 29 | Export session: save brainstorming output as a structured report | | TODO | Transcript logs exist but need a synthesis/export format |
+| 30 | Dashboard view: summary of ideas generated, votes, stages completed | | TODO | Aggregate view beyond the in-game panels |
 
 ---
 
@@ -154,7 +159,9 @@ Ideas and features that need further scoping before they become numbered tasks.
 
 ## Open Questions
 
-- What repo(s) should we use for the demo? (Need a public repo with issues for quest mapping)
+- What brainstorming problem should we use for the demo?
 - Are we targeting a live demo or a recorded walkthrough?
 - What's the deadline?
 - Should we prioritize visual polish or agent intelligence for the demo?
+- How much of the old codebase-analysis code do we keep vs. remove? (Some modules like RepoAnalyzer, LocalTreeReader, QuestManager may be fully replaced)
+- What's the first process template to build? (e.g. simple linear 3-stage brainstorm, or something with branching)
