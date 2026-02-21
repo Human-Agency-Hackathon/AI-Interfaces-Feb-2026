@@ -1,4 +1,10 @@
-import type { AgentInfo, AgentStats, TileMapData, MapObject, Quest, WorldStateMessage, MapNode, ProcessState } from './types.js';
+import type { AgentInfo, AgentStats, TileMapData, MapObject, Quest, WorldStateMessage, MapNode, ProcessState, NavigationFrame } from './types.js';
+
+/** Serialisable snapshot of per-agent navigation stacks. */
+export interface NavigationState {
+  agentNavStacks: Record<string, NavigationFrame[]>;
+  agentCurrentPath: Record<string, string>;
+}
 
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 15;
@@ -17,6 +23,9 @@ export class WorldState {
   // Set when a brainstorming process is active. Null until
   // player:start-process is received.
   private processState: ProcessState | null = null;
+
+  // ── Navigation State (serialised by BridgeServer via setNavigationState) ──
+  navigationState: NavigationState | null = null;
 
   // ── Fog-of-War State ─────────────────────────────
   private explored: boolean[][] | null = null;
@@ -338,6 +347,10 @@ export class WorldState {
       tick: this.tick,
       mapTree: this.mapTree ?? null,
       processState: this.processState ?? null,
+      navigationState: this.navigationState ?? null,
+      explored: this.explored ?? null,
+      fortStages: Array.from(this.fortStages.entries()),
+      fortPositions: Array.from(this.fortPositions.entries()),
     });
   }
 
@@ -351,6 +364,10 @@ export class WorldState {
     ws.tick = data.tick ?? 0;
     if (data.mapTree) ws.setMapTree(data.mapTree as MapNode);
     if (data.processState) ws.setProcessState(data.processState as ProcessState);
+    if (data.navigationState) ws.navigationState = data.navigationState as NavigationState;
+    if (data.explored) ws.explored = data.explored as boolean[][];
+    if (data.fortStages) ws.fortStages = new Map(data.fortStages);
+    if (data.fortPositions) ws.fortPositions = new Map(data.fortPositions);
     return ws;
   }
 }
