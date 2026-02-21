@@ -347,7 +347,7 @@
     ::-webkit-scrollbar-thumb:hover { background: #564a72; }
 
     /* ══════════════════════════════════════════════════
-       IN-GAME CSS — unchanged from here down.
+       IN-GAME CSS — dungeon stone / flame / gold palette.
        Sidebar, chat bubbles, prompt bar, etc.
        ══════════════════════════════════════════════════ */
 
@@ -366,8 +366,8 @@
 
     #sidebar {
       width: 320px;
-      background: #111128;
-      border-left: 2px solid #2a2a5a;
+      background: #1e1830;
+      border-left: 2px solid #8a6a28;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -386,8 +386,8 @@
     /* ── Agent Details Panel ── */
     #agent-details-panel {
       overflow-y: auto;
-      border-bottom: 2px solid #2a2a5a;
-      background: #0d0d20;
+      border-bottom: 2px solid #3d3350;
+      background: #140e24;
       transition: max-height 0.3s ease;
       max-height: 60%;
       flex-shrink: 0;
@@ -400,21 +400,22 @@
       justify-content: space-between;
       align-items: center;
       padding: 0.5rem 0.75rem;
-      background: #151530;
-      border-bottom: 1px solid #2a2a5a;
+      background: #1a1430;
+      border-bottom: 1px solid #3d3350;
       position: sticky;
       top: 0;
       z-index: 1;
     }
     .agent-details-name {
-      font-family: monospace;
+      font-family: "Cinzel", serif;
       font-size: 0.85rem;
-      font-weight: bold;
+      font-weight: 600;
+      color: #e8c868;
     }
     .agent-details-role {
-      font-family: monospace;
+      font-family: "Cormorant Garamond", Georgia, serif;
       font-size: 0.7rem;
-      color: #8888aa;
+      color: #a0927a;
     }
     .agent-details-close {
       cursor: pointer;
@@ -428,7 +429,7 @@
       color: #ff6644;
     }
     .agent-details-section {
-      border-bottom: 1px solid #1a1a3a;
+      border-bottom: 1px solid #2a2040;
     }
     .agent-details-section-header {
       display: flex;
@@ -436,15 +437,15 @@
       align-items: center;
       padding: 0.4rem 0.75rem;
       cursor: pointer;
-      font-family: monospace;
-      font-size: 0.75rem;
-      color: #aaaacc;
+      font-family: "Cinzel", serif;
+      font-size: 0.68rem;
+      color: #d0c0a8;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.08em;
       user-select: none;
     }
     .agent-details-section-header:hover {
-      background: #1a1a35;
+      background: #241a3a;
     }
     .agent-details-section-toggle {
       font-size: 0.6rem;
@@ -462,32 +463,33 @@
       display: none;
     }
     .agent-details-item {
-      font-family: monospace;
+      font-family: "DM Mono", monospace;
       font-size: 0.7rem;
-      color: #ccccdd;
+      color: #d0c0a8;
       padding: 0.2rem 0;
-      border-bottom: 1px solid #12122a;
+      border-bottom: 1px solid #1e1630;
       line-height: 1.4;
       word-wrap: break-word;
     }
     .agent-details-item-time {
       font-size: 0.6rem;
-      color: #666688;
+      color: #7a6a58;
       margin-left: 0.3rem;
     }
     .agent-details-loading {
       padding: 1rem;
       text-align: center;
-      font-family: monospace;
-      font-size: 0.75rem;
-      color: #666688;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.8rem;
+      color: #7a6a58;
+      font-style: italic;
     }
     .agent-details-skills-subsection-label {
-      font-family: monospace;
-      font-size: 0.65rem;
-      color: #8888aa;
+      font-family: "Cinzel", serif;
+      font-size: 0.6rem;
+      color: #a0927a;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
       padding: 0.3rem 0 0.15rem;
     }
     .agent-details-expertise-row {
@@ -495,9 +497,9 @@
       align-items: center;
       gap: 0.4rem;
       padding: 0.15rem 0;
-      font-family: monospace;
+      font-family: "DM Mono", monospace;
       font-size: 0.7rem;
-      color: #ccccdd;
+      color: #d0c0a8;
     }
     .agent-details-expertise-label {
       min-width: 80px;
@@ -508,38 +510,38 @@
     .agent-details-bar-container {
       flex: 1;
       height: 8px;
-      background: #1a1a2e;
+      background: #1e1630;
       border-radius: 4px;
       overflow: hidden;
     }
     .agent-details-bar-fill {
       height: 100%;
-      background: #c45a20;
+      background: linear-gradient(to right, #c45a28, #e8a050);
       border-radius: 4px;
       transition: width 0.3s ease;
     }
     .agent-details-expertise-level {
       min-width: 20px;
       text-align: right;
-      color: #8888aa;
+      color: #a0927a;
       font-size: 0.65rem;
     }
     .agent-details-tool-item {
-      font-family: monospace;
+      font-family: "DM Mono", monospace;
       font-size: 0.7rem;
-      color: #ccccdd;
+      color: #d0c0a8;
       padding: 0.1rem 0;
     }
     .agent-details-tool-item::before {
       content: '>';
-      color: #b8860b;
+      color: #e8c868;
       margin-right: 0.4rem;
       font-weight: bold;
     }
     .agent-details-empty {
-      font-family: monospace;
-      font-size: 0.7rem;
-      color: #555566;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.75rem;
+      color: #5a4a3a;
       padding: 0.2rem 0;
       font-style: italic;
     }
@@ -557,24 +559,25 @@
 
     .chat-bubble-agent {
       align-self: flex-start;
-      background: #16163a;
-      border: 1px solid #2a2a5a;
+      background: #241a3a;
+      border: 1px solid #3d3350;
       border-radius: 2px 8px 8px 8px;
     }
 
     .chat-bubble-player {
       align-self: flex-end;
-      background: #1a2a5a;
-      border: 1px solid #3a4a7a;
+      background: #2a2040;
+      border: 1px solid #6a5020;
       border-radius: 8px 2px 8px 8px;
     }
 
     .chat-bubble-system {
       align-self: center;
       background: none;
+      font-family: "Cormorant Garamond", Georgia, serif;
       font-style: italic;
-      color: #666688;
-      font-size: 0.65rem;
+      color: #7a6a58;
+      font-size: 0.7rem;
       padding: 0.25rem 0.5rem;
     }
 
@@ -582,7 +585,7 @@
       align-self: flex-start;
       background: none;
       font-size: 0.65rem;
-      color: #555577;
+      color: #6a5a48;
       padding: 0.15rem 0.5rem;
       display: flex;
       align-items: center;
@@ -591,8 +594,8 @@
 
     .chat-bubble-thought {
       align-self: flex-start;
-      background: #111128;
-      border: 1px solid #222244;
+      background: #1a1430;
+      border: 1px solid #2a2040;
       border-radius: 2px 8px 8px 8px;
       font-style: italic;
       opacity: 0.75;
@@ -606,23 +609,27 @@
     }
 
     .chat-agent-name {
-      font-weight: bold;
-      font-size: 0.7rem;
+      font-family: "Cinzel", serif;
+      font-weight: 600;
+      font-size: 0.65rem;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.08em;
     }
 
     .chat-timestamp {
       font-size: 0.55rem;
-      color: #555577;
+      color: #6a5a48;
     }
 
     .chat-bubble-body {
-      color: #c8c8e8;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      color: #d0c0a8;
+      font-size: 0.82rem;
+      line-height: 1.5;
     }
 
     .chat-bubble-player .chat-bubble-body {
-      color: #dde0ff;
+      color: #e8dcd0;
     }
 
     .chat-bubble-body.truncated {
@@ -632,18 +639,21 @@
     .chat-show-more {
       background: none;
       border: none;
-      color: #6a8aff;
-      font-family: "Courier New", Courier, monospace;
-      font-size: 0.65rem;
-      font-weight: bold;
+      color: #c45a28;
+      font-family: "Cinzel", serif;
+      font-size: 0.6rem;
+      font-weight: 600;
       cursor: pointer;
       padding: 0.2rem 0;
       margin-top: 0.2rem;
       display: block;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
 
     .chat-show-more:hover {
-      text-decoration: underline;
+      color: #e8a050;
+      text-decoration: none;
     }
 
     .activity-icon {
@@ -652,15 +662,15 @@
 
     /* ── Prompt Bar ── */
     .prompt-bar {
-      border-top: 2px solid #2a2a5a;
-      background: #0d0d22;
+      border-top: 2px solid #8a6a28;
+      background: #140e24;
       flex-shrink: 0;
     }
 
     /* ── Command Menu Popup ── */
     .prompt-command-menu {
-      background: #111128;
-      border: 1px solid #2a2a5a;
+      background: #1e1830;
+      border: 1px solid #3d3350;
       border-bottom: none;
       max-height: 200px;
       overflow-y: auto;
@@ -672,13 +682,14 @@
       gap: 0.5rem;
       padding: 0.45rem 0.75rem;
       cursor: pointer;
-      font-size: 0.72rem;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.78rem;
       transition: background 0.1s ease;
     }
 
     .prompt-command-item:hover,
     .prompt-command-item.selected {
-      background: #1a1a3a;
+      background: #241a3a;
     }
 
     .prompt-command-icon {
@@ -688,14 +699,16 @@
     }
 
     .prompt-command-name {
-      color: #6a8aff;
-      font-weight: bold;
+      color: #e8c868;
+      font-family: "Cinzel", serif;
+      font-weight: 600;
+      font-size: 0.68rem;
       min-width: 5rem;
     }
 
     .prompt-command-desc {
-      color: #666688;
-      font-size: 0.65rem;
+      color: #7a6a58;
+      font-size: 0.68rem;
     }
 
     /* ── Toolbar ── */
@@ -704,15 +717,15 @@
       align-items: center;
       gap: 0.25rem;
       padding: 0.3rem 0.5rem;
-      border-bottom: 1px solid #1a1a3a;
+      border-bottom: 1px solid #2a2040;
     }
 
     .prompt-tool-btn {
       background: none;
       border: 1px solid transparent;
-      color: #555577;
-      font-family: "Courier New", Courier, monospace;
-      font-size: 0.75rem;
+      color: #6a5a48;
+      font-family: "DM Mono", monospace;
+      font-size: 0.72rem;
       padding: 0.15rem 0.4rem;
       cursor: pointer;
       border-radius: 2px;
@@ -720,9 +733,9 @@
     }
 
     .prompt-tool-btn:hover {
-      border-color: #3a3a6a;
-      color: #8888aa;
-      background: #16163a;
+      border-color: #3d3350;
+      color: #d0c0a8;
+      background: #241a3a;
     }
 
     .prompt-toolbar-spacer {
@@ -735,18 +748,19 @@
       align-items: center;
       gap: 0.3rem;
       padding: 0.15rem 0.5rem;
-      border: 1px solid #2a2a5a;
+      border: 1px solid #3d3350;
       border-radius: 2px;
       cursor: pointer;
-      font-size: 0.6rem;
+      font-family: "Cinzel", serif;
+      font-size: 0.55rem;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #8888aa;
+      letter-spacing: 0.1em;
+      color: #a0927a;
       transition: all 0.15s ease;
     }
 
     .prompt-mode-badge:hover {
-      border-color: #4a4a7a;
+      border-color: #6a5020;
     }
 
     .prompt-mode-dot {
@@ -756,8 +770,8 @@
       transition: background 0.3s ease;
     }
 
-    .prompt-mode-badge[data-mode="manual"] .prompt-mode-dot { background: #6a8aff; }
-    .prompt-mode-badge[data-mode="supervised"] .prompt-mode-dot { background: #ccaa44; }
+    .prompt-mode-badge[data-mode="manual"] .prompt-mode-dot { background: #c45a28; }
+    .prompt-mode-badge[data-mode="supervised"] .prompt-mode-dot { background: #e8c868; }
     .prompt-mode-badge[data-mode="autonomous"] .prompt-mode-dot { background: #44cc66; }
 
     /* ── Input Row ── */
@@ -772,13 +786,14 @@
       display: flex;
       align-items: center;
       gap: 0.2rem;
-      background: #1a1a3a;
-      border: 1px solid #3a3a6a;
+      background: #241a3a;
+      border: 1px solid #6a5020;
       border-radius: 2px;
       padding: 0.15rem 0.4rem;
       margin-right: 0.3rem;
-      font-size: 0.65rem;
-      color: #6a8aff;
+      font-family: "Cinzel", serif;
+      font-size: 0.6rem;
+      color: #e8c868;
       flex-shrink: 0;
       align-self: center;
     }
@@ -786,7 +801,7 @@
     .prompt-focus-clear {
       background: none;
       border: none;
-      color: #555577;
+      color: #6a5a48;
       cursor: pointer;
       font-size: 0.8rem;
       padding: 0 0.15rem;
@@ -794,16 +809,16 @@
     }
 
     .prompt-focus-clear:hover {
-      color: #ff5555;
+      color: #c45a28;
     }
 
     /* ── Textarea ── */
     .prompt-textarea {
       flex: 1;
-      background: #0a0a1a;
-      border: 1px solid #2a2a5a;
-      color: #e8e8ff;
-      font-family: "Courier New", Courier, monospace;
+      background: #0a0810;
+      border: 1px solid #3d3350;
+      color: #e8dcd0;
+      font-family: "DM Mono", "Courier New", monospace;
       font-size: 0.8rem;
       padding: 0.5rem 0.6rem;
       resize: none;
@@ -816,19 +831,19 @@
     }
 
     .prompt-textarea::placeholder {
-      color: #444466;
+      color: #4a3a30;
     }
 
     .prompt-textarea:focus {
-      border-color: #6a8aff;
-      box-shadow: 0 0 8px rgba(106, 138, 255, 0.15);
+      border-color: #c45a28;
+      box-shadow: 0 0 8px rgba(196, 90, 40, 0.2);
     }
 
     /* ── Send Button ── */
     .prompt-send-btn {
       background: none;
-      border: 1px solid #2a2a5a;
-      color: #555577;
+      border: 1px solid #3d3350;
+      color: #6a5a48;
       font-size: 0.85rem;
       width: 2rem;
       height: 2rem;
@@ -843,9 +858,9 @@
     }
 
     .prompt-send-btn:not(:disabled):hover {
-      border-color: #6a8aff;
-      color: #6a8aff;
-      background: #16163a;
+      border-color: #c45a28;
+      color: #c45a28;
+      background: #241a3a;
     }
 
     .prompt-send-btn:disabled {
@@ -862,8 +877,8 @@
     }
 
     .agent-card {
-      background: #0d0d22;
-      border: 2px solid #2a2a5a;
+      background: #140e24;
+      border: 2px solid #3d3350;
       padding: 1rem;
       cursor: pointer;
       transition: all 0.15s ease;
@@ -871,24 +886,28 @@
     }
 
     .agent-card:hover {
-      border-color: #4a4a7a;
+      border-color: #6a5020;
     }
 
     .agent-card.selected {
-      box-shadow: 0 0 12px rgba(106, 138, 255, 0.25);
+      border-color: #8a6a28;
+      box-shadow: 0 0 12px rgba(232, 200, 104, 0.15);
     }
 
     .agent-card-name {
-      font-size: 0.95rem;
-      font-weight: bold;
+      font-family: "Cinzel", serif;
+      font-size: 0.9rem;
+      font-weight: 600;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       margin-bottom: 0.2rem;
+      color: #e8c868;
     }
 
     .agent-card-role {
-      font-size: 0.7rem;
-      color: #666688;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.75rem;
+      color: #a0927a;
       margin-bottom: 0.6rem;
     }
 
@@ -911,12 +930,12 @@
 
     .agent-card-skill-tag {
       display: inline-block;
-      background: #16163a;
-      border: 1px solid #2a2a5a;
+      background: #241a3a;
+      border: 1px solid #3d3350;
       padding: 0.1rem 0.4rem;
       margin: 0.1rem 0.15rem 0.1rem 0;
       font-size: 0.6rem;
-      color: #9999bb;
+      color: #a0927a;
     }
 
     /* ── Stat Bars ── */
@@ -938,8 +957,8 @@
     .stat-bar-bg {
       flex: 1;
       height: 6px;
-      background: #0a0a1a;
-      border: 1px solid #1a1a3a;
+      background: #0a0810;
+      border: 1px solid #2a2040;
       position: relative;
     }
 
@@ -985,12 +1004,13 @@
       flex-wrap: wrap;
       gap: 1rem;
       padding-top: 1rem;
-      border-top: 1px solid #1a1a3a;
+      border-top: 1px solid #2a2040;
     }
 
     .party-info {
-      font-size: 0.8rem;
-      color: #8888aa;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.85rem;
+      color: #a0927a;
     }
 
     .party-cost {
@@ -1006,18 +1026,21 @@
 
     /* ── Stage announcement bubble (dialogue log) ── */
     .chat-bubble-stage-announce {
-      background: #1a1a3a;
-      border: 1px solid #3a3a6a;
+      background: #241a3a;
+      border: 1px solid #6a5020;
       text-align: center;
       padding: 0.5rem;
-      font-size: 0.7rem;
-      color: #9999cc;
-      font-style: italic;
+      font-family: "Cinzel", serif;
+      font-size: 0.68rem;
+      color: #e8c868;
+      font-style: normal;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     /* ── Spectator Panel (sidebar) ── */
     .spectator-panel {
-      border-top: 1px solid #1a1a3a;
+      border-top: 1px solid #2a2040;
       padding: 0.4rem 0.75rem;
       flex-shrink: 0;
       max-height: 80px;
@@ -1025,10 +1048,11 @@
     }
 
     .spectator-panel-title {
-      font-size: 0.6rem;
-      color: #444466;
+      font-family: "Cinzel", serif;
+      font-size: 0.55rem;
+      color: #6a5a48;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.12em;
       margin-bottom: 0.3rem;
     }
 
@@ -1044,8 +1068,8 @@
       gap: 0.25rem;
       font-size: 0.65rem;
       padding: 0.1rem 0.4rem;
-      background: #111128;
-      border: 1px solid #2a2a5a;
+      background: #1a1430;
+      border: 1px solid #3d3350;
     }
 
     .spectator-dot {
@@ -1058,34 +1082,36 @@
     /* ── Spectator chat bubble ── */
     .chat-bubble-spectator {
       align-self: flex-start;
-      background: #1a2035;
-      border: 1px solid #3a3a7a;
+      background: #1e1830;
+      border: 1px solid #3d3350;
       border-radius: 2px 8px 8px 8px;
     }
 
     /* ── Finding bubble ── */
     .chat-bubble-finding {
       align-self: flex-start;
-      background: #1a1a10;
-      border: 1px solid #4a4a20;
-      border-left: 3px solid #ccaa44;
+      background: #1e1820;
+      border: 1px solid #6a5020;
+      border-left: 3px solid #e8c868;
       border-radius: 2px 8px 8px 8px;
     }
 
     /* ── Stage Progress Banner (StageProgressBar component) ── */
     .stage-progress-bar {
       padding: 0.4rem 0.75rem;
-      background: #0d0d22;
-      border-bottom: 2px solid #2a2a5a;
+      background: #140e24;
+      border-bottom: 2px solid #3d3350;
       flex-shrink: 0;
     }
 
     .stage-progress-label {
-      font-size: 0.78rem;
-      color: #e8e8ff;
-      font-weight: bold;
-      letter-spacing: 0.04em;
+      font-family: "Cinzel", serif;
+      font-size: 0.72rem;
+      color: #e8c868;
+      font-weight: 600;
+      letter-spacing: 0.08em;
       margin-bottom: 0.25rem;
+      text-transform: uppercase;
     }
 
     .stage-progress-row {
@@ -1097,14 +1123,14 @@
     .stage-progress-track {
       flex: 1;
       height: 3px;
-      background: #1a1a3a;
+      background: #2a2040;
       border-radius: 2px;
       overflow: hidden;
     }
 
     .stage-progress-fill {
       height: 100%;
-      background: linear-gradient(to right, #4a6aff, #8a44cc);
+      background: linear-gradient(to right, #c45a28, #e8a050);
       transition: width 0.6s ease;
       border-radius: 2px;
     }
@@ -1114,8 +1140,9 @@
     }
 
     .stage-progress-text {
+      font-family: "DM Mono", monospace;
       font-size: 0.6rem;
-      color: #6a8aff;
+      color: #c45a28;
       letter-spacing: 0.05em;
       white-space: nowrap;
     }
@@ -1135,12 +1162,13 @@
       max-width: 480px;
     }
     .toast {
-      background: #0d0d22;
-      border: 1px solid #3a3a6a;
+      background: #1e1830;
+      border: 1px solid #3d3350;
       border-radius: 3px;
       padding: 0.5rem 0.9rem;
-      font-size: 0.7rem;
-      color: #c8c8e8;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.78rem;
+      color: #d0c0a8;
       letter-spacing: 0.04em;
       opacity: 0;
       animation: toast-in 0.2s ease forwards, toast-out 0.3s ease 3.7s forwards;
@@ -1193,33 +1221,44 @@
       display: flex;
     }
     .session-complete-card {
-      background: #0d0d22;
-      border: 1px solid #3a3a6a;
+      background: #1e1830;
+      border: 1px solid #8a6a28;
       border-radius: 4px;
       padding: 2rem 2.5rem;
       max-width: 480px;
       width: 90%;
       text-align: center;
-      box-shadow: 0 0 40px rgba(100, 120, 255, 0.15);
+      box-shadow: 0 0 40px rgba(232, 200, 104, 0.1);
+    }
+    .session-complete-card::before {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      border: 1px solid rgba(184, 144, 56, 0.15);
+      border-radius: 2px;
+      pointer-events: none;
     }
     .session-complete-title {
+      font-family: "Cinzel", serif;
       font-size: 1.2rem;
-      color: #44cc66;
-      letter-spacing: 0.12em;
+      color: #e8c868;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
       margin-bottom: 0.4rem;
     }
     .session-complete-problem {
-      font-size: 0.75rem;
-      color: #8888aa;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.85rem;
+      color: #a0927a;
       margin-bottom: 1.5rem;
       font-style: italic;
     }
     .session-complete-hint {
-      font-size: 0.7rem;
-      color: #6a8aff;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.8rem;
+      color: #d0c0a8;
       margin-bottom: 1.5rem;
-      line-height: 1.5;
+      line-height: 1.6;
     }
     .session-complete-actions {
       display: flex;
@@ -1229,38 +1268,39 @@
     }
     .session-complete-btn {
       background: transparent;
-      border: 1px solid #3a3a6a;
-      color: #c8c8e8;
+      border: 1px solid #3d3350;
+      color: #d0c0a8;
       padding: 0.5rem 1.1rem;
       border-radius: 3px;
       cursor: pointer;
-      font-size: 0.7rem;
-      letter-spacing: 0.08em;
+      font-family: "Cinzel", serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      transition: border-color 0.15s, color 0.15s;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
     }
     .session-complete-btn:hover {
-      border-color: #6a8aff;
-      color: #fff;
+      border-color: #c45a28;
+      color: #e8dcd0;
     }
     .session-complete-btn.primary {
-      border-color: #44cc66;
-      color: #44cc66;
+      border-color: #c45a28;
+      color: #c45a28;
     }
     .session-complete-btn.primary:hover {
-      background: #44cc6622;
+      background: rgba(196, 90, 40, 0.15);
     }
 
     /* ── Server Info (LAN address) ── */
     .server-info {
-      border-top: 1px solid #1a1a3a;
+      border-top: 1px solid #2a2040;
       padding: 0.3rem 0.75rem;
       flex-shrink: 0;
       font-size: 0.6rem;
-      color: #555577;
-      background: #0d0d22;
+      color: #5a4a3a;
+      background: #140e24;
       text-align: center;
-      font-family: "Courier New", Courier, monospace;
+      font-family: "DM Mono", monospace;
       letter-spacing: 0.05em;
       cursor: default;
       user-select: all;
