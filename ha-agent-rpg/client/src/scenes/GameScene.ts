@@ -4,6 +4,7 @@ import { AgentSprite } from '../systems/AgentSprite';
 import { EffectSystem } from '../systems/EffectSystem';
 import { CameraController } from '../systems/CameraController';
 import { MapObjectSprite } from '../systems/MapObjectSprite';
+import { RoomBackground } from '../systems/RoomBackground';
 import { ThoughtBubble } from '../systems/ThoughtBubble';
 import type {
   WorldStateMessage,
@@ -26,6 +27,7 @@ export class GameScene extends Phaser.Scene {
   private effectSystem!: EffectSystem;
   private cameraController: CameraController | null = null;
   private mapObjectSprites: MapObjectSprite[] = [];
+  private roomBackground: RoomBackground | null = null;
   private thoughtBubble!: ThoughtBubble;
   private objects: MapObject[] = [];
 
@@ -43,7 +45,12 @@ export class GameScene extends Phaser.Scene {
       // Only render map once
       if (!this.mapRenderer) {
         this.mapRenderer = new MapRenderer(this, state.map);
+        this.mapRenderer.setBackgroundMode(true);
         this.mapRenderer.render();
+
+        // Show room background image instead of individual tiles
+        this.roomBackground = new RoomBackground(this);
+        this.roomBackground.show('', state.map.width, state.map.height, state.map.tile_size);
 
         // Create camera controller with actual map dimensions
         this.cameraController = new CameraController(
@@ -142,10 +149,20 @@ export class GameScene extends Phaser.Scene {
         this.mapObjectSprites.forEach(s => s.destroy());
         this.mapObjectSprites = [];
 
-        // Swap the tilemap
+        // Swap room background image
+        this.roomBackground?.show(
+          data.path, data.map.width, data.map.height, data.map.tile_size,
+        );
+
+        // Update tile data (no-op visually in background mode, but keeps internal state)
         if (this.mapRenderer) {
           this.mapRenderer.loadMap(data.map);
         }
+
+        // Update camera bounds for the new room size
+        this.cameraController?.updateBounds(
+          data.map.width, data.map.height, data.map.tile_size,
+        );
 
         // Create sprites for all objects (nav doors now have visual + click handling)
         for (const obj of data.objects ?? []) {

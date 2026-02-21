@@ -93,4 +93,9 @@ export class CameraController {
   clearFollow(): void {
     this.followingAgent = null;
   }
+
+  /** Update camera bounds when navigating to a differently-sized room */
+  updateBounds(mapWidth: number, mapHeight: number, tileSize: number): void {
+    this.camera.setBounds(0, 0, mapWidth * tileSize, mapHeight * tileSize);
+  }
 }

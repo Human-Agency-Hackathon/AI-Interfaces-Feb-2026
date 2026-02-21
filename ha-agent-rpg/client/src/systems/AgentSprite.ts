@@ -33,13 +33,14 @@ export class AgentSprite {
     this.logicalX = px;
     this.logicalY = py;
 
-    // Shadow ellipse under feet
-    this.shadow = scene.add.ellipse(px, py + 10, 16, 6, 0x000000, 0.3)
+    // Shadow ellipse under feet (enlarged to match scaled sprite)
+    this.shadow = scene.add.ellipse(px, py + 10, 22, 8, 0x000000, 0.3)
       .setDepth(9);
 
-    // Character sprite (shifted up slightly from tile center)
+    // Character sprite (shifted up slightly from tile center, scaled 1.5× for visibility)
     this.sprite = scene.add.image(px, py - 2, textureKey)
-      .setDepth(10);
+      .setDepth(10)
+      .setScale(1.5);
 
     // Name label with stroke for readability
     this.nameLabel = scene.add.text(px, py - 18, agent.name, {
@@ -217,10 +218,10 @@ export class AgentSprite {
       targets: this.sprite, x: targetX, y: targetY - 2, duration: dur, ease,
     });
 
-    // Walk squash-bounce
+    // Walk squash-bounce (relative to the 1.5× base scale)
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleY: { from: 1, to: 0.88 },
+      scaleY: { from: 1.5, to: 1.32 },
       duration: dur / 2,
       yoyo: true,
       ease: 'Sine.easeInOut',
@@ -310,7 +311,7 @@ export class AgentSprite {
   playIdle(): void {
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleY: 0.92,
+      scaleY: 1.38,  // relative to 1.5× base scale
       duration: 200,
       yoyo: true,
       ease: 'Sine.easeInOut',
