@@ -1012,6 +1012,17 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
       this.repoPath = realm.path;
       this.worldState = savedState;
 
+      // Restore navigation state if present (populated by S3's save triggers)
+      const navState = this.worldState.navigationState;
+      if (navState) {
+        for (const [agentId, stack] of Object.entries(navState.agentNavStacks)) {
+          this.agentNavStacks.set(agentId, stack);
+        }
+        for (const [agentId, path] of Object.entries(navState.agentCurrentPath)) {
+          this.agentCurrentPath.set(agentId, path);
+        }
+      }
+
       // Reload quests
       this.questManager.loadQuests(savedState.getQuests());
 
