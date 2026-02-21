@@ -116,7 +116,7 @@ ws.on('agent:joined', (msg) => {
   const data = msg as unknown as AgentJoinedMessage;
   console.log(`[Agent Joined] ${data.agent.name} (${data.agent.role}) — realm: ${data.agent.realm}`);
   agentRoster?.addAgent(data.agent);
-  // Broadcast so UIScene and DialogueLog can show display names instead of raw IDs
+  // Broadcast so UIScene can show display names instead of raw IDs
   window.dispatchEvent(new CustomEvent('agent-joined', {
     detail: { agentId: data.agent.agent_id, name: data.agent.name, color: data.agent.color },
   }));
@@ -360,6 +360,17 @@ function startGame(identity: SetupIdentity): void {
     }
   }
 
+  // Sidebar toggle button
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  const sidebar = document.getElementById('sidebar');
+  if (sidebarToggle && sidebar) {
+    sidebarToggle.onclick = () => {
+      const collapsed = sidebar.classList.toggle('sidebar-collapsed');
+      sidebarToggle.classList.toggle('toggle-collapsed', collapsed);
+      sidebarToggle.innerHTML = collapsed ? '&raquo;' : '&laquo;';
+    };
+  }
+
   // Stage progress bar at top of sidebar
   if (stageProgressBar) stageProgressBar.destroy();
   stageProgressBar = new StageProgressBar('sidebar');
@@ -408,10 +419,7 @@ function startGame(identity: SetupIdentity): void {
   }
   promptBar = new PromptBar('sidebar', ws, {
     onClearLog: () => {
-      const logEl = document.getElementById('dialogue-log')!;
-      while (logEl.firstChild) {
-        logEl.removeChild(logEl.firstChild);
-      }
+      // DialogueLog has been replaced by per-agent speech bubbles; no-op
     },
     onToggleSettings: () => {
       const panel = document.getElementById('settings-panel')!;

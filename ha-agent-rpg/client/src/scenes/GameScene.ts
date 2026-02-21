@@ -6,7 +6,7 @@ import { EffectSystem } from '../systems/EffectSystem';
 import { CameraController } from '../systems/CameraController';
 import { MapObjectSprite } from '../systems/MapObjectSprite';
 import { RoomBackground } from '../systems/RoomBackground';
-import { ThoughtBubble } from '../systems/ThoughtBubble';
+import { SpeechBubbleManager } from '../systems/SpeechBubbleManager';
 import { FortSprite } from '../systems/FortSprite';
 import { Minimap } from '../ui/Minimap';
 import type {
@@ -32,7 +32,7 @@ export class GameScene extends Phaser.Scene {
   private cameraController: CameraController | null = null;
   private mapObjectSprites: MapObjectSprite[] = [];
   private roomBackground: RoomBackground | null = null;
-  private thoughtBubble!: ThoughtBubble;
+  private speechBubbleManager!: SpeechBubbleManager;
   private objects: MapObject[] = [];
   private currentMapDimensions: { width: number; height: number } | null = null;
   private arrowKeys!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -49,7 +49,7 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.effectSystem = new EffectSystem(this, this.agentSprites);
-    this.thoughtBubble = new ThoughtBubble(this);
+    this.speechBubbleManager = new SpeechBubbleManager(this);
 
     // Use shared WebSocketClient from registry (set by main.ts) instead of
     // creating a duplicate connection. Falls back to localhost for safety.
@@ -169,6 +169,7 @@ export class GameScene extends Phaser.Scene {
         sprite.destroy();
         this.agentSprites.delete(data.agent_id);
       }
+      this.speechBubbleManager.removeBubble(data.agent_id);
     });
 
     this.wsClient.on('action:result', (msg) => {
@@ -181,15 +182,27 @@ export class GameScene extends Phaser.Scene {
       const data = msg as unknown as AgentThoughtMessage;
       const sprite = this.agentSprites.get(data.agent_id);
       if (sprite) {
-        this.thoughtBubble.show(sprite.getX(), sprite.getY(), data.text);
+        this.speechBubbleManager.updateBubble(
+          data.agent_id, 'think', data.text,
+          sprite.getX(), sprite.getY(),
+          sprite.agentColor, sprite.agentName,
+        );
       }
-      // Forward to UIScene for dialogue log
+      // Still forward to UIScene for status text update
       this.scene.get('UIScene').events.emit('agent-thought', data);
     });
 
     this.wsClient.on('agent:activity', (msg) => {
       const data = msg as unknown as AgentActivityMessage;
-      this.scene.get('UIScene').events.emit('agent-activity', data);
+      const sprite = this.agentSprites.get(data.agent_id);
+      if (sprite) {
+        this.speechBubbleManager.updateBubble(
+          data.agent_id, 'activity', data.activity,
+          sprite.getX(), sprite.getY(),
+          sprite.agentColor, sprite.agentName,
+          data.tool_name,
+        );
+      }
     });
 
     this.wsClient.on('map:change', (msg) => {
@@ -385,6 +398,11 @@ export class GameScene extends Phaser.Scene {
     }
     this.mapObjectSprites = [];
 
+    // Clean up speech bubbles
+    if (this.speechBubbleManager) {
+      this.speechBubbleManager.destroy();
+    }
+
     // Clean up minimap
     if (this.minimap) {
       this.minimap.destroy();
@@ -406,6 +424,11 @@ export class GameScene extends Phaser.Scene {
   update(): void {
     if (this.cameraController) {
       this.cameraController.update();
+    }
+
+    // Update speech bubbles (off-screen detection, edge indicators)
+    if (this.speechBubbleManager) {
+      this.speechBubbleManager.update(this.cameras.main);
     }
 
     // Handle player movement input
@@ -540,17 +563,19 @@ export class GameScene extends Phaser.Scene {
     if (!sprite) return;
 
     switch (result.action) {
-      case 'move':
+      case 'move': {
         sprite.walkTo(
           result.params.x as number,
           result.params.y as number
         );
+        // Move speech bubble to follow the agent
+        const TILE_SIZE = 32;
+        const moveTargetX = (result.params.x as number) * TILE_SIZE + TILE_SIZE / 2;
+        const moveTargetY = (result.params.y as number) * TILE_SIZE + TILE_SIZE / 2;
+        this.speechBubbleManager.repositionBubble(result.agent_id, moveTargetX, moveTargetY);
         // If following this agent, smoothly track the movement
         if (this.cameraController && this.cameraController.isFollowing(result.agent_id)) {
-          const TILE_SIZE = 32;
-          const targetX = (result.params.x as number) * TILE_SIZE + TILE_SIZE / 2;
-          const targetY = (result.params.y as number) * TILE_SIZE + TILE_SIZE / 2;
-          this.cameraController.panTo(targetX, targetY, result.agent_id);
+          this.cameraController.panTo(moveTargetX, moveTargetY, result.agent_id);
         }
         // Update minimap agent position
         if (this.minimap) {
@@ -562,28 +587,22 @@ export class GameScene extends Phaser.Scene {
           );
         }
         break;
+      }
 
       case 'speak':
-        this.scene.get('UIScene').events.emit('show-dialogue', {
-          agent_id: result.agent_id,
-          name: sprite.agentName,
-          text: result.params.text as string,
-          color: sprite.agentColor,
-        });
+        this.speechBubbleManager.updateBubble(
+          result.agent_id, 'speak', result.params.text as string,
+          sprite.getX(), sprite.getY(),
+          sprite.agentColor, sprite.agentName,
+        );
         break;
 
       case 'think':
-        // Show thought bubble above the agent
-        this.thoughtBubble.show(
-          sprite.getX(),
-          sprite.getY(),
-          result.params.text as string,
+        this.speechBubbleManager.updateBubble(
+          result.agent_id, 'think', result.params.text as string,
+          sprite.getX(), sprite.getY(),
+          sprite.agentColor, sprite.agentName,
         );
-        // Forward to UIScene for dialogue log
-        this.scene.get('UIScene').events.emit('agent-thought', {
-          agent_id: result.agent_id,
-          text: result.params.text as string,
-        });
         break;
 
       case 'skill':
