@@ -31,6 +31,9 @@ export class UIScene extends Phaser.Scene {
     // Track agent name/color for display
     window.addEventListener('agent-joined', ((e: CustomEvent) => {
       this.agentInfo.set(e.detail.agentId, { name: e.detail.name, color: e.detail.color });
+      // Remove waiting text once any agent has joined
+      const wt = this.children.getByName('waitingText');
+      if (wt) wt.destroy();
     }) as EventListener);
 
     // Listen for thought events from GameScene (just for status text update)
