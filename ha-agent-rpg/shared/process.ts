@@ -176,6 +176,35 @@ export interface ProcessState {
 
   /** ISO timestamp when the process completed (if status === 'completed') */
   completedAt?: string;
+
+  // ── Persistence fields (S1) ──────────────────────────
+
+  /**
+   * Original problem text, preserved verbatim for resume.
+   * May differ from `problem` if that field gets truncated or reformatted
+   * in future versions.
+   */
+  problemStatement?: string;
+
+  /**
+   * Total turns completed per stage, keyed by stage ID.
+   * Populated by ProcessController.toJSON() (S2).
+   * e.g. { "ideation": 6, "critique": 4 }
+   */
+  stageTurnCounts?: Record<string, number>;
+
+  /**
+   * Turns completed per agent within each stage, keyed as "stageId:agentId".
+   * Populated by ProcessController.toJSON() (S2).
+   * e.g. { "ideation:wild_ideator_1": 3, "ideation:cross_pollinator_1": 3 }
+   */
+  agentTurnCounts?: Record<string, number>;
+
+  /**
+   * ISO 8601 timestamp for when the current stage started.
+   * Used to calculate stage duration on resume.
+   */
+  stageStartedAt?: string;
 }
 
 // ── Built-in Templates ────────────────────────────────
