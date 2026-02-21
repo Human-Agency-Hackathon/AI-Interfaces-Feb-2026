@@ -3,11 +3,25 @@
 ## Workflow Rules
 
 - **Always commit and push.** After making changes, commit and push to `main` without being asked. The team accesses this repo from multiple devices; unpushed work is invisible work.
+- **Test constantly.** Write tests and run tests as part of every change, not as an afterthought. The cycle is: **write code → write/update tests → run tests → fix failures → commit and push**. Every commit should leave tests passing. Run `npm run test -w server` and/or `npm run test -w client` after every meaningful change. If you add a new function, add a test. If you fix a bug, add a regression test. If you refactor, run existing tests to confirm nothing broke. Do NOT accumulate untested code; small tested commits move the team faster than large untested ones.
 - **Know your identity.** At the start of every session, read `.agent-owner` in the repo root. It contains a single line: the name of the team member you're working for (e.g. `Ken`, `Behrang`). Use this name when posting to the Bulletin Board. If `.agent-owner` does not exist, **ask the user who they are** immediately, then create the file with their name. The file is `.gitignore`d so each machine has its own identity. The team roster is at the top of `TASKS.md`.
 - **Use the Bulletin Board.** `TASKS.md` has a Bulletin Board section near the bottom.
   - **Every pull:** After every `git pull`, re-read the Bulletin Board in `TASKS.md`. Look for **new messages @-mentioning your owner** (e.g. `@Behrang`, `@Ida`). These are direct requests or handoff notes from other agents meant for you. Also scan recent messages from others to understand what's changed. This applies at session start and any time you pull mid-session.
   - **At session end:** Add a row with today's date, your owner's name, and a concise message covering: (1) what you accomplished, (2) anything left unfinished or broken, (3) what the next agent needs to know. **Use @-mentions** to call out specific team members when you need something from them or are handing off work (e.g. `@Behrang: the schema is ready for you to integrate`).
+  - **Cross-domain requests:** If your work touches another team member's core domain (see table below), **do not silently modify their code**. Instead, leave a Bulletin Board message @-mentioning them with what you need, why, and any context. Let them make changes in their domain, or at minimum get their awareness before you proceed. This prevents stepping on each other's work and keeps domain experts in the loop.
   - **Team handles:** `@Ida`, `@Jeff`, `@Pratham`, `@Behrang`, `@Ken`
+
+## Core Domains
+
+Each team member owns a domain. Respect these boundaries; use the Bulletin Board for cross-domain requests.
+
+| Name | Core Domain | Owns |
+|------|------------|------|
+| **Ida** | Visual Design / Presentation | BootScene textures, AgentSprite, UI styling (index.html CSS), TitleScreen, RepoScreen, landing page, design tokens |
+| **Jeff** | Brainstorming Process Design | Stage sequences, agent roles/personas, transition rules, process templates in `skills/`, DESIGN.md methodology |
+| **Pratham** | Agent Memory / Persistence | Redis integration, storage backends, FindingsBoard/KnowledgeVault/WorldStatePersistence implementations, inter-agent comms |
+| **Behrang** | Core Engine / Agent Orchestration | BridgeServer, ProcessController, AgentSessionManager, SystemPromptBuilder, MCP tools, turn system, protocol types |
+| **Ken** | Project Management / Process Design | TASKS.md, CLAUDE.md, sprint planning, process definitions, architecture decisions, unblocking |
 
 ## Project Overview
 
