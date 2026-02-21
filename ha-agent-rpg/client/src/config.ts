@@ -18,7 +18,8 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   callbacks: {
     postBoot: (game) => {
       game.canvas.setAttribute('tabindex', '0');
-      game.canvas.focus();
+      // Don't auto-focus canvas — JoinScreen's name input needs focus first.
+      // Phaser keyboard works via window listeners (disableGlobalCapture), no canvas focus needed.
     },
   },
 };
