@@ -1,4 +1,7 @@
 const ROOM_PADDING = 24;
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 2.0;
+const ZOOM_STEP = 0.25;
 
 export class CameraController {
   private scene: Phaser.Scene;
@@ -6,6 +9,9 @@ export class CameraController {
   private followTarget: { x: number; y: number } | null = null;
   private followingAgent: string | null = null;
   private mode: 'diorama' | 'follow' = 'diorama';
+  private currentZoom = 1.0;
+  private mapWidthPx = 0;
+  private mapHeightPx = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -15,13 +21,67 @@ export class CameraController {
   ) {
     this.scene = scene;
     this.camera = scene.cameras.main;
+    this.mapWidthPx = mapWidth * tileSize;
+    this.mapHeightPx = mapHeight * tileSize;
     this.fitRoom(mapWidth, mapHeight, tileSize);
   }
 
   setMode(mode: 'diorama' | 'follow'): void {
     this.mode = mode;
     if (mode === 'follow') {
+      this.currentZoom = 1.0;
       this.camera.setZoom(1);
+    }
+  }
+
+  getZoom(): number {
+    return this.currentZoom;
+  }
+
+  setZoom(level: number): void {
+    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, level));
+    this.currentZoom = clamped;
+    this.scene.tweens.add({
+      targets: this.camera,
+      props: { zoom: { value: clamped } },
+      duration: 200,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        this.updateBoundsForZoom();
+      },
+    });
+  }
+
+  zoomIn(): void {
+    this.setZoom(this.currentZoom + ZOOM_STEP);
+  }
+
+  zoomOut(): void {
+    this.setZoom(this.currentZoom - ZOOM_STEP);
+  }
+
+  fitToMap(mapWidth: number, mapHeight: number, tileSize: number): void {
+    const mapPxW = mapWidth * tileSize;
+    const mapPxH = mapHeight * tileSize;
+    const zoom = Math.min(this.camera.width / mapPxW, this.camera.height / mapPxH);
+    this.mapWidthPx = mapPxW;
+    this.mapHeightPx = mapPxH;
+    this.currentZoom = zoom;
+    this.scene.tweens.add({
+      targets: this.camera,
+      props: { zoom: { value: zoom } },
+      duration: 200,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        this.camera.centerOn(mapPxW / 2, mapPxH / 2);
+        this.updateBoundsForZoom();
+      },
+    });
+  }
+
+  private updateBoundsForZoom(): void {
+    if (this.mode === 'follow' && this.mapWidthPx > 0) {
+      this.camera.setBounds(0, 0, this.mapWidthPx, this.mapHeightPx);
     }
   }
 
@@ -59,10 +119,12 @@ export class CameraController {
   }
 
   updateBounds(mapWidth: number, mapHeight: number, tileSize: number): void {
+    this.mapWidthPx = mapWidth * tileSize;
+    this.mapHeightPx = mapHeight * tileSize;
     if (this.mode === 'diorama') {
       this.fitRoom(mapWidth, mapHeight, tileSize);
     } else {
-      this.camera.setBounds(0, 0, mapWidth * tileSize, mapHeight * tileSize);
+      this.camera.setBounds(0, 0, this.mapWidthPx, this.mapHeightPx);
     }
   }
 
