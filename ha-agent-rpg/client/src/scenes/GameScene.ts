@@ -41,6 +41,7 @@ export class GameScene extends Phaser.Scene {
   private minimap: Minimap | null = null;
   private isFogMode = false;
   private inFortView = false;
+  private _rosterClickHandler: EventListener | null = null;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -309,6 +310,35 @@ export class GameScene extends Phaser.Scene {
         this.wsClient.send({ type: 'player:navigate-enter', target_path: targetPath });
       } else if (obj.type === 'nav_back') {
         this.wsClient.send({ type: 'player:navigate-back' });
+      }
+    });
+
+
+    // Roster click: pan camera to agent and show details panel (mirrors sprite click)
+    const TILE_SIZE = 32;
+    this._rosterClickHandler = ((e: CustomEvent) => {
+      const agent = e.detail as AgentInfo;
+      if (this.cameraController) {
+        this.cameraController.panTo(
+          agent.x * TILE_SIZE + TILE_SIZE / 2,
+          agent.y * TILE_SIZE + TILE_SIZE / 2,
+          agent.agent_id,
+        );
+      }
+      this.wsClient.send({ type: 'player:get-agent-details', agent_id: agent.agent_id });
+      this.scene.get('UIScene').events.emit('show-agent-details', {
+        agent_id: agent.agent_id,
+        name: agent.name,
+        color: agent.color,
+      });
+    }) as EventListener;
+    window.addEventListener('agent-roster-click', this._rosterClickHandler);
+
+    // Clean up window event listener on scene shutdown
+    this.events.once('shutdown', () => {
+      if (this._rosterClickHandler) {
+        window.removeEventListener('agent-roster-click', this._rosterClickHandler);
+        this._rosterClickHandler = null;
       }
     });
 
