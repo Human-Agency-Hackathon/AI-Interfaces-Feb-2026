@@ -78,10 +78,10 @@ splashScreen = new SplashScreen(() => {
 
 // ── 2. Setup Screen (name + color + problem input) ──
 setupScreen = new SetupScreen(
-  (problem: string) => {
+  (problem: string, repoInput?: string) => {
     pendingIdentity = setupScreen.getIdentity();
     setupScreen.showLoading();
-    ws.send({ type: 'player:start-process', problem });
+    ws.send({ type: 'player:start-process', problem, repoInput });
   },
   () => {
     setupScreen.hide();
