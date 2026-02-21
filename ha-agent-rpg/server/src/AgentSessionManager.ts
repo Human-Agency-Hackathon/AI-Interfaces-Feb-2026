@@ -244,7 +244,7 @@ export class AgentSessionManager extends EventEmitter {
   /**
    * Builds the system prompt for an agent session.
    */
-  private buildPromptForSession(session: ActiveSession): string {
+  private async buildPromptForSession(session: ActiveSession): Promise<string> {
     const { config, vault } = session;
     return buildSystemPrompt({
       agentName: config.agentName,
@@ -254,7 +254,7 @@ export class AgentSessionManager extends EventEmitter {
       repoPath: config.repoPath,
       knowledge: vault.getKnowledge(),
       team: this.getTeamRoster(config.agentId),
-      findings: this.findingsBoard.getRecent(15),
+      findings: await this.findingsBoard.getRecent(15),
     });
   }
 
@@ -264,7 +264,7 @@ export class AgentSessionManager extends EventEmitter {
   private async runSession(session: ActiveSession): Promise<void> {
     const { config, abortController } = session;
     const { allowedTools, permissionMode } = PERMISSION_MAP[config.permissionLevel];
-    const systemPrompt = this.buildPromptForSession(session);
+    const systemPrompt = await this.buildPromptForSession(session);
 
     try {
       const mcpServer = config.processContext
@@ -320,7 +320,7 @@ export class AgentSessionManager extends EventEmitter {
   ): Promise<void> {
     const { config, abortController } = session;
     const { allowedTools, permissionMode } = PERMISSION_MAP[config.permissionLevel];
-    const systemPrompt = this.buildPromptForSession(session);
+    const systemPrompt = await this.buildPromptForSession(session);
 
     try {
       const mcpServer = config.processContext

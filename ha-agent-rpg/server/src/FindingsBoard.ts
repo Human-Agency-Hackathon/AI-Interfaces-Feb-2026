@@ -1,5 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { getRedisClient } from './RedisClient.js';
 
 export interface Finding {
   id: string;
@@ -12,50 +11,43 @@ export interface Finding {
 }
 
 export class FindingsBoard {
-  private findings: Finding[] = [];
-  private filePath: string;
+  private key: string;
 
-  constructor(repoPath: string) {
-    this.filePath = join(repoPath, '.agent-rpg', 'findings', 'board.json');
+  constructor(sessionId: string) {
+    // sessionId is the repoPath or session identifier — hash it into a safe Redis key
+    const safe = sessionId.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    this.key = `session:${safe}:findings`;
   }
 
-  async load(): Promise<void> {
-    try {
-      const data = await readFile(this.filePath, 'utf-8');
-      this.findings = JSON.parse(data);
-    } catch {
-      this.findings = [];
-    }
-  }
+  // No-op: Redis needs no explicit load step
+  async load(): Promise<void> {}
 
-  async save(): Promise<void> {
-    await mkdir(dirname(this.filePath), { recursive: true });
-    await writeFile(this.filePath, JSON.stringify(this.findings, null, 2));
-  }
+  // No-op: every write goes straight to Redis
+  async save(): Promise<void> {}
 
-  addFinding(finding: Omit<Finding, 'id' | 'timestamp'>): Finding {
+  async addFinding(finding: Omit<Finding, 'id' | 'timestamp'>): Promise<Finding> {
     const entry: Finding = {
       ...finding,
       id: `finding_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       timestamp: new Date().toISOString(),
     };
-    this.findings.push(entry);
+    await getRedisClient().rpush(this.key, JSON.stringify(entry));
     return entry;
   }
 
-  getAll(): Finding[] {
-    return [...this.findings];
+  async getAll(): Promise<Finding[]> {
+    const items = await getRedisClient().lrange(this.key, 0, -1);
+    return items.map((s) => JSON.parse(s) as Finding);
   }
 
-  getRecent(limit = 20): Finding[] {
-    return this.findings.slice(-limit);
+  async getRecent(limit = 20): Promise<Finding[]> {
+    const items = await getRedisClient().lrange(this.key, -limit, -1);
+    return items.map((s) => JSON.parse(s) as Finding);
   }
 
-  getSummary(): string {
-    if (this.findings.length === 0) return 'No findings yet.';
-    return this.findings
-      .slice(-10)
-      .map(f => `- [${f.agent_name}] ${f.finding}`)
-      .join('\n');
+  async getSummary(): Promise<string> {
+    const recent = await this.getRecent(10);
+    if (recent.length === 0) return 'No findings yet.';
+    return recent.map((f) => `- [${f.agent_name}] ${f.finding}`).join('\n');
   }
 }
