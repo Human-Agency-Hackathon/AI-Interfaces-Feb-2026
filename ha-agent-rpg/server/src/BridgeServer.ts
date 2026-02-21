@@ -599,6 +599,10 @@ export class BridgeServer {
 
       this.gamePhase = 'playing';
 
+      // Send world state immediately so the client renders the fog map
+      // before agent sessions (slow SDK calls) finish spawning
+      this.broadcast(this.buildWorldStateMessage());
+
       // Create process controller with delegate callbacks
       this.processController = new ProcessController(this.createProcessDelegate());
       this.wireProcessControllerEvents(this.processController);
