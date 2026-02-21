@@ -6,6 +6,11 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 
 const server = new BridgeServer(PORT);
 
+// Auto-load last active realm if server was restarted (S7)
+server.autoLoadLastRealm().catch((err) => {
+  console.error('[Bridge] Auto-load error (non-fatal):', err);
+});
+
 const shutdown = async () => {
   await server.forceSave();   // flush any pending debounced save before exit
   await server.close();
