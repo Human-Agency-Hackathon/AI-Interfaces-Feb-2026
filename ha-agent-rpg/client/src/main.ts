@@ -57,9 +57,17 @@ const bufferedAgentJoins: Record<string, unknown>[] = [];
 
 ws.on('world:state', (msg) => {
   bufferedWorldState = msg;
+  // Keep the registry in sync so GameScene can pick up the state even if
+  // world:state arrives after startGame() but before GameScene.create().
+  if (phaserGame) {
+    phaserGame.registry.set('bufferedWorldState', msg);
+  }
 });
 ws.on('agent:joined', (msg) => {
   bufferedAgentJoins.push(msg);
+  if (phaserGame) {
+    phaserGame.registry.set('bufferedAgentJoins', [...bufferedAgentJoins]);
+  }
 });
 
 // ── Screen instances ──
