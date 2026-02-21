@@ -8,6 +8,7 @@ import { MiniMap } from './panels/MiniMap';
 import { QuestLog } from './panels/QuestLog';
 import type {
   RepoReadyMessage,
+  ProcessStartedMessage,
   AgentJoinedMessage,
   AgentActivityMessage,
   FindingsPostedMessage,
@@ -36,11 +37,11 @@ titleScreen = new TitleScreen(() => {
   ws.send({ type: 'player:list-realms' });
 });
 
-// ── 2. Repo Screen ──
+// ── 2. Repo Screen (now the brainstorm problem input screen) ──
 repoScreen = new RepoScreen(
-  (repoUrl: string) => {
+  (problem: string) => {
     repoScreen.showLoading();
-    ws.send({ type: 'player:link-repo', repo_url: repoUrl });
+    ws.send({ type: 'player:start-process', problem });
   },
   () => {
     repoScreen.hide();
@@ -56,7 +57,14 @@ repoScreen = new RepoScreen(
 
 // ── WebSocket event handlers ──
 
-// When the server confirms the repo is ready — start game immediately
+// New flow: brainstorming process started — enter game
+ws.on('process:started', (msg) => {
+  const data = msg as unknown as ProcessStartedMessage;
+  console.log(`[Process] "${data.problem}" — stage: ${data.currentStageName}`);
+  startGame();
+});
+
+// Legacy flow: repo ready (kept for backwards compatibility during transition)
 ws.on('repo:ready', (_msg) => {
   const _data = _msg as unknown as RepoReadyMessage;
   startGame();
