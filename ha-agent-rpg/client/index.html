@@ -1059,6 +1059,78 @@
       white-space: nowrap;
     }
 
+    /* ── Session Complete Overlay ── */
+    #session-complete-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 5, 18, 0.88);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    #session-complete-overlay.visible {
+      display: flex;
+    }
+    .session-complete-card {
+      background: #0d0d22;
+      border: 1px solid #3a3a6a;
+      border-radius: 4px;
+      padding: 2rem 2.5rem;
+      max-width: 480px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(100, 120, 255, 0.15);
+    }
+    .session-complete-title {
+      font-size: 1.2rem;
+      color: #44cc66;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .session-complete-problem {
+      font-size: 0.75rem;
+      color: #8888aa;
+      margin-bottom: 1.5rem;
+      font-style: italic;
+    }
+    .session-complete-hint {
+      font-size: 0.7rem;
+      color: #6a8aff;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .session-complete-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .session-complete-btn {
+      background: transparent;
+      border: 1px solid #3a3a6a;
+      color: #c8c8e8;
+      padding: 0.5rem 1.1rem;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .session-complete-btn:hover {
+      border-color: #6a8aff;
+      color: #fff;
+    }
+    .session-complete-btn.primary {
+      border-color: #44cc66;
+      color: #44cc66;
+    }
+    .session-complete-btn.primary:hover {
+      background: #44cc6622;
+    }
+
     /* ── Server Info (LAN address) ── */
     .server-info {
       border-top: 1px solid #1a1a3a;
@@ -1087,6 +1159,21 @@
 
   <!-- Game Viewport (Phaser + Sidebar) -->
   <div id="game-viewport" class="screen-hidden">
+    <!-- Session complete overlay — shown when process:completed fires -->
+    <div id="session-complete-overlay">
+      <div class="session-complete-card">
+        <div class="session-complete-title">&#10003; Brainstorm Complete</div>
+        <div class="session-complete-problem" id="session-complete-problem"></div>
+        <div class="session-complete-hint">
+          The full session — all ideas, critiques, and the final recommendation — is in the dialogue log on the right.
+        </div>
+        <div class="session-complete-actions">
+          <button class="session-complete-btn primary" id="session-complete-read">Keep Reading</button>
+          <button class="session-complete-btn" id="session-complete-export">Export Report</button>
+          <button class="session-complete-btn" id="session-complete-new">New Brainstorm</button>
+        </div>
+      </div>
+    </div>
     <div id="game-container"></div>
     <div id="sidebar">
       <div id="agent-details-panel" class="agent-details-hidden"></div>
