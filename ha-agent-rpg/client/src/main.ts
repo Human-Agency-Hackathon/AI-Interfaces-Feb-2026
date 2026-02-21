@@ -45,16 +45,6 @@ function showToast(message: string, type: 'error' | 'warn' | 'info' = 'info'): v
   setTimeout(() => toast.remove(), 4200);
 }
 
-// ── Loading overlay helpers (Task 26) ──
-function showLoadingOverlay(label = 'Starting brainstorm...'): void {
-  const el = document.getElementById('process-loading-overlay');
-  const lbl = document.getElementById('loading-label');
-  if (lbl) lbl.textContent = label;
-  el?.classList.add('visible');
-}
-function hideLoadingOverlay(): void {
-  document.getElementById('process-loading-overlay')?.classList.remove('visible');
-}
 
 // ── Screen instances ──
 let splashScreen: SplashScreen;
@@ -76,8 +66,6 @@ setupScreen = new SetupScreen(
     pendingIdentity = setupScreen.getIdentity();
     setupScreen.showLoading();
     ws.send({ type: 'player:start-process', problem });
-    // Show in-game loading overlay once game viewport is visible (Task 26)
-    setTimeout(() => showLoadingOverlay('Spawning agents...'), 100);
   },
   () => {
     setupScreen.hide();
@@ -92,7 +80,6 @@ ws.on('process:started', (msg) => {
   const data = msg as unknown as ProcessStartedMessage;
   console.log(`[Process] "${data.problem}" — stage: ${data.currentStageName}`);
   startGame(pendingIdentity ?? { name: 'Spectator', color: 0xc45a28 });
-  showLoadingOverlay('Spawning agents...');
   // Set initial stage on progress bar after game starts
   if (stageProgressBar) {
     stageProgressBar.setInitialStage(data.currentStageName, data.totalStages);
@@ -108,9 +95,8 @@ ws.on('repo:ready', (_msg) => {
   startGame(pendingIdentity ?? { name: 'Spectator', color: 0xc45a28 });
 });
 
-// When an agent joins during gameplay — clear loading overlay (Task 26)
+// When an agent joins during gameplay
 ws.on('agent:joined', (msg) => {
-  hideLoadingOverlay();
   const data = msg as unknown as AgentJoinedMessage;
   console.log(`[Agent Joined] ${data.agent.name} (${data.agent.role}) — realm: ${data.agent.realm}`);
   // Broadcast so UIScene and DialogueLog can show display names instead of raw IDs
@@ -180,7 +166,6 @@ ws.on('error', (msg) => {
   if (gameStarted) {
     showToast(data.message, 'error');
   } else {
-    hideLoadingOverlay();
     setupScreen.showError(data.message);
   }
 });
@@ -197,12 +182,10 @@ ws.on('agent:activity', (msg) => {
 ws.on('ws:disconnected', () => {
   if (gameStarted) {
     document.getElementById('reconnect-banner')?.classList.add('visible');
-    showLoadingOverlay('Reconnecting...');
   }
 });
 ws.on('ws:connected', () => {
   document.getElementById('reconnect-banner')?.classList.remove('visible');
-  if (gameStarted) hideLoadingOverlay();
 });
 
 // Quest updates from world state
@@ -454,7 +437,6 @@ function stopGame(): void {
 
   // Dismiss overlays
   document.getElementById('session-complete-overlay')?.classList.remove('visible');
-  hideLoadingOverlay();
   document.getElementById('reconnect-banner')?.classList.remove('visible');
 
   // Hide game viewport
