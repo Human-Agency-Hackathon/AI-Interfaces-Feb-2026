@@ -376,6 +376,15 @@ export class AgentSprite {
     this.roleLabel.setText(role);
   }
 
+  setVisible(visible: boolean): void {
+    this.sprite.setVisible(visible);
+    this.glow.setVisible(visible);
+    this.shadow.setVisible(visible);
+    this.nameLabel.setVisible(visible);
+    this.statusDot.setVisible(visible);
+    this.roleLabel.setVisible(visible);
+  }
+
   getX(): number {
     return this.logicalX;
   }

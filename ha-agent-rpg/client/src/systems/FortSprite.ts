@@ -91,6 +91,11 @@ export class FortSprite {
     return this;
   }
 
+  setVisible(visible: boolean): void {
+    this.sprite.setVisible(visible);
+    this.nameLabel.setVisible(visible);
+  }
+
   destroy(): void {
     this.sprite.destroy();
     this.nameLabel.destroy();

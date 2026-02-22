@@ -338,9 +338,13 @@ export class GameScene extends Phaser.Scene {
 
     this.wsClient.on('fort:view', (msg: any) => {
       this.inFortView = true;
-      // Hide zoom controls during fort interior view
+      // Hide zoom controls and fog-of-war tiles during fort interior view
       this.zoomControls?.hide();
+      this.mapRenderer?.setVisible(false);
 
+      // Hide fort sprites and agent sprites so they don't show through
+      for (const fort of this.fortSprites.values()) fort.setVisible(false);
+      for (const sprite of this.agentSprites.values()) sprite.setVisible(false);
 
       // Create or reuse room background for fort interior
       if (!this.roomBackground) {
@@ -368,6 +372,24 @@ export class GameScene extends Phaser.Scene {
         backBtn.remove();
         this.zoomControls?.show();
         this.inFortView = false;
+
+        // Destroy room background so fog map is visible again
+        this.roomBackground?.destroy();
+
+        // Restore fog-of-war tiles and sprites
+        this.mapRenderer?.setVisible(true);
+        for (const fort of this.fortSprites.values()) fort.setVisible(true);
+        for (const sprite of this.agentSprites.values()) sprite.setVisible(true);
+
+        // Restore camera to follow mode with fog-of-war map bounds
+        if (this.cameraController && this.currentMapDimensions) {
+          this.cameraController.setMode('follow');
+          this.cameraController.updateBounds(
+            this.currentMapDimensions.width,
+            this.currentMapDimensions.height,
+            32,
+          );
+        }
       };
       document.body.appendChild(backBtn);
     });

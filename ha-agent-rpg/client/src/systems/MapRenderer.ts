@@ -59,6 +59,16 @@ export class MapRenderer {
     }
   }
 
+  /** Hide or show all terrain tiles and fog (used during fort interior views). */
+  setVisible(visible: boolean): void {
+    for (const img of this.tileImages) {
+      img.setVisible(visible);
+    }
+    for (const fog of this.fogTiles) {
+      fog.setVisible(visible);
+    }
+  }
+
   getMap(): TileMapData {
     return this.mapData;
   }
