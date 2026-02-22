@@ -84,27 +84,31 @@ export class BootScene extends Phaser.Scene {
       const g = this.add.graphics();
       const d = variants[v];
 
-      // Base dungeon stone
-      g.fillStyle(0x2a2244, 1);
+      // Base dungeon stone — brightened for richer room-like aesthetic
+      g.fillStyle(0x3a3460, 1);
       g.fillRect(0, 0, 32, 32);
 
       // Darker stone patches
-      g.fillStyle(0x221a38, 1);
+      g.fillStyle(0x302850, 1);
       for (const [x, y, w, h] of d.dark) g.fillRect(x, y, w, h);
 
       // Lighter stone patches
-      g.fillStyle(0x332a50, 1);
+      g.fillStyle(0x484070, 1);
       for (const [x, y, w, h] of d.light) g.fillRect(x, y, w, h);
 
       // Mortar cracks
-      g.fillStyle(0x1e1830, 0.7);
+      g.fillStyle(0x282040, 0.7);
       for (const [x, y, w, h] of d.cracks) g.fillRect(x, y, w, h);
 
       // Mineral speckles
-      g.fillStyle(0x3d3358, 0.4);
+      g.fillStyle(0x564a78, 0.5);
       for (const [sx, sy] of d.speckles) {
         g.fillRect(sx, sy, 1, 1);
       }
+
+      // Warm ambient highlight — gives a torchlit room feel
+      g.fillStyle(0x6a5a40, 0.08);
+      g.fillRect(0, 0, 32, 32);
 
       // Subtle tile edge
       g.lineStyle(1, 0x000000, 0.08);
@@ -123,14 +127,14 @@ export class BootScene extends Phaser.Scene {
     const g = this.add.graphics();
     const S = 32;
 
-    // Base dungeon stone
-    g.fillStyle(0x3d3350, 1);
+    // Base dungeon stone — brightened
+    g.fillStyle(0x504870, 1);
     g.fillRect(0, 0, S, S);
 
     const brickH = 8;
     const brickW = 16;
     const mortar = 1;
-    const brickColors = [0x3a3050, 0x342a48, 0x42385a];
+    const brickColors = [0x4a4268, 0x443c60, 0x564e78];
 
     for (let row = 0; row < 4; row++) {
       const offX = (row % 2) * (brickW / 2);
@@ -151,12 +155,12 @@ export class BootScene extends Phaser.Scene {
         g.fillRect(cx, by, cw, bh);
 
         // Light edge (top + left)
-        g.fillStyle(0x4a4068, 0.5);
+        g.fillStyle(0x6a6090, 0.5);
         g.fillRect(cx, by, cw, 1);
         g.fillRect(cx, by, 1, bh);
 
         // Dark edge (bottom + right)
-        g.fillStyle(0x2a2240, 0.5);
+        g.fillStyle(0x3a3458, 0.5);
         g.fillRect(cx, by + bh - 1, cw, 1);
         const right = bx + bw - 1;
         if (right >= 0 && right < S) {
@@ -192,12 +196,12 @@ export class BootScene extends Phaser.Scene {
       const g = this.add.graphics();
       const S = 32;
 
-      // Deep water base
-      g.fillStyle(0x1a3a6a, 1);
+      // Deep water base — brightened
+      g.fillStyle(0x2a4a7a, 1);
       g.fillRect(0, 0, S, S);
 
       // Mid-tone wave bands
-      g.fillStyle(0x2a5a94, 0.6);
+      g.fillStyle(0x3a6aa4, 0.6);
       for (let y = 0; y < S; y += 4) {
         const waveOff = Math.sin((y + frame * 4) * 0.3) * 3;
         g.fillRect(Math.floor(waveOff) + 2, y, S - 4, 2);
@@ -310,34 +314,34 @@ export class BootScene extends Phaser.Scene {
     const g = this.add.graphics();
     const S = 32;
 
-    // Base dungeon stone
-    g.fillStyle(0x2a2244, 1);
+    // Base dungeon stone — brightened
+    g.fillStyle(0x3a3460, 1);
     g.fillRect(0, 0, S, S);
 
     // Four slabs with slight color variation
-    g.fillStyle(0x2e2648, 1);
+    g.fillStyle(0x3e3668, 1);
     g.fillRect(1, 1, 13, 13);
-    g.fillStyle(0x281e40, 1);
+    g.fillStyle(0x362e58, 1);
     g.fillRect(18, 1, 13, 13);
-    g.fillStyle(0x2c2446, 1);
+    g.fillStyle(0x3c3464, 1);
     g.fillRect(1, 18, 13, 13);
-    g.fillStyle(0x2a2042, 1);
+    g.fillStyle(0x383060, 1);
     g.fillRect(18, 18, 13, 13);
 
     // Grout cross
-    g.fillStyle(0x1e1830, 1);
+    g.fillStyle(0x282048, 1);
     g.fillRect(0, 15, S, 2);
     g.fillRect(15, 0, 2, S);
 
     // Cracks
-    g.fillStyle(0x1e1830, 0.5);
+    g.fillStyle(0x282048, 0.5);
     g.fillRect(4, 6, 5, 1);
     g.fillRect(22, 10, 1, 4);
     g.fillRect(8, 22, 3, 1);
     g.fillRect(24, 24, 4, 1);
 
     // Speckles
-    g.fillStyle(0x3d3358, 0.4);
+    g.fillStyle(0x564a78, 0.5);
     g.fillRect(3, 3, 1, 1);
     g.fillRect(10, 9, 1, 1);
     g.fillRect(20, 5, 1, 1);
@@ -345,7 +349,7 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(7, 24, 1, 1);
 
     // Edge highlights
-    g.fillStyle(0x3d3358, 0.3);
+    g.fillStyle(0x504878, 0.3);
     g.fillRect(1, 1, 13, 1);
     g.fillRect(18, 1, 13, 1);
     g.fillRect(1, 18, 13, 1);
@@ -514,32 +518,32 @@ export class BootScene extends Phaser.Scene {
 
   private generateTreeTile(): void {
     const g = this.add.graphics();
-    // Dark forest ground
-    g.fillStyle(0x1a3318); g.fillRect(0, 0, 32, 32);
+    // Dark forest ground — brightened
+    g.fillStyle(0x284428); g.fillRect(0, 0, 32, 32);
     // Tree trunk
-    g.fillStyle(0x3a2a14); g.fillRect(13, 16, 6, 12);
-    // Canopy (dark green circle)
-    g.fillStyle(0x1a4a18); g.fillCircle(16, 12, 10);
+    g.fillStyle(0x4a3a1e); g.fillRect(13, 16, 6, 12);
+    // Canopy (green circle) — brighter
+    g.fillStyle(0x2a6a28); g.fillCircle(16, 12, 10);
     // Canopy highlight
-    g.fillStyle(0x2d6b1f); g.fillCircle(14, 9, 5);
+    g.fillStyle(0x3d8830); g.fillCircle(14, 9, 5);
     // Leaf detail
-    g.fillStyle(0x245a20); g.fillCircle(19, 13, 4);
+    g.fillStyle(0x347a30); g.fillCircle(19, 13, 4);
     g.generateTexture('tile-tree', 32, 32);
     g.destroy();
   }
 
   private generateHillTile(): void {
     const g = this.add.graphics();
-    // Rocky base
-    g.fillStyle(0x5a5040); g.fillRect(0, 0, 32, 32);
+    // Rocky base — brightened
+    g.fillStyle(0x6a6050); g.fillRect(0, 0, 32, 32);
     // Hill mound
-    g.fillStyle(0x6a5a48);
+    g.fillStyle(0x7a6a58);
     g.fillTriangle(0, 28, 16, 8, 32, 28);
     // Hill highlight
-    g.fillStyle(0x7a6a58);
+    g.fillStyle(0x8a7a68);
     g.fillTriangle(4, 26, 14, 12, 20, 26);
     // Scrub grass tufts
-    g.fillStyle(0x4a5a30);
+    g.fillStyle(0x5a6a40);
     g.fillRect(10, 22, 2, 4); g.fillRect(20, 20, 2, 5);
     g.generateTexture('tile-hill', 32, 32);
     g.destroy();
@@ -547,17 +551,17 @@ export class BootScene extends Phaser.Scene {
 
   private generateSandTile(): void {
     const g = this.add.graphics();
-    g.fillStyle(0xc8a85a); g.fillRect(0, 0, 32, 32);
+    g.fillStyle(0xd8b86a); g.fillRect(0, 0, 32, 32);
     // Sand texture dots
-    g.fillStyle(0xb89848);
+    g.fillStyle(0xc8a858);
     for (let i = 0; i < 8; i++) {
       g.fillRect((i * 7 + 3) % 30, (i * 11 + 5) % 30, 2, 2);
     }
     // Light sand patches
-    g.fillStyle(0xd8b868);
+    g.fillStyle(0xe8c878);
     g.fillRect(5, 12, 6, 3); g.fillRect(20, 22, 5, 3);
     // Darker wet patches
-    g.fillStyle(0xa08840, 0.5);
+    g.fillStyle(0xb09850, 0.5);
     g.fillRect(2, 24, 8, 4); g.fillRect(22, 4, 6, 3);
     g.generateTexture('tile-sand', 32, 32);
     g.destroy();
@@ -565,16 +569,16 @@ export class BootScene extends Phaser.Scene {
 
   private generatePathTile(): void {
     const g = this.add.graphics();
-    // Dirt base
-    g.fillStyle(0x7a6048); g.fillRect(0, 0, 32, 32);
+    // Dirt base — brightened
+    g.fillStyle(0x8a7058); g.fillRect(0, 0, 32, 32);
     // Worn center (lighter)
-    g.fillStyle(0x9a8060); g.fillRect(4, 0, 24, 32);
+    g.fillStyle(0xaa9070); g.fillRect(4, 0, 24, 32);
     // Gravel dots
-    g.fillStyle(0x6a5038);
+    g.fillStyle(0x7a6048);
     g.fillRect(8, 5, 2, 2); g.fillRect(18, 15, 3, 2);
     g.fillRect(12, 25, 2, 2); g.fillRect(22, 8, 2, 3);
     // Edge scrub
-    g.fillStyle(0x4a5a30);
+    g.fillStyle(0x5a6a40);
     g.fillRect(0, 10, 3, 4); g.fillRect(29, 20, 3, 4);
     g.generateTexture('tile-path', 32, 32);
     g.destroy();
@@ -582,16 +586,16 @@ export class BootScene extends Phaser.Scene {
 
   private generateLavaTile(): void {
     const g = this.add.graphics();
-    // Dark rock base
-    g.fillStyle(0x1a1010); g.fillRect(0, 0, 32, 32);
-    // Lava glow
-    g.fillStyle(0xcc3300); g.fillRect(4, 4, 24, 24);
+    // Dark rock base — slightly brighter
+    g.fillStyle(0x2a1818); g.fillRect(0, 0, 32, 32);
+    // Lava glow — brighter
+    g.fillStyle(0xdd4400); g.fillRect(4, 4, 24, 24);
     // Hot center
-    g.fillStyle(0xff6600); g.fillRect(8, 8, 16, 16);
+    g.fillStyle(0xff7700); g.fillRect(8, 8, 16, 16);
     // Brightest core
-    g.fillStyle(0xffcc00); g.fillRect(12, 12, 8, 8);
+    g.fillStyle(0xffdd22); g.fillRect(12, 12, 8, 8);
     // Dark crust patches
-    g.fillStyle(0x2a1008);
+    g.fillStyle(0x3a1808);
     g.fillRect(6, 6, 4, 3); g.fillRect(20, 18, 5, 4);
     g.fillRect(14, 2, 6, 3); g.fillRect(2, 20, 4, 5);
     g.generateTexture('tile-lava', 32, 32);
@@ -600,31 +604,42 @@ export class BootScene extends Phaser.Scene {
 
   private generateCrystalTile(): void {
     const g = this.add.graphics();
-    // Stone base
-    g.fillStyle(0x3a3a4a); g.fillRect(0, 0, 32, 32);
-    // Crystal shard 1
-    g.fillStyle(0x88ccff);
+    // Stone base — brightened
+    g.fillStyle(0x4a4a60); g.fillRect(0, 0, 32, 32);
+    // Crystal shard 1 — brighter
+    g.fillStyle(0x99ddff);
     g.fillTriangle(8, 28, 12, 8, 16, 28);
     // Crystal shard 2
-    g.fillStyle(0x66aadd);
+    g.fillStyle(0x77bbee);
     g.fillTriangle(18, 28, 22, 12, 26, 28);
     // Highlight
-    g.fillStyle(0xaaddff);
+    g.fillStyle(0xbbeeFF);
     g.fillTriangle(10, 24, 12, 12, 14, 24);
     // Sparkle
     g.fillStyle(0xffffff);
     g.fillRect(11, 10, 2, 2); g.fillRect(21, 14, 2, 2);
+    // Crystal glow on ground
+    g.fillStyle(0x88ccff, 0.1);
+    g.fillRect(0, 0, 32, 32);
     g.generateTexture('tile-crystal', 32, 32);
     g.destroy();
   }
 
   private generateFogTile(): void {
     const g = this.add.graphics();
-    g.fillStyle(0x0a0a14, 0.92);
+    // Base fog — deep indigo, slightly brighter than before
+    g.fillStyle(0x10101e, 0.94);
     g.fillRect(0, 0, 32, 32);
-    // Subtle noise
-    g.fillStyle(0x0d0d18, 0.5);
+    // Subtle smoke wisps
+    g.fillStyle(0x181830, 0.4);
     g.fillRect(4, 4, 8, 8); g.fillRect(20, 16, 8, 8);
+    // Faint purple atmospheric glow
+    g.fillStyle(0x2a1840, 0.15);
+    g.fillRect(8, 12, 16, 10);
+    // Particle-like speckles
+    g.fillStyle(0x3a2850, 0.2);
+    g.fillRect(6, 6, 2, 2); g.fillRect(22, 10, 2, 2);
+    g.fillRect(14, 24, 2, 2); g.fillRect(26, 26, 2, 2);
     g.generateTexture('tile-fog', 32, 32);
     g.destroy();
   }

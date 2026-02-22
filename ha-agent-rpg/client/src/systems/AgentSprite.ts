@@ -35,13 +35,13 @@ export class AgentSprite {
     this.logicalY = py;
 
     // Glow aura for fog-of-war visibility and larger click target
-    this.glow = scene.add.circle(px, py, 24, agent.color, 0.3)
+    this.glow = scene.add.circle(px, py, 36, agent.color, 0.55)
       .setDepth(8);
     scene.tweens.add({
       targets: this.glow,
-      alpha: { from: 0.3, to: 0.12 },
-      scale: { from: 1, to: 1.4 },
-      duration: 1200,
+      alpha: { from: 0.55, to: 0.25 },
+      scale: { from: 1, to: 1.5 },
+      duration: 1400,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
