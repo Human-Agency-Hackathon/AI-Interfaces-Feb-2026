@@ -48,6 +48,7 @@ export class GameScene extends Phaser.Scene {
   private dragStartX = 0;
   private dragStartY = 0;
   private wasdKeys: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key } | null = null;
+  private fortViewAgent: Phaser.GameObjects.GameObject[] = [];
 
   constructor() {
     super({ key: 'GameScene' });
@@ -358,6 +359,11 @@ export class GameScene extends Phaser.Scene {
         this.cameraController.updateBounds(20, 15, 32);
       }
 
+      // Render agent character inside the room
+      if (msg.agentInfo) {
+        this.createFortViewAgent(msg.agentInfo);
+      }
+
       // Add back button
       const backBtn = document.createElement('button');
       backBtn.textContent = 'Back to Map';
@@ -373,8 +379,10 @@ export class GameScene extends Phaser.Scene {
         this.zoomControls?.show();
         this.inFortView = false;
 
-        // Destroy room background so fog map is visible again
+        // Destroy room background and fort view agent
         this.roomBackground?.destroy();
+        for (const obj of this.fortViewAgent) obj.destroy();
+        this.fortViewAgent = [];
 
         // Restore fog-of-war tiles and sprites
         this.mapRenderer?.setVisible(true);
@@ -493,6 +501,10 @@ export class GameScene extends Phaser.Scene {
       this.playerSprite.destroy();
       this.playerSprite = null;
     }
+
+    // Clean up fort view agent
+    for (const obj of this.fortViewAgent) obj.destroy();
+    this.fortViewAgent = [];
 
     this.mapRenderer = null;
     this.roomBackground = null;
@@ -652,6 +664,86 @@ export class GameScene extends Phaser.Scene {
         color: agent.color,
       });
     });
+  }
+
+  /** Render a large agent character in the center of the fort room view. */
+  private createFortViewAgent(agent: AgentInfo): void {
+    // Clean up any previous fort view agent
+    for (const obj of this.fortViewAgent) obj.destroy();
+    this.fortViewAgent = [];
+
+    const color = typeof agent.color === 'string' ? parseInt(agent.color, 16) : agent.color;
+
+    // Ensure character texture exists
+    const textureKey = `agent-char-${color.toString(16)}`;
+    if (!this.textures.exists(textureKey)) {
+      AgentSprite.generateCharacterTexture(this, textureKey, color);
+    }
+
+    const roomPxW = 20 * 32;
+    const roomPxH = 15 * 32;
+    const cx = roomPxW / 2;
+    const cy = roomPxH / 2 + 40;
+
+    // Glow aura behind the agent
+    const glow = this.add.circle(cx, cy, 60, color, 0.4).setDepth(5);
+    this.tweens.add({
+      targets: glow,
+      alpha: { from: 0.4, to: 0.15 },
+      scale: { from: 1, to: 1.4 },
+      duration: 1600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Shadow under feet
+    const shadow = this.add.ellipse(cx, cy + 30, 60, 18, 0x000000, 0.35).setDepth(6);
+
+    // Character sprite — scaled up large for the room view
+    const sprite = this.add.image(cx, cy - 12, textureKey).setDepth(7).setScale(6);
+
+    // Pop-in animation
+    sprite.setScale(0);
+    this.tweens.add({
+      targets: sprite,
+      scale: 6,
+      duration: 400,
+      ease: 'Back.easeOut',
+    });
+
+    // Name label
+    const nameLabel = this.add.text(cx, cy - 90, agent.name, {
+      fontSize: '18px',
+      fontFamily: 'monospace',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3,
+      align: 'center',
+    }).setOrigin(0.5).setDepth(8);
+
+    // Role label
+    const roleLabel = this.add.text(cx, cy + 50, agent.role || '', {
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: '#c8a84a',
+      stroke: '#000000',
+      strokeThickness: 2,
+      align: 'center',
+    }).setOrigin(0.5).setDepth(8);
+
+    // Idle breathing animation
+    this.tweens.add({
+      targets: sprite,
+      scaleY: { from: 6, to: 5.7 },
+      duration: 1800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      delay: 400,
+    });
+
+    this.fortViewAgent.push(glow, shadow, sprite, nameLabel, roleLabel);
   }
 
   private handleAction(result: ActionResultMessage): void {
