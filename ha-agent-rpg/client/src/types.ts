@@ -401,6 +401,11 @@ export interface ProcessStartedMessage {
   totalStages: number;
 }
 
+export interface ProcessErrorMessage {
+  type: 'process:error';
+  message: string;
+}
+
 export interface StageAdvancedMessage {
   type: 'stage:advanced';
   fromStageId: string;
@@ -520,6 +525,7 @@ export type ServerMessage =
   | RealmTreeMessage
   | ErrorMessage
   | ProcessStartedMessage
+  | ProcessErrorMessage
   | StageAdvancedMessage
   | StageCompletedMessage
   | IdeaProposedMessage

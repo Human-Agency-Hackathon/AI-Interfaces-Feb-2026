@@ -432,6 +432,12 @@ export interface ProcessStartedMessage {
   totalStages: number;
 }
 
+/** Sent when a process fails to start (e.g. bad repo path, clone failure). */
+export interface ProcessErrorMessage {
+  type: 'process:error';
+  message: string;
+}
+
 /** Sent when the current stage ends and the next one begins. */
 export interface StageAdvancedMessage {
   type: 'stage:advanced';
@@ -559,6 +565,7 @@ export type ServerMessage =
   | RealmTreeMessage
   | ErrorMessage
   | ProcessStartedMessage
+  | ProcessErrorMessage
   | StageAdvancedMessage
   | StageCompletedMessage
   | IdeaProposedMessage

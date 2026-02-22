@@ -68,14 +68,17 @@ const AGENT_COLORS = [
  * - Local path: checks existence; throws if not found.
  */
 export async function resolveRepoPath(repoInput: string): Promise<string> {
-  if (repoInput.startsWith('https://github.com/')) {
-    const hash = crypto.createHash('sha1').update(repoInput).digest('hex').slice(0, 8);
+  // Expand ~ to home directory (Node's fs doesn't do this automatically)
+  const resolved = repoInput.startsWith('~/') ? path.join(os.homedir(), repoInput.slice(2)) : repoInput;
+
+  if (resolved.startsWith('https://github.com/')) {
+    const hash = crypto.createHash('sha1').update(resolved).digest('hex').slice(0, 8);
     const cloneDir = path.join(os.tmpdir(), `agent-rpg-${hash}`);
     try {
       await fsPromises.stat(cloneDir);
       // Already cloned — reuse
     } catch {
-      const result = await execFileNoThrow('git', ['clone', '--depth', '1', repoInput, cloneDir]);
+      const result = await execFileNoThrow('git', ['clone', '--depth', '1', resolved, cloneDir]);
       if (result.status !== 0) {
         throw new Error(`git clone failed: ${result.stderr}`);
       }
@@ -84,11 +87,11 @@ export async function resolveRepoPath(repoInput: string): Promise<string> {
   }
 
   try {
-    await fsPromises.stat(repoInput);
+    await fsPromises.stat(resolved);
   } catch {
-    throw new Error(`Repo path not found: ${repoInput}`);
+    throw new Error(`Repo path not found: ${resolved}`);
   }
-  return repoInput;
+  return resolved;
 }
 
 export class BridgeServer {

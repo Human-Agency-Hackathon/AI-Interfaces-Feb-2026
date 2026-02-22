@@ -207,6 +207,12 @@ ws.on('error', (msg) => {
   }
 });
 
+// Process errors (e.g. bad repo path, clone failure) — always during setup
+ws.on('process:error', (msg) => {
+  const data = msg as unknown as ErrorMessage;
+  setupScreen.showError(data.message);
+});
+
 // Agent activity — surface agent errors as toasts during gameplay (Task 25)
 ws.on('agent:activity', (msg) => {
   const data = msg as unknown as AgentActivityMessage;

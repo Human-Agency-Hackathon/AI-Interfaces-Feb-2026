@@ -515,6 +515,12 @@ describe('BridgeServer E2E', () => {
     it('throws for a non-existent local path', async () => {
       await expect(resolveRepoPath('/tmp/nonexistent-path-xyz-123')).rejects.toThrow('not found');
     });
+
+    it('expands ~ to home directory', async () => {
+      // ~/. always exists (home dir itself)
+      const result = await resolveRepoPath('~/.');
+      expect(result).toBe(path.join(os.homedir(), '.'));
+    });
   });
 
   describe('player:start-process with repoInput', () => {
