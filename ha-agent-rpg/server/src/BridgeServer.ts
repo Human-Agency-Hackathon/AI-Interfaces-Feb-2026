@@ -613,7 +613,7 @@ export class BridgeServer {
         if (pos) this.worldState.setFortPosition(id, pos.x, pos.y);
       }
       // Reveal tiles around the Oracle center
-      const oracleRevealed = this.worldState.revealTiles(60, 60, 8);
+      const oracleRevealed = this.worldState.revealTiles(60, 60, 15);
       if (oracleRevealed.length > 0) {
         this.broadcast({ type: 'fog:reveal', tiles: oracleRevealed, agentId: 'oracle' } as ServerMessage);
       }
@@ -1664,7 +1664,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
           }
 
           // Fog reveal: reveal tiles around the agent's new position
-          const newlyRevealed = this.worldState.revealTiles(obj.x, obj.y, 5);
+          const newlyRevealed = this.worldState.revealTiles(obj.x, obj.y, 8);
           if (newlyRevealed.length > 0) {
             this.broadcast({
               type: 'fog:reveal',
@@ -1948,7 +1948,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
 
   private startAutonomousMovement(): void {
     if (this.movementIntervalId) return;
-    this.movementIntervalId = setInterval(() => this.tickAgentMovement(), 2500);
+    this.movementIntervalId = setInterval(() => this.tickAgentMovement(), 1500);
   }
 
   private stopAutonomousMovement(): void {
@@ -2026,7 +2026,7 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
       success: true,
     } as ServerMessage);
 
-    const newlyRevealed = this.worldState.revealTiles(x, y, 5);
+    const newlyRevealed = this.worldState.revealTiles(x, y, 8);
     if (newlyRevealed.length > 0) {
       this.broadcast({
         type: 'fog:reveal',

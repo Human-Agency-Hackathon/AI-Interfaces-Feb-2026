@@ -190,6 +190,13 @@ export class GameScene extends Phaser.Scene {
           );
           this.currentMapDimensions = { width: state.map.width, height: state.map.height };
         }
+        // Re-apply explored state for fog-of-war maps
+        if (isFogMap && (state as any).explored) {
+          this.mapRenderer.setExplored((state as any).explored);
+          if (this.minimap) {
+            this.minimap.setExplored((state as any).explored);
+          }
+        }
       }
 
       // Store objects and create sprites for map objects
@@ -460,6 +467,13 @@ export class GameScene extends Phaser.Scene {
       this.registry.remove('bufferedAgentJoins');
       for (const join of bufferedJoins) {
         this.wsClient.emit('agent:joined', join);
+      }
+    }
+    const bufferedFogReveals = this.registry.get('bufferedFogReveals') as Record<string, unknown>[] | undefined;
+    if (bufferedFogReveals) {
+      this.registry.remove('bufferedFogReveals');
+      for (const reveal of bufferedFogReveals) {
+        this.wsClient.emit('fog:reveal', reveal);
       }
     }
   }

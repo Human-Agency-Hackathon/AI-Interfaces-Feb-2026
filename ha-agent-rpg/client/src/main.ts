@@ -54,6 +54,7 @@ function showToast(message: string, type: 'error' | 'warn' | 'info' = 'info'): v
 // and pass via the game registry so GameScene can replay on create().
 let bufferedWorldState: Record<string, unknown> | null = null;
 const bufferedAgentJoins: Record<string, unknown>[] = [];
+const bufferedFogReveals: Record<string, unknown>[] = [];
 
 ws.on('world:state', (msg) => {
   bufferedWorldState = msg;
@@ -67,6 +68,12 @@ ws.on('agent:joined', (msg) => {
   bufferedAgentJoins.push(msg);
   if (phaserGame) {
     phaserGame.registry.set('bufferedAgentJoins', [...bufferedAgentJoins]);
+  }
+});
+ws.on('fog:reveal', (msg) => {
+  bufferedFogReveals.push(msg);
+  if (phaserGame) {
+    phaserGame.registry.set('bufferedFogReveals', [...bufferedFogReveals]);
   }
 });
 
@@ -410,6 +417,9 @@ function startGame(identity: SetupIdentity): void {
     }
     if (bufferedAgentJoins.length > 0) {
       phaserGame.registry.set('bufferedAgentJoins', [...bufferedAgentJoins]);
+    }
+    if (bufferedFogReveals.length > 0) {
+      phaserGame.registry.set('bufferedFogReveals', [...bufferedFogReveals]);
     }
   }
 
