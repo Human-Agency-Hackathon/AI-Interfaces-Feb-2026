@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProcessController } from '../ProcessController.js';
 import type { ProcessControllerDelegate } from '../ProcessController.js';
+import { PROCESS_TEMPLATES } from '../ProcessTemplates.js';
 import type { ProcessDefinition, StageDefinition } from '../ProcessTemplates.js';
 import type { ProcessState } from '../types.js';
 
@@ -543,6 +544,60 @@ describe('ProcessController', () => {
       expect((controller as any).stageStartedAt).not.toBeNull();
       controller.stop();
       expect((controller as any).stageStartedAt).toBeNull();
+    });
+  });
+
+  describe('CODE_REVIEW template', () => {
+    it('is registered in PROCESS_TEMPLATES', () => {
+      expect(PROCESS_TEMPLATES['code_review']).toBeDefined();
+    });
+
+    it('has 6 stages', () => {
+      const tpl = PROCESS_TEMPLATES['code_review'];
+      expect(tpl.stages).toHaveLength(6);
+    });
+
+    it('has 11 roles (10 heroes + oracle)', () => {
+      const tpl = PROCESS_TEMPLATES['code_review'];
+      expect(tpl.roles).toHaveLength(11);
+      const roleIds = tpl.roles.map(r => r.id);
+      expect(roleIds).toContain('architect');
+      expect(roleIds).toContain('sentinel');
+      expect(roleIds).toContain('archaeologist');
+      expect(roleIds).toContain('cartographer');
+      expect(roleIds).toContain('alchemist');
+      expect(roleIds).toContain('healer');
+      expect(roleIds).toContain('sage');
+      expect(roleIds).toContain('warden');
+      expect(roleIds).toContain('scout');
+      expect(roleIds).toContain('bard');
+      expect(roleIds).toContain('oracle');
+    });
+
+    it('stage 0 is Reconnaissance (parallel)', () => {
+      const stage = PROCESS_TEMPLATES['code_review'].stages[0];
+      expect(stage.id).toBe('reconnaissance');
+      expect(stage.turnStructure.type).toBe('parallel');
+    });
+
+    it('stage 2 is Cross-Reference (sequential)', () => {
+      const stage = PROCESS_TEMPLATES['code_review'].stages[2];
+      expect(stage.id).toBe('cross_reference');
+      expect(stage.turnStructure.type).toBe('sequential');
+    });
+
+    it('stage 3 is Oracle Review (single, explicit_signal)', () => {
+      const stage = PROCESS_TEMPLATES['code_review'].stages[3];
+      expect(stage.id).toBe('oracle_review');
+      expect(stage.turnStructure).toEqual({ type: 'single', role: 'oracle' });
+      expect(stage.completionCriteria.type).toBe('explicit_signal');
+    });
+
+    it('stage 5 is Presentation (single oracle, explicit_signal)', () => {
+      const stage = PROCESS_TEMPLATES['code_review'].stages[5];
+      expect(stage.id).toBe('presentation');
+      expect(stage.turnStructure).toEqual({ type: 'single', role: 'oracle' });
+      expect(stage.completionCriteria.type).toBe('explicit_signal');
     });
   });
 

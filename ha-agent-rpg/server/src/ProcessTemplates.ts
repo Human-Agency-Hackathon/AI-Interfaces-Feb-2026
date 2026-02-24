@@ -495,10 +495,152 @@ export const RAPID_FIRE: ProcessDefinition = {
   ],
 };
 
+/**
+ * CODE_REVIEW — a structured code review with fantasy-themed software specialists.
+ *
+ * Stages (linear, V1):
+ *   1. Reconnaissance  — 10 heroes survey the codebase in parallel
+ *   2. Deep Analysis   — 10 heroes deep dive in parallel
+ *   3. Cross-Reference — 10 heroes review each other's findings sequentially
+ *   4. Oracle Review   — Oracle reviews all findings, identifies gaps
+ *   5. Synthesis       — Oracle compiles findings into a structured report
+ *   6. Presentation    — Oracle presents the final report
+ */
+export const CODE_REVIEW: ProcessDefinition = {
+  id: 'code_review',
+  name: 'Code Review',
+  description: 'A structured code review with fantasy-themed software specialists.',
+  roles: [
+    {
+      id: 'architect',
+      name: 'The Architect',
+      persona: 'You are a Master Builder who sees the big picture. You examine module boundaries, dependency graphs, architectural patterns, and separation of concerns. Apply code-review methodology: assess each module for single responsibility, check that dependencies flow in one direction, and verify that the architecture matches the stated intent.',
+      color: '#4A90D9',
+    },
+    {
+      id: 'sentinel',
+      name: 'The Sentinel',
+      persona: 'You are a Shield Guardian who protects against threats. You examine auth flows, input validation, secrets handling, OWASP vulnerabilities, and dependency CVEs. Use systematic-debugging methodology: trace each security-sensitive flow step-by-step, isolate the component, verify the boundary.',
+      color: '#DC143C',
+    },
+    {
+      id: 'archaeologist',
+      name: 'The Archaeologist',
+      persona: 'You are a Lore Keeper who reads the history in the code. You examine dead code, outdated patterns, migration opportunities, and deprecated dependencies.',
+      color: '#DEB887',
+    },
+    {
+      id: 'cartographer',
+      name: 'The Cartographer',
+      persona: 'You are a Wayfinder who maps the territory. You examine file organization, naming conventions, discoverability, and documentation quality.',
+      color: '#32CD32',
+    },
+    {
+      id: 'alchemist',
+      name: 'The Alchemist',
+      persona: 'You are a Transmuter who optimizes what exists. You examine hot paths, N+1 queries, memory leaks, caching opportunities, and bundle size.',
+      color: '#FFD700',
+    },
+    {
+      id: 'healer',
+      name: 'The Healer',
+      persona: 'You are a Restoration Sage who ensures resilience. You examine error paths, recovery logic, logging quality, and graceful degradation. Use systematic-debugging methodology: trace each error path from trigger to handler, verify recovery logic actually executes.',
+      color: '#9370DB',
+    },
+    {
+      id: 'sage',
+      name: 'The Sage',
+      persona: 'You are a Knowledge Weaver who values truth through testing. You examine test quality, coverage gaps, test architecture, and assertion strength. Apply test-analysis methodology: check if critical paths have tests, assess whether assertions are meaningful.',
+      color: '#20B2AA',
+    },
+    {
+      id: 'warden',
+      name: 'The Warden',
+      persona: 'You are a Gatekeeper who guards the contracts. You examine API design, type safety, interface contracts, and backwards compatibility. Apply type-design-analysis methodology: assess encapsulation, invariant expression, and enforcement.',
+      color: '#4169E1',
+    },
+    {
+      id: 'scout',
+      name: 'The Scout',
+      persona: 'You are a Pathfinder who assesses external risk. You examine third-party dependencies, freshness, license compliance, and alternative options.',
+      color: '#FF6B35',
+    },
+    {
+      id: 'bard',
+      name: 'The Bard',
+      persona: 'You are a Chronicle Keeper who values clear communication. You examine README quality, inline comments, API docs, and onboarding experience.',
+      color: '#8B4513',
+    },
+    {
+      id: 'oracle',
+      name: 'The Oracle',
+      persona: 'You are the session leader. You review findings from all heroes, identify gaps, and compile the final report. You have the authority to summon reinforcements or dismiss heroes.',
+      color: '#6A8AFF',
+    },
+  ],
+  stages: [
+    {
+      id: 'reconnaissance',
+      name: 'Reconnaissance',
+      goal: 'Each hero surveys the codebase from their specialist lens. Identify areas of interest. Use PostFindings to share initial observations.',
+      roles: ['architect', 'sentinel', 'archaeologist', 'cartographer', 'alchemist', 'healer', 'sage', 'warden', 'scout', 'bard'],
+      turnStructure: { type: 'parallel' },
+      completionCriteria: { type: 'turn_count', turns: 2 },
+      artifacts: [{ id: 'recon_notes', label: 'Reconnaissance Notes', producedBy: 'all' }],
+    },
+    {
+      id: 'deep_analysis',
+      name: 'Deep Analysis',
+      goal: 'Deep dive into identified areas. Produce detailed findings with file references and severity. Use PostFindings for each issue.',
+      roles: ['architect', 'sentinel', 'archaeologist', 'cartographer', 'alchemist', 'healer', 'sage', 'warden', 'scout', 'bard'],
+      turnStructure: { type: 'parallel' },
+      completionCriteria: { type: 'turn_count', turns: 3 },
+      artifacts: [{ id: 'analysis_findings', label: 'Detailed Findings', producedBy: 'all' }],
+    },
+    {
+      id: 'cross_reference',
+      name: 'Cross-Reference',
+      goal: "Review other heroes' findings. Confirm, challenge, or build on them. Identify cross-cutting concerns.",
+      roles: ['architect', 'sentinel', 'archaeologist', 'cartographer', 'alchemist', 'healer', 'sage', 'warden', 'scout', 'bard'],
+      turnStructure: { type: 'sequential', order: ['architect', 'sentinel', 'archaeologist', 'cartographer', 'alchemist', 'healer', 'sage', 'warden', 'scout', 'bard'] },
+      completionCriteria: { type: 'turn_count', turns: 10 },
+      artifacts: [{ id: 'cross_ref_notes', label: 'Cross-Reference Notes', producedBy: 'all' }],
+    },
+    {
+      id: 'oracle_review',
+      name: 'Oracle Review',
+      goal: 'Review all findings. Identify gaps. Optionally summon reinforcements. Call CompleteStage when satisfied.',
+      roles: ['oracle'],
+      turnStructure: { type: 'single', role: 'oracle' },
+      completionCriteria: { type: 'explicit_signal' },
+      artifacts: [{ id: 'oracle_review_notes', label: 'Oracle Review', producedBy: 'oracle' }],
+    },
+    {
+      id: 'synthesis',
+      name: 'Synthesis',
+      goal: 'Compile findings into a structured report by severity. Call CompleteStage when the report is ready.',
+      roles: ['oracle'],
+      turnStructure: { type: 'single', role: 'oracle' },
+      completionCriteria: { type: 'explicit_signal' },
+      artifacts: [{ id: 'synthesis_report', label: 'Synthesis Report', producedBy: 'oracle' }],
+    },
+    {
+      id: 'presentation',
+      name: 'Presentation',
+      goal: 'Present the final code review report. Structure: Executive Summary, Critical Issues, Recommendations, Positive Observations, Next Steps. Call CompleteStage when done.',
+      roles: ['oracle'],
+      turnStructure: { type: 'single', role: 'oracle' },
+      completionCriteria: { type: 'explicit_signal' },
+      artifacts: [{ id: 'final_report', label: 'Final Report', producedBy: 'oracle' }],
+    },
+  ],
+};
+
 export const PROCESS_TEMPLATES: Record<string, ProcessDefinition> = {
   [STANDARD_BRAINSTORM.id]: STANDARD_BRAINSTORM,
   [DEEP_BRAINSTORM.id]: DEEP_BRAINSTORM,
   [SIX_THINKING_HATS.id]: SIX_THINKING_HATS,
   [SCAMPER.id]: SCAMPER,
   [RAPID_FIRE.id]: RAPID_FIRE,
+  [CODE_REVIEW.id]: CODE_REVIEW,
 };
