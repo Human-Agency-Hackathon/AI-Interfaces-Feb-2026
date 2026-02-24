@@ -77,12 +77,9 @@ export class OracleManager extends EventEmitter {
       mission: `Analyze the user's submission and decide which heroes to summon.\n\nUSER INPUT:\n${inputDescription}\n\nCall SelectHeroes when you have decided.`,
       repoPath: config.repoPath,
       permissionLevel: config.permissionLevel,
-      // oracleContext is passed via the config so AgentSessionManager can
-      // forward it to buildSystemPrompt when that integration is wired up.
-      // For now it is stored for reference; BridgeServer integration (Task 6)
-      // will thread it through the prompt builder.
-      ...(oracleContext && { oracleContext }),
-    } as any);
+      oracleContext,
+      model: 'opus',
+    });
   }
 
   /**

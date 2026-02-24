@@ -96,6 +96,23 @@ export async function resolveRepoPath(repoInput: string): Promise<string> {
   return resolved;
 }
 
+/**
+ * Determine which LLM model to use for a given stage of a process template.
+ * - code_review stages 0-1 (Reconnaissance, Deep Analysis) → haiku (cheap exploration)
+ * - code_review stage 2 (Cross-Reference) → sonnet (needs reasoning)
+ * - code_review stages 3+ (Oracle Review, Synthesis, Presentation) → opus (heavy analysis)
+ * - All other templates (brainstorm variants) → sonnet (balanced)
+ */
+function getModelForStage(templateId: string, stageIndex: number): 'haiku' | 'sonnet' | 'opus' {
+  if (templateId === 'code_review') {
+    if (stageIndex <= 1) return 'haiku';   // Reconnaissance, Deep Analysis
+    if (stageIndex === 2) return 'sonnet'; // Cross-Reference
+    return 'opus';                         // Oracle Review, Synthesis, Presentation
+  }
+  // Brainstorm templates: sonnet for all stages
+  return 'sonnet';
+}
+
 export class BridgeServer {
   private wss: WebSocketServer;
   private port: number;
@@ -536,6 +553,21 @@ export class BridgeServer {
       onStageAdvanced: (completedStageId, artifacts) => {
         this.worldState.advanceStage(completedStageId, artifacts);
         this.scheduleSave();
+
+        // Feed inter-stage context to Oracle so it can adjust the hero party
+        if (this.oracleManager?.isActive()) {
+          const ctx = this.processController?.getContext?.();
+          const template = ctx?.template;
+          const completedStage = template?.stages.find((s) => s.id === completedStageId);
+          const completedStageName = completedStage?.name ?? completedStageId;
+          // nextStageIndex is the current stageIndex in ctx (already advanced by WorldState)
+          const nextStageIndex = ctx ? ctx.stageIndex + 1 : -1;
+          const nextStage = template?.stages[nextStageIndex];
+          const nextStageName = nextStage?.name ?? 'Final Stage';
+          this.oracleManager.feedInterStageContext(completedStageName, nextStageName).catch((err) => {
+            console.error('[Bridge] Failed to feed Oracle inter-stage context:', err);
+          });
+        }
       },
       onProcessCompleted: (finalStageId, artifacts) => {
         this.worldState.completeProcess(finalStageId, artifacts);
@@ -766,6 +798,7 @@ export class BridgeServer {
             resumeNote: 'You are resuming a paused brainstorm session. Prior stage artifacts are available in your system prompt. Continue where the previous agents left off.',
           } : {}),
         },
+        model: getModelForStage(template.id, stageIndex),
       }).catch((err) => {
         console.error(`[Bridge] Failed to spawn agent ${entry.agentId}:`, err);
       });
