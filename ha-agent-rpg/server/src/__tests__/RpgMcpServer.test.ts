@@ -27,6 +27,41 @@ describe('createRpgMcpServer', () => {
   });
 });
 
+describe('createOracleMcpServer', () => {
+  let mockToolHandler: CustomToolHandler;
+
+  beforeEach(() => {
+    mockToolHandler = {
+      handleToolCall: vi.fn().mockResolvedValue({ result: { acknowledged: true } }),
+    } as unknown as CustomToolHandler;
+  });
+
+  it('returns an MCP server config with type "sdk"', async () => {
+    const { createOracleMcpServer } = await import('../RpgMcpServer.js');
+    const config = createOracleMcpServer('oracle', mockToolHandler);
+    expect(config.type).toBe('sdk');
+    expect(config.name).toBe('oracle');
+    expect(config.instance).toBeDefined();
+  });
+
+  it('creates unique instances per agent', async () => {
+    const { createOracleMcpServer } = await import('../RpgMcpServer.js');
+    const config1 = createOracleMcpServer('oracle', mockToolHandler);
+    const config2 = createOracleMcpServer('hero1', mockToolHandler);
+    expect(config1.instance).not.toBe(config2.instance);
+  });
+
+  it('has a different name than the RPG and brainstorm servers', async () => {
+    const { createRpgMcpServer, createBrainstormMcpServer, createOracleMcpServer } = await import('../RpgMcpServer.js');
+    const rpg = createRpgMcpServer('agent1', mockToolHandler);
+    const brainstorm = createBrainstormMcpServer('agent1', mockToolHandler);
+    const oracle = createOracleMcpServer('agent1', mockToolHandler);
+    expect(rpg.name).toBe('rpg');
+    expect(brainstorm.name).toBe('brainstorm');
+    expect(oracle.name).toBe('oracle');
+  });
+});
+
 describe('createBrainstormMcpServer', () => {
   let mockToolHandler: CustomToolHandler;
 
