@@ -28,6 +28,9 @@ import type {
   SpectatorCommandMessage,
   SpectatorInfo,
   ServerInfoMessage,
+  OracleDecisionMessage,
+  HeroSummonedMessage,
+  HeroDismissedMessage,
 } from './types';
 
 // ── Connect to the bridge immediately ──
@@ -161,6 +164,36 @@ ws.on('findings:posted', (msg) => {
   console.log(`[Finding] ${data.agent_name} (${data.severity}): ${data.finding}`);
   window.dispatchEvent(new CustomEvent('findings-posted', {
     detail: { agent_name: data.agent_name, finding: data.finding },
+  }));
+});
+
+// Oracle decision — broadcast activity type and hero list to dialogue log
+ws.on('oracle:decision', (msg) => {
+  const data = msg as unknown as OracleDecisionMessage;
+  const activityLabel = data.activityType === 'brainstorm'
+    ? 'Brainstorm'
+    : data.activityType === 'code_review'
+      ? 'Code Review'
+      : 'Code Brainstorm';
+  const heroCount = data.heroes.length;
+  window.dispatchEvent(new CustomEvent('oracle-decision', {
+    detail: { text: `The Oracle has decided: ${activityLabel} with ${heroCount} hero${heroCount !== 1 ? 's' : ''}` },
+  }));
+});
+
+// Hero summoned — announce new hero joining the process
+ws.on('hero:summoned', (msg) => {
+  const data = msg as unknown as HeroSummonedMessage;
+  window.dispatchEvent(new CustomEvent('hero-summoned', {
+    detail: { text: `${data.name} has been summoned!` },
+  }));
+});
+
+// Hero dismissed — announce hero leaving the process
+ws.on('hero:dismissed', (msg) => {
+  const data = msg as unknown as HeroDismissedMessage;
+  window.dispatchEvent(new CustomEvent('hero-dismissed', {
+    detail: { agentId: data.agentId, reason: data.reason },
   }));
 });
 
