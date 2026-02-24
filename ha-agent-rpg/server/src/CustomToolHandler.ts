@@ -79,6 +79,18 @@ export class CustomToolHandler extends EventEmitter {
       case 'SealChamber':
         return this.handleSealChamber(agent_id, tool_input);
 
+      case 'SelectHeroes':
+        return this.handleSelectHeroes(agent_id, tool_input);
+
+      case 'SummonReinforcement':
+        return this.handleSummonReinforcement(agent_id, tool_input);
+
+      case 'DismissHero':
+        return this.handleDismissHero(agent_id, tool_input);
+
+      case 'PresentReport':
+        return this.handlePresentReport(agent_id, tool_input);
+
       default:
         return { result: { error: `Unknown tool: ${tool_name}` } };
     }
@@ -271,5 +283,33 @@ export class CustomToolHandler extends EventEmitter {
     });
 
     return { result: { acknowledged: true, message: 'Chamber sealed. Stage advancement triggered.' } };
+  }
+
+  private handleSelectHeroes(agentId: string, input: Record<string, unknown>): CustomToolResult {
+    const { activityType, processId, heroes } = input as {
+      activityType: string;
+      processId: string;
+      heroes: Array<{ roleId: string; mission: string }>;
+    };
+    this.emit('oracle:select-heroes', { agentId, activityType, processId, heroes });
+    return { result: { acknowledged: true, message: `Selected ${heroes.length} heroes for ${activityType}.` } };
+  }
+
+  private handleSummonReinforcement(agentId: string, input: Record<string, unknown>): CustomToolResult {
+    const { roleId, reason } = input as { roleId: string; reason: string };
+    this.emit('oracle:summon-reinforcement', { agentId, roleId, reason });
+    return { result: { acknowledged: true, message: `Reinforcement requested: ${roleId}.` } };
+  }
+
+  private handleDismissHero(agentId: string, input: Record<string, unknown>): CustomToolResult {
+    const { agentId: heroId, reason } = input as { agentId: string; reason: string };
+    this.emit('oracle:dismiss-hero', { agentId, heroId, reason });
+    return { result: { acknowledged: true, message: `Hero ${heroId} dismissed.` } };
+  }
+
+  private handlePresentReport(agentId: string, input: Record<string, unknown>): CustomToolResult {
+    const { report } = input as { report: string };
+    this.emit('oracle:present-report', { agentId, report });
+    return { result: { acknowledged: true, message: 'Report submitted.' } };
   }
 }

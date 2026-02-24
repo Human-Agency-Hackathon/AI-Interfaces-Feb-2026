@@ -48,9 +48,65 @@ stateDiagram-v2
 
 ---
 
-## Spawning: The Oracle (First Agent)
+## Oracle Agent Lifecycle (Oracle Router)
 
-When a repo is analyzed or a brainstorm process starts, the server auto-spawns the first agent.
+The Oracle is a special session-leader agent spawned when the player sends `player:submit`. It runs for the full session, analyzing input, selecting heroes, reviewing findings between stages, and compiling the final report.
+
+```mermaid
+graph TD
+    subgraph Spawn ["Spawn"]
+        PS["player:submit received<br/>(problem, repoInput, or both)"]
+        OM["OracleManager.spawn()<br/>model: opus"]
+        OA["Oracle agent starts<br/>(AgentSessionManager)"]
+    end
+
+    subgraph Analysis ["Analysis Phase (1-2 turns)"]
+        AI["Oracle reads problem/repo input"]
+        SH["Calls SelectHeroes tool<br/>activityType + hero roster"]
+        OD["oracle:decision emitted<br/>→ broadcast to clients"]
+        SP["ProcessController starts<br/>with selected template"]
+    end
+
+    subgraph InterStage ["Between Each Stage"]
+        IS["OracleManager.feedInterStageContext()<br/>sends recent findings"]
+        OI["Oracle reviews findings"]
+        OC{"Adjust party?"}
+        Sum["SummonReinforcement<br/>add hero"]
+        Dis["DismissHero<br/>remove hero"]
+        NS["Next stage begins"]
+    end
+
+    subgraph End ["Session End"]
+        PR["Oracle calls PresentReport<br/>compiles final deliverable"]
+        OD2["oracle:report emitted"]
+        OFin["OracleManager.dismiss()<br/>Oracle session cleaned up"]
+    end
+
+    PS --> OM
+    OM --> OA
+    OA --> AI
+    AI --> SH
+    SH --> OD
+    OD --> SP
+    SP --> IS
+    IS --> OI
+    OI --> OC
+    OC -->|"yes, add"| Sum
+    OC -->|"yes, remove"| Dis
+    OC -->|"no change"| NS
+    Sum --> NS
+    Dis --> NS
+    NS -->|"more stages"| IS
+    NS -->|"last stage done"| PR
+    PR --> OD2
+    OD2 --> OFin
+```
+
+---
+
+## Spawning: The Oracle (First Agent, legacy)
+
+When a repo is analyzed or a brainstorm process starts via `player:start-process`, the server auto-spawns the first agent.
 
 ```mermaid
 sequenceDiagram
@@ -269,9 +325,11 @@ stateDiagram-v2
 ```mermaid
 graph TD
     subgraph Spawn ["Spawn Triggers"]
-        S1["Auto-spawn Oracle<br/>(repo analysis)"]
+        S1["Auto-spawn Oracle<br/>(repo analysis, legacy)"]
+        S0["OracleManager.spawn()<br/>(player:submit → Oracle Router)"]
         S2["SummonAgent MCP tool<br/>(agent requests agent)"]
-        S3["Process stage start<br/>(brainstorm)"]
+        S2b["SummonReinforcement MCP tool<br/>(Oracle adds hero between stages)"]
+        S3["Process stage start<br/>(brainstorm / code_review)"]
         S4["Player command<br/>(/summon)"]
     end
 
@@ -297,8 +355,10 @@ graph TD
         A3["Agent removed from<br/>WorldState + map"]
     end
 
+    S0 --> L1
     S1 --> L1
     S2 --> L1
+    S2b --> L1
     S3 --> L1
     S4 --> L1
     L1 --> L2

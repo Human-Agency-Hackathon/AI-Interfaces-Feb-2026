@@ -4,6 +4,7 @@ import type {
   AgentRegisterMessage,
   LinkRepoMessage,
   StartProcessMessage,
+  PlayerSubmitMessage,
   PlayerCommandMessage,
   UpdateSettingsMessage,
   DismissAgentMessage,
@@ -48,6 +49,7 @@ import { WorldStatePersistence } from './WorldStatePersistence.js';
 import { GitHelper } from './GitHelper.js';
 import { PROCESS_TEMPLATES, DEEP_BRAINSTORM, type ProcessDefinition, type StageDefinition } from './ProcessTemplates.js';
 import { ProcessController, type ProcessControllerDelegate } from './ProcessController.js';
+import { OracleManager } from './OracleManager.js';
 import { redisPubSub } from './RedisPubSub.js';
 
 // Agent colors — auto-assigned in spawn order
@@ -94,6 +96,23 @@ export async function resolveRepoPath(repoInput: string): Promise<string> {
   return resolved;
 }
 
+/**
+ * Determine which LLM model to use for a given stage of a process template.
+ * - code_review stages 0-1 (Reconnaissance, Deep Analysis) → haiku (cheap exploration)
+ * - code_review stage 2 (Cross-Reference) → sonnet (needs reasoning)
+ * - code_review stages 3+ (Oracle Review, Synthesis, Presentation) → opus (heavy analysis)
+ * - All other templates (brainstorm variants) → sonnet (balanced)
+ */
+function getModelForStage(templateId: string, stageIndex: number): 'haiku' | 'sonnet' | 'opus' {
+  if (templateId === 'code_review') {
+    if (stageIndex <= 1) return 'haiku';   // Reconnaissance, Deep Analysis
+    if (stageIndex === 2) return 'sonnet'; // Cross-Reference
+    return 'opus';                         // Oracle Review, Synthesis, Presentation
+  }
+  // Brainstorm templates: sonnet for all stages
+  return 'sonnet';
+}
+
 export class BridgeServer {
   private wss: WebSocketServer;
   private port: number;
@@ -123,6 +142,7 @@ export class BridgeServer {
   private spectatorSockets = new Map<string, WebSocket>();        // spectatorId → socket
   private spectatorInfo = new Map<string, SpectatorInfo>();       // spectatorId → identity
   private processController: ProcessController | null = null;
+  private oracleManager: OracleManager | null = null;
   private activeRealmId: string | null = null;  // set on link-repo or start-process
   private saveTimer: NodeJS.Timeout | null = null;
   private movementBias: 'outward' | 'inward' | 'neutral' = 'neutral';
@@ -353,6 +373,9 @@ export class BridgeServer {
       case 'player:start-process':
         this.handleStartProcess(ws, msg as unknown as StartProcessMessage);
         break;
+      case 'player:submit':
+        this.handlePlayerSubmit(ws, msg as unknown as PlayerSubmitMessage);
+        break;
       case 'player:command':
         this.handlePlayerCommand(ws, msg as unknown as PlayerCommandMessage);
         break;
@@ -530,6 +553,21 @@ export class BridgeServer {
       onStageAdvanced: (completedStageId, artifacts) => {
         this.worldState.advanceStage(completedStageId, artifacts);
         this.scheduleSave();
+
+        // Feed inter-stage context to Oracle so it can adjust the hero party
+        if (this.oracleManager?.isActive()) {
+          const ctx = this.processController?.getContext?.();
+          const template = ctx?.template;
+          const completedStage = template?.stages.find((s) => s.id === completedStageId);
+          const completedStageName = completedStage?.name ?? completedStageId;
+          // nextStageIndex is the current stageIndex in ctx (already advanced by WorldState)
+          const nextStageIndex = ctx ? ctx.stageIndex + 1 : -1;
+          const nextStage = template?.stages[nextStageIndex];
+          const nextStageName = nextStage?.name ?? 'Final Stage';
+          this.oracleManager.feedInterStageContext(completedStageName, nextStageName).catch((err) => {
+            console.error('[Bridge] Failed to feed Oracle inter-stage context:', err);
+          });
+        }
       },
       onProcessCompleted: (finalStageId, artifacts) => {
         this.worldState.completeProcess(finalStageId, artifacts);
@@ -760,11 +798,231 @@ export class BridgeServer {
             resumeNote: 'You are resuming a paused brainstorm session. Prior stage artifacts are available in your system prompt. Continue where the previous agents left off.',
           } : {}),
         },
+        model: getModelForStage(template.id, stageIndex),
       }).catch((err) => {
         console.error(`[Bridge] Failed to spawn agent ${entry.agentId}:`, err);
       });
     });
     await Promise.all(spawnPromises);
+  }
+
+  // ── Player Submit (Oracle-routed) ──
+
+  private async handlePlayerSubmit(ws: WebSocket, msg: PlayerSubmitMessage): Promise<void> {
+    try {
+      if (!msg.problem?.trim() && !msg.repoInput?.trim()) {
+        this.send(ws, { type: 'process:error', message: 'Provide a problem, a repo path, or both.' });
+        return;
+      }
+
+      this.gamePhase = 'analyzing';
+      await this.cleanupCurrentRealm();
+
+      // Resolve working directory
+      let workDir: string | null = null;
+      if (msg.repoInput?.trim()) {
+        workDir = await resolveRepoPath(msg.repoInput.trim());
+      }
+      if (!workDir) {
+        workDir = process.env.HOME ?? '/tmp';
+      }
+      this.repoPath = workDir;
+
+      // Set up realm tracking
+      this.activeRealmId = `oracle_${Date.now()}`;
+      this.realmRegistry.setLastActiveRealmId(this.activeRealmId);
+      await this.realmRegistry.save();
+
+      // Fresh world state
+      this.worldState = new WorldState();
+
+      // Generate fog-of-war overworld map (no process roles yet — Oracle decides later)
+      const placeholderRoles = ['oracle'];
+      const fogResult = this.mapGenerator.generateFogMap(placeholderRoles);
+      this.worldState.setMap(fogResult.map);
+      this.worldState.initFogMap(fogResult.map.width, fogResult.map.height);
+      this.fogBiomeMap = fogResult.biomeMap;
+      this.agentFortAssignments = fogResult.fortPositions;
+      for (const [id, pos] of fogResult.fortPositions) {
+        if (pos) this.worldState.setFortPosition(id, pos.x, pos.y);
+      }
+
+      // Reveal tiles around the Oracle center
+      const oracleRevealed = this.worldState.revealTiles(60, 60, 15);
+      if (oracleRevealed.length > 0) {
+        this.broadcast({ type: 'fog:reveal', tiles: oracleRevealed, agentId: 'oracle' } as ServerMessage);
+      }
+
+      // Initialize subsystems
+      this.findingsBoard = new FindingsBoard(workDir);
+      await this.findingsBoard.load();
+      this.transcriptLogger = new TranscriptLogger(workDir);
+      this.toolHandler = new CustomToolHandler(
+        this.findingsBoard,
+        this.questManager,
+        (agentId: string) => this.sessionManager.getVault(agentId),
+        (agentId: string) => {
+          const session = this.sessionManager.getSession(agentId);
+          return session?.config.agentName ?? agentId;
+        },
+      );
+      this.wireToolHandlerEvents();
+      this.sessionManager = new AgentSessionManager(this.findingsBoard, this.toolHandler);
+      this.wireSessionManagerEvents();
+      this.eventTranslator.setObjects([]);
+
+      // Create and wire OracleManager
+      this.oracleManager = new OracleManager(this.sessionManager, this.toolHandler, this.findingsBoard);
+      this.wireOracleManagerEvents();
+
+      this.gamePhase = 'playing';
+
+      // Broadcast world state immediately so the client renders the fog map
+      this.broadcast(this.buildWorldStateMessage());
+
+      // Add Oracle to world state visually at the center
+      const oraclePos = this.agentFortAssignments.get('oracle') ?? { x: 60, y: 60 };
+      const oracleColor = this.nextColor();
+      const oracleAgent = this.worldState.addAgent('oracle', 'The Oracle', oracleColor, 'Session Leader', '/', oraclePos);
+      this.broadcast({ type: 'agent:joined', agent: oracleAgent });
+      this.broadcast(this.buildWorldStateMessage());
+
+      // Spawn the Oracle agent session
+      await this.oracleManager.spawn({
+        repoPath: workDir,
+        problem: msg.problem?.trim(),
+        repoInput: msg.repoInput?.trim(),
+        permissionLevel: this.settings.permission_level,
+      });
+
+      console.log('[Bridge] Oracle spawned for player:submit');
+    } catch (err) {
+      this.gamePhase = 'onboarding';
+      const message = err instanceof Error ? err.message : 'Failed to process submission';
+      this.send(ws, { type: 'process:error', message });
+    }
+  }
+
+  private wireOracleManagerEvents(): void {
+    if (!this.oracleManager) return;
+
+    // When Oracle decides what activity to run and which heroes to summon
+    this.oracleManager.on('oracle:decision', async (data: {
+      activityType: string;
+      processId: string;
+      heroes: Array<{ roleId: string; mission: string }>;
+    }) => {
+      try {
+        const { activityType, processId, heroes } = data;
+        const template = PROCESS_TEMPLATES[processId] ?? PROCESS_TEMPLATES['code_review'] ?? DEEP_BRAINSTORM;
+
+        // Broadcast decision to clients
+        this.broadcast({
+          type: 'oracle:decision',
+          activityType,
+          processId: template.id,
+          heroes: heroes.map((h) => ({
+            roleId: h.roleId,
+            name: template.roles.find((r) => r.id === h.roleId)?.name ?? h.roleId,
+            mission: h.mission,
+          })),
+        } as unknown as ServerMessage);
+
+        // Determine the problem statement
+        const problem = this.oracleManager?.getSpawnConfig()?.problem
+          ?? `Review of ${this.repoPath ?? 'the codebase'}`;
+
+        // Start the process using the same pattern as handleStartProcess
+        // but without re-initializing infrastructure (already set up)
+        const firstStage = template.stages[0];
+        const processState: ProcessState = {
+          processId: template.id,
+          problem,
+          currentStageIndex: 0,
+          status: 'running',
+          collectedArtifacts: {},
+          startedAt: new Date().toISOString(),
+        };
+        this.worldState.setProcessState(processState);
+
+        // Re-generate fog map with all process roles (expand fort assignments)
+        const allRoleIds = [...new Set(template.stages.flatMap(s => s.roles))].slice(0, 8);
+        const fogResult = this.mapGenerator.generateFogMap(allRoleIds);
+        this.worldState.setMap(fogResult.map);
+        this.worldState.initFogMap(fogResult.map.width, fogResult.map.height);
+        this.fogBiomeMap = fogResult.biomeMap;
+        this.agentFortAssignments = fogResult.fortPositions;
+        for (const [id, pos] of fogResult.fortPositions) {
+          if (pos) this.worldState.setFortPosition(id, pos.x, pos.y);
+        }
+        // Re-reveal Oracle center after map regeneration
+        const oracleRevealed = this.worldState.revealTiles(60, 60, 15);
+        if (oracleRevealed.length > 0) {
+          this.broadcast({ type: 'fog:reveal', tiles: oracleRevealed, agentId: 'oracle' } as ServerMessage);
+        }
+
+        // Broadcast process started
+        this.broadcast({
+          type: 'process:started',
+          processId: template.id,
+          problem,
+          processName: template.name,
+          currentStageId: firstStage.id,
+          currentStageName: firstStage.name,
+          totalStages: template.stages.length,
+        });
+
+        this.broadcast(this.buildWorldStateMessage());
+
+        // Create process controller with delegate callbacks
+        this.processController = new ProcessController(this.createProcessDelegate());
+        this.wireProcessControllerEvents(this.processController);
+
+        // Spawn the first stage's agents
+        await this.spawnProcessAgents(template, 0, problem);
+
+        // Start stage tracking after agents are spawned
+        this.processController.start(problem, template);
+
+        console.log(`[Bridge] Oracle decision: starting process "${template.id}" with problem "${problem}"`);
+      } catch (err) {
+        console.error('[Bridge] Oracle decision handling failed:', err);
+      }
+    });
+
+    // When Oracle summons a reinforcement
+    this.oracleManager.on('oracle:summon', (data: { roleId: string; name?: string; reason?: string }) => {
+      console.log(`[Bridge] Oracle summoning reinforcement: ${data.roleId}`);
+      this.broadcast({
+        type: 'hero:summoned',
+        agentId: data.roleId,
+        name: data.name ?? data.roleId,
+        role: data.roleId,
+      } as unknown as ServerMessage);
+    });
+
+    // When Oracle dismisses a hero
+    this.oracleManager.on('oracle:dismiss', async (data: { heroId: string; reason?: string }) => {
+      console.log(`[Bridge] Oracle dismissing hero: ${data.heroId}`);
+      if (this.sessionManager) {
+        await this.sessionManager.dismissAgent(data.heroId);
+      }
+      this.worldState.removeAgent(data.heroId);
+      this.broadcast({ type: 'hero:dismissed', agentId: data.heroId, reason: data.reason ?? '' } as unknown as ServerMessage);
+      this.broadcast({ type: 'agent:left', agent_id: data.heroId });
+    });
+
+    // When Oracle presents the final report
+    this.oracleManager.on('oracle:report', (data: { report?: string }) => {
+      console.log('[Bridge] Oracle presenting final report');
+      if (data.report) {
+        this.broadcast({
+          type: 'agent:activity',
+          agent_id: 'oracle',
+          activity: `Final Report: ${data.report.slice(0, 200)}...`,
+        });
+      }
+    });
   }
 
   // ── Repo Analysis ──
@@ -1438,6 +1696,11 @@ Start by reading the top-level files (README, package.json, etc.) then explore t
     if (this.processController) {
       this.processController.stop();
       this.processController = null;
+    }
+    // Clean up Oracle manager
+    if (this.oracleManager) {
+      this.oracleManager.removeAllListeners();
+      this.oracleManager = null;
     }
     if (this.sessionManager) {
       const activeIds = this.sessionManager.getActiveAgentIds();

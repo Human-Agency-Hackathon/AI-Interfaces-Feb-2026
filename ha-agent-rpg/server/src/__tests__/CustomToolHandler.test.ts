@@ -289,4 +289,80 @@ describe('CustomToolHandler', () => {
       expect(result.result.error).toContain('Unknown tool');
     });
   });
+
+  describe('Oracle tool handlers', () => {
+    it('handles SelectHeroes and emits oracle:select-heroes', async () => {
+      const events: any[] = [];
+      handler.on('oracle:select-heroes', (e: any) => events.push(e));
+
+      const result = await handler.handleToolCall({
+        tool_name: 'SelectHeroes',
+        tool_input: {
+          activityType: 'code_review',
+          processId: 'code_review',
+          heroes: [
+            { roleId: 'architect', mission: 'Map the architecture' },
+            { roleId: 'sentinel', mission: 'Find security issues' },
+          ],
+        },
+        agent_id: 'oracle',
+      });
+
+      expect(result.result.acknowledged).toBe(true);
+      expect(events).toHaveLength(1);
+      expect(events[0].heroes).toHaveLength(2);
+    });
+
+    it('handles SummonReinforcement and emits oracle:summon-reinforcement', async () => {
+      const events: any[] = [];
+      handler.on('oracle:summon-reinforcement', (e: any) => events.push(e));
+
+      const result = await handler.handleToolCall({
+        tool_name: 'SummonReinforcement',
+        tool_input: {
+          roleId: 'healer',
+          reason: 'Error handling issues found',
+        },
+        agent_id: 'oracle',
+      });
+
+      expect(result.result.acknowledged).toBe(true);
+      expect(events).toHaveLength(1);
+      expect(events[0].roleId).toBe('healer');
+    });
+
+    it('handles DismissHero and emits oracle:dismiss-hero', async () => {
+      const events: any[] = [];
+      handler.on('oracle:dismiss-hero', (e: any) => events.push(e));
+
+      const result = await handler.handleToolCall({
+        tool_name: 'DismissHero',
+        tool_input: {
+          agentId: 'scout',
+          reason: 'No longer needed',
+        },
+        agent_id: 'oracle',
+      });
+
+      expect(result.result.acknowledged).toBe(true);
+      expect(events).toHaveLength(1);
+      expect(events[0].heroId).toBe('scout');
+    });
+
+    it('handles PresentReport and emits oracle:present-report', async () => {
+      const events: any[] = [];
+      handler.on('oracle:present-report', (e: any) => events.push(e));
+
+      const result = await handler.handleToolCall({
+        tool_name: 'PresentReport',
+        tool_input: {
+          report: '## Executive Summary\nThe codebase is well-structured...',
+        },
+        agent_id: 'oracle',
+      });
+
+      expect(result.result.acknowledged).toBe(true);
+      expect(events).toHaveLength(1);
+    });
+  });
 });

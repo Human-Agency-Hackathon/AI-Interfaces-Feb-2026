@@ -10,7 +10,7 @@ import { KnowledgeVault } from './KnowledgeVault.js';
 import { FindingsBoard } from './FindingsBoard.js';
 import { buildSystemPrompt } from './SystemPromptBuilder.js';
 import type { TeamMember } from './SystemPromptBuilder.js';
-import { createRpgMcpServer, createBrainstormMcpServer } from './RpgMcpServer.js';
+import { createRpgMcpServer, createBrainstormMcpServer, createOracleMcpServer } from './RpgMcpServer.js';
 import type { CustomToolHandler } from './CustomToolHandler.js';
 
 export interface AgentSessionConfig {
@@ -23,6 +23,10 @@ export interface AgentSessionConfig {
   permissionLevel: 'read-only' | 'write-with-approval' | 'full';
   /** Present when the agent is part of a brainstorming process. */
   processContext?: ProcessAgentContext;
+  /** Oracle context for the Oracle agent. When set, routes to OracleMcpServer. */
+  oracleContext?: import('./SystemPromptBuilder.js').OracleContext;
+  /** LLM model to use for this agent. If not set, defaults to SDK default. */
+  model?: 'sonnet' | 'opus' | 'haiku';
 }
 
 /** Context injected into an agent's system prompt during a brainstorming process. */
@@ -47,6 +51,8 @@ export interface ProcessAgentContext {
   priorArtifacts: Record<string, Record<string, string>>;
   /** Note injected when resuming a paused brainstorm session */
   resumeNote?: string;
+  /** When true, the agent is a code-review hero and has access to file-reading tools */
+  isCodeReview?: boolean;
 }
 
 interface ActiveSession {
@@ -266,6 +272,7 @@ export class AgentSessionManager extends EventEmitter {
       team: this.getTeamRoster(config.agentId),
       findings: await this.findingsBoard.getRecent(15),
       processContext: config.processContext,
+      oracleContext: config.oracleContext,
     });
   }
 
@@ -278,9 +285,11 @@ export class AgentSessionManager extends EventEmitter {
     const systemPrompt = await this.buildPromptForSession(session);
 
     try {
-      const mcpServer = config.processContext
-        ? createBrainstormMcpServer(config.agentId, this.toolHandler)
-        : createRpgMcpServer(config.agentId, this.toolHandler);
+      const mcpServer = config.oracleContext
+        ? createOracleMcpServer(config.agentId, this.toolHandler)
+        : config.processContext
+          ? createBrainstormMcpServer(config.agentId, this.toolHandler)
+          : createRpgMcpServer(config.agentId, this.toolHandler);
       const q = query({
         prompt: config.mission,
         options: {
@@ -292,6 +301,7 @@ export class AgentSessionManager extends EventEmitter {
           allowDangerouslySkipPermissions: permissionMode === 'bypassPermissions',
           abortController,
           maxTurns: 50,
+          ...(config.model ? { model: config.model } : {}),
           mcpServers: { rpg: mcpServer },
           stderr: (data: string) => {
             if (data.trim()) {
@@ -334,9 +344,11 @@ export class AgentSessionManager extends EventEmitter {
     const systemPrompt = await this.buildPromptForSession(session);
 
     try {
-      const mcpServer = config.processContext
-        ? createBrainstormMcpServer(config.agentId, this.toolHandler)
-        : createRpgMcpServer(config.agentId, this.toolHandler);
+      const mcpServer = config.oracleContext
+        ? createOracleMcpServer(config.agentId, this.toolHandler)
+        : config.processContext
+          ? createBrainstormMcpServer(config.agentId, this.toolHandler)
+          : createRpgMcpServer(config.agentId, this.toolHandler);
       const q = query({
         prompt,
         options: {
@@ -349,6 +361,7 @@ export class AgentSessionManager extends EventEmitter {
           abortController,
           resume: session.sessionId,
           maxTurns: 50,
+          ...(config.model ? { model: config.model } : {}),
           mcpServers: { rpg: mcpServer },
           stderr: (data: string) => {
             if (data.trim()) {

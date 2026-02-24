@@ -415,6 +415,36 @@ export interface StartProcessMessage {
   repoInput?: string;
 }
 
+// ── Messages: Player → Server (Oracle) ──
+
+export interface PlayerSubmitMessage {
+  type: 'player:submit';
+  problem?: string;
+  repoInput?: string;
+}
+
+// ── Messages: Server → All (Oracle) ──
+
+export interface OracleDecisionMessage {
+  type: 'oracle:decision';
+  activityType: 'brainstorm' | 'code_review' | 'code_brainstorm';
+  processId: string;
+  heroes: Array<{ roleId: string; name: string; mission: string }>;
+}
+
+export interface HeroSummonedMessage {
+  type: 'hero:summoned';
+  agentId: string;
+  name: string;
+  role: string;
+}
+
+export interface HeroDismissedMessage {
+  type: 'hero:dismissed';
+  agentId: string;
+  reason: string;
+}
+
 // ── Messages: Server → All (Process) ──
 
 /** Sent once after a process is successfully created and the first stage begins. */
@@ -537,6 +567,7 @@ export type ClientMessage =
   | ResumeRealmMessage
   | RemoveRealmMessage
   | StartProcessMessage
+  | PlayerSubmitMessage
   | SpectatorRegisterMessage
   | SpectatorCommandMessage
   | FortClickMessage
@@ -577,4 +608,7 @@ export type ServerMessage =
   | ServerInfoMessage
   | FogRevealMessage
   | FortUpdateMessage
-  | FortViewMessage;
+  | FortViewMessage
+  | OracleDecisionMessage
+  | HeroSummonedMessage
+  | HeroDismissedMessage;

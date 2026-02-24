@@ -55,6 +55,21 @@ export class DialogueLog {
     window.addEventListener('stage-announcement', ((e: CustomEvent) => {
       this.addStageAnnouncement(e.detail.text);
     }) as EventListener);
+
+    window.addEventListener('oracle-decision', ((e: CustomEvent) => {
+      this.addOracleNotification(e.detail.text);
+    }) as EventListener);
+
+    window.addEventListener('hero-summoned', ((e: CustomEvent) => {
+      this.addOracleNotification(e.detail.text);
+    }) as EventListener);
+
+    window.addEventListener('hero-dismissed', ((e: CustomEvent) => {
+      const text = e.detail.reason
+        ? `${e.detail.agentId} has been dismissed: ${e.detail.reason}`
+        : `${e.detail.agentId} has been dismissed`;
+      this.addOracleNotification(text);
+    }) as EventListener);
   }
 
   /** Agent speech or thought — called from UIScene */
@@ -205,6 +220,19 @@ export class DialogueLog {
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble chat-bubble-stage-announce';
+    bubble.textContent = text;
+
+    this.container.appendChild(bubble);
+    this.entryCount++;
+    this.scrollToBottom();
+  }
+
+  /** Oracle routing notification (oracle:decision, hero:summoned, hero:dismissed) */
+  addOracleNotification(text: string): void {
+    this.pruneOldEntries();
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble chat-bubble-oracle';
     bubble.textContent = text;
 
     this.container.appendChild(bubble);

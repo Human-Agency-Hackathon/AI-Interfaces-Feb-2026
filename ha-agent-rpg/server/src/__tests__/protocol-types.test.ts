@@ -3,6 +3,8 @@ import type {
   MapNode, MapChangeMessage, RealmPresenceMessage,
   FogRevealMessage, FortUpdateMessage, FortViewMessage,
   FortClickMessage, FortExitMessage, AgentInfo,
+  PlayerSubmitMessage, OracleDecisionMessage,
+  HeroSummonedMessage, HeroDismissedMessage,
 } from '../types.js';
 
 describe('Hierarchical map protocol types', () => {
@@ -83,5 +85,55 @@ describe('Fog-of-War message types', () => {
       type: 'fort:exit',
     };
     expect(msg.type).toBe('fort:exit');
+  });
+});
+
+describe('Oracle protocol types', () => {
+  it('PlayerSubmitMessage has correct shape', () => {
+    const msg: PlayerSubmitMessage = {
+      type: 'player:submit',
+      problem: 'How to improve auth?',
+      repoInput: '/path/to/repo',
+    };
+    expect(msg.type).toBe('player:submit');
+    expect(msg.problem).toBe('How to improve auth?');
+    expect(msg.repoInput).toBe('/path/to/repo');
+  });
+
+  it('PlayerSubmitMessage allows optional fields', () => {
+    const problemOnly: PlayerSubmitMessage = { type: 'player:submit', problem: 'test' };
+    const repoOnly: PlayerSubmitMessage = { type: 'player:submit', repoInput: '/repo' };
+    expect(problemOnly.type).toBe('player:submit');
+    expect(repoOnly.type).toBe('player:submit');
+  });
+
+  it('OracleDecisionMessage has correct shape', () => {
+    const msg: OracleDecisionMessage = {
+      type: 'oracle:decision',
+      activityType: 'code_review',
+      processId: 'code_review',
+      heroes: [{ roleId: 'architect', name: 'The Architect', mission: 'Map structure' }],
+    };
+    expect(msg.type).toBe('oracle:decision');
+    expect(msg.heroes).toHaveLength(1);
+  });
+
+  it('HeroSummonedMessage has correct shape', () => {
+    const msg: HeroSummonedMessage = {
+      type: 'hero:summoned',
+      agentId: 'sentinel',
+      name: 'The Sentinel',
+      role: 'Shield Guardian',
+    };
+    expect(msg.type).toBe('hero:summoned');
+  });
+
+  it('HeroDismissedMessage has correct shape', () => {
+    const msg: HeroDismissedMessage = {
+      type: 'hero:dismissed',
+      agentId: 'sentinel',
+      reason: 'No longer needed',
+    };
+    expect(msg.type).toBe('hero:dismissed');
   });
 });

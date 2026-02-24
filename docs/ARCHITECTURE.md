@@ -41,11 +41,47 @@ The orchestrator. Owns all state, enforces all rules, and manages agent lifecycl
 | `SystemPromptBuilder.ts` | Builds dynamic system prompts per agent. Two modes: codebase exploration (original) and process-aware brainstorming (via `processContext`). Injects stage context, persona, prior artifacts, and co-participant info. |
 | `EventTranslator.ts` | Converts Claude Agent SDK streaming messages into RPG events (move, speak, think, emote, activity, skill_effect). Maintains per-agent text buffers. |
 
+#### Oracle Router
+
+The Oracle Router is the unified entry point for all sessions. Instead of choosing a template upfront, the player sends a `player:submit` message with a problem statement, a repo path, or both. The Oracle agent (Claude Opus) analyzes the input and decides what to run.
+
+| File | Responsibility |
+|------|---------------|
+| `OracleManager.ts` | Manages the Oracle agent lifecycle. Spawns the Oracle on `player:submit`, wires CustomToolHandler oracle events, feeds inter-stage context to the Oracle between process stages via `feedInterStageContext()`, and dismisses the Oracle at session end. Emits `oracle:decision`, `oracle:summon`, `oracle:dismiss`, `oracle:report`. |
+
+**Input routing** (decided by the Oracle at runtime):
+
+| Input | Template selected |
+|-------|-------------------|
+| Repo only | `code_review` |
+| Problem only | `brainstorm` (standard_brainstorm or deep_brainstorm) |
+| Both repo + problem | `code_brainstorm` |
+
+**Model routing** for hero agents (decided per stage in BridgeServer):
+
+| Template + Stage | Model |
+|-----------------|-------|
+| `code_review` stages 0-1 (Reconnaissance, Deep Analysis) | haiku |
+| `code_review` stage 2 (Cross-Reference) | sonnet |
+| `code_review` stages 3+ (Oracle Review, Synthesis, Presentation) | opus |
+| All brainstorm templates, all stages | sonnet |
+| Oracle agent itself | opus |
+
+**Oracle MCP tools** (defined in `RpgMcpServer.ts` via `createOracleMcpServer()`):
+
+| Tool | Purpose |
+|------|---------|
+| `SelectHeroes` | Choose activity type and initial hero roster; triggers `oracle:decision` |
+| `SummonReinforcement` | Add a hero agent between stages |
+| `DismissHero` | Remove a hero agent between stages |
+| `PresentReport` | Compile and broadcast the final deliverable |
+
 #### Process Management
 
 | File | Responsibility |
 |------|---------------|
 | `ProcessController.ts` | Manages stage lifecycle for structured multi-agent processes. Tracks turn counts per stage, evaluates completion criteria (turn count or explicit signal), advances stages by dismissing/spawning agents via delegate callbacks to BridgeServer. Emits `stage:started`, `stage:completed`, and `process:completed` events. |
+| `ProcessTemplates.ts` | Defines all available process templates. Includes `standard_brainstorm`, `deep_brainstorm`, and `code_review`. Each template has a list of stages, with per-stage agent roles, turn budgets, and persona addenda. |
 
 #### Repository Analysis & Map Generation
 
@@ -310,6 +346,24 @@ sequenceDiagram
 
 Skills are structured multi-agent workflows that run on top of the core agent infrastructure. Each skill is a directory containing a human-readable design doc, a playbook, and a machine-readable process template.
 
+### Code Review Template (`ProcessTemplates.ts` — `code_review`)
+
+A 6-stage code analysis process run by specialist heroes with file-reading access.
+
+```mermaid
+graph TD
+    A["Reconnaissance<br/>(Cartographer + Scout)"] --> B["Deep Analysis<br/>(Architect + Archaeologist)"]
+    B --> C["Cross-Reference<br/>(Cross-Referencer)"]
+    C --> D["Oracle Review<br/>(Oracle reviews findings)"]
+    D --> E["Synthesis<br/>(Synthesizer)"]
+    E --> F["Presentation<br/>(Narrator)"]
+```
+
+**Key design features:**
+- **File access**: Heroes in `code_review` stages 0-2 have access to file-reading MCP tools (Read, Glob, Grep). Later-stage heroes and brainstorm agents do not.
+- **Model routing**: Stages 0-1 use `haiku` (cheap exploration), stage 2 uses `sonnet` (cross-reference reasoning), stages 3+ use `opus` (heavy synthesis).
+- **Oracle-driven**: Launched by the Oracle Router after the Oracle calls `SelectHeroes`. The Oracle continues to run alongside heroes and reviews inter-stage findings.
+
 ### Brainstorm Skill (`skills/brainstorm/`)
 
 A 9-stage divergent-then-convergent ideation process using 15 specialized agent personas. The `ProcessController` on the server drives execution; `brainstorm-process.json` is the template it reads.
@@ -398,6 +452,7 @@ All messages are JSON with a `type` field for routing.
 | `findings:posted` | New finding on the shared board |
 | `knowledge:level-up` | Agent gained expertise |
 | `spawn:request` | New agent being summoned |
+| `oracle:decision` | Oracle selected activity type + hero roster |
 | `repo:ready` | Repo analyzed, game can start |
 | `realm:list` / `realm:removed` | Realm management |
 
@@ -405,9 +460,10 @@ All messages are JSON with a `type` field for routing.
 
 | Type | Purpose |
 |------|---------|
+| `player:submit` | Unified entry point: submit a problem, repo path, or both; spawns the Oracle |
 | `player:command` | Text command from the prompt bar |
 | `player:navigate:enter` / `back` | Manual folder navigation |
-| `link:repo` | Repo URL to analyze |
+| `link:repo` | Repo URL to analyze (legacy) |
 
 ---
 

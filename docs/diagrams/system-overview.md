@@ -61,7 +61,8 @@ graph TD
     end
 
     subgraph PlayerToServer ["Player → Server"]
-        SP["player:start-process<br/>Begin brainstorm"]
+        PSub["player:submit<br/>Submit problem/repo (unified entry)"]
+        SP["player:start-process<br/>Begin brainstorm (legacy)"]
         PCmd["player:command<br/>Chat command"]
         PD["player:dismiss-agent<br/>Remove agent"]
         PUS["player:update-settings<br/>Change settings"]
@@ -87,6 +88,7 @@ graph TD
         FP["findings:posted<br/>New discovery"]
         MC["map:change<br/>Room transition"]
         PS["process:started<br/>stage:advanced<br/>stage:completed<br/>process:completed"]
+        OD["oracle:decision<br/>Oracle selected heroes + template"]
         IP["idea:proposed / idea:voted<br/>Brainstorm idea events"]
         SW["spectator:welcome<br/>spectator:joined<br/>spectator:left<br/>spectator:command"]
         SI["server:info<br/>LAN address for spectators"]
@@ -107,6 +109,7 @@ graph TD
     subgraph Orchestration ["Orchestration"]
         BS2["BridgeServer<br/>Routes messages<br/>Manages game phases<br/>Coordinates subsystems"]
         PC3["ProcessController<br/>Stage lifecycle<br/>Turn counting<br/>Completion criteria"]
+        OM2["OracleManager<br/>Oracle spawn/dismiss<br/>Inter-stage context feed<br/>oracle:decision routing"]
     end
 
     subgraph AgentManagement ["Agent Management"]
@@ -137,8 +140,10 @@ graph TD
 
     BS2 --> ASM2
     BS2 --> PC3
+    BS2 --> OM2
     BS2 --> WS2
     BS2 --> MG2
+    OM2 --> ASM2
     MG2 --> BG2
     ASM2 --> SPB2
     ASM2 --> ET2
@@ -164,6 +169,88 @@ graph TD
 | Brainstorm | UpdateKnowledge | Update own knowledge |
 | Brainstorm | CompleteStage | Signal stage completion |
 | Brainstorm | SealChamber | Mark a chamber as done |
+| Oracle | SelectHeroes | Choose activity type + initial hero roster |
+| Oracle | SummonReinforcement | Add a hero between stages |
+| Oracle | DismissHero | Remove a hero between stages |
+| Oracle | PresentReport | Compile and broadcast final report |
+
+## Oracle Routing
+
+The Oracle Router is the unified entry point for all sessions. When the player submits a problem and/or repo, the Oracle agent analyzes the input and decides which process to run.
+
+```mermaid
+graph TD
+    PS["player:submit<br/>(problem, repoInput, or both)"]
+    BS["BridgeServer<br/>handlePlayerSubmit"]
+    OM["OracleManager.spawn()"]
+    OA["Oracle Agent<br/>(Claude Opus)<br/>analyzes input"]
+    SH["SelectHeroes MCP tool<br/>chooses activityType + heroes"]
+    OD["oracle:decision event<br/>broadcast to clients"]
+    PC["ProcessController<br/>starts with selected template"]
+
+    PS --> BS
+    BS --> OM
+    OM --> OA
+    OA --> SH
+    SH --> OD
+    OD --> PC
+```
+
+### Input Routing Rules
+
+```mermaid
+graph TD
+    Input["User Input"] --> HasBoth{"Has both<br/>problem + repo?"}
+    HasBoth -->|"Yes"| CB["code_brainstorm template"]
+    HasBoth -->|"No"| HasRepo{"Repo only?"}
+    HasRepo -->|"Yes"| CR["code_review template"]
+    HasRepo -->|"No"| BR["brainstorm template"]
+```
+
+### Oracle Inter-Stage Intervention
+
+Between process stages the Oracle receives a context update and can adjust the hero party.
+
+```mermaid
+graph TD
+    SC["Stage N completes"]
+    IU["OracleManager.feedInterStageContext()<br/>sends recent findings to Oracle"]
+    OR["Oracle reviews findings"]
+    Choices{"Oracle decision"}
+    SR["SummonReinforcement<br/>add hero for next stage"]
+    DH["DismissHero<br/>remove hero no longer needed"]
+    NS["Stage N+1 begins"]
+
+    SC --> IU
+    IU --> OR
+    OR --> Choices
+    Choices -->|"needs more help"| SR
+    Choices -->|"party is overstaffed"| DH
+    Choices -->|"party is fine"| NS
+    SR --> NS
+    DH --> NS
+```
+
+### Model Routing
+
+Hero agent model is selected per stage based on the active template.
+
+```mermaid
+graph TD
+    CR["code_review template"]
+    CR --> S01["Stages 0-1<br/>Reconnaissance + Deep Analysis"]
+    CR --> S2["Stage 2<br/>Cross-Reference"]
+    CR --> S3["Stages 3+<br/>Oracle Review, Synthesis, Presentation"]
+    S01 --> H["haiku<br/>(cheap exploration)"]
+    S2 --> SO["sonnet<br/>(needs reasoning)"]
+    S3 --> OP["opus<br/>(heavy analysis)"]
+
+    BR["brainstorm templates"]
+    BR --> ALL["All stages"]
+    ALL --> SO2["sonnet<br/>(balanced)"]
+
+    Oracle["Oracle agent<br/>(always)"] --> OPO["opus"]
+```
 
 ## Port Map
 
