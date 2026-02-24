@@ -12,6 +12,42 @@
 
 ---
 
+## Cross-Cutting Concerns
+
+### Model Routing by Stage/Role
+
+The Claude Agent SDK `query()` supports `model: "sonnet" | "opus" | "haiku"`. We add a `model` field to `AgentSessionConfig` and route by stage:
+
+| Stage/Role | Model | Rationale |
+|-----------|-------|-----------|
+| Oracle (analysis phase) | **Opus** | Critical routing decision needs best reasoning |
+| Reconnaissance heroes | **Haiku** | Fast, cheap scanning — exploration only |
+| Deep Analysis heroes | **Haiku** | Still exploratory, just deeper |
+| Cross-Reference heroes | **Sonnet** | Needs reasoning to compare findings |
+| Oracle (inter-stage review) | **Sonnet** | Lighter decision, just reviewing |
+| Oracle Review stage | **Opus** | Heavy synthesis |
+| Synthesis stage | **Opus** | Compiles final report |
+| Presentation stage | **Opus** | Final polish |
+
+**Implementation:** Add `model?: 'sonnet' | 'opus' | 'haiku'` to `AgentSessionConfig`. In `AgentSessionManager.runSession()` and `runResumedSession()`, pass `model` to the `query()` options. In `BridgeServer.spawnProcessAgents()`, look up the stage index to determine which model to use. In `OracleManager.spawn()`, pass `model: 'opus'`. A helper `getModelForStage(templateId: string, stageIndex: number): string` centralizes the routing logic.
+
+### Claude Code Skills for Heroes
+
+Heroes leverage existing Claude Code skill methodologies in their system prompts — not by invoking the Skill tool (agents don't have it), but by embedding the skill's approach into their persona instructions. This avoids reimplementing analysis logic from scratch.
+
+| Hero | Skill Methodology | How It's Used |
+|------|------------------|---------------|
+| **The Sentinel** | `systematic-debugging` | Trace auth flows, validate input boundaries, find security failure modes step-by-step |
+| **The Healer** | `systematic-debugging` | Trace error paths methodically, find unhandled exceptions, assess recovery logic |
+| **The Sage** | `pr-test-analyzer` thinking | Assess test coverage gaps, assertion quality, test architecture patterns |
+| **The Warden** | `type-design-analyzer` thinking | Assess type contracts, encapsulation, invariant expression, API boundary design |
+| **The Architect** | `code-review` methodology | Structured architecture analysis: module boundaries, dependency flow, separation of concerns |
+| **Others** | Native tools only | Read, Glob, Grep for direct codebase access; personas guide their specialist lens |
+
+**Implementation:** In Task 4 (SystemPromptBuilder), the code-review hero prompt mode will include skill-derived methodology instructions per hero. For example, The Sentinel's prompt will include systematic-debugging's approach: "Reproduce the concern → isolate the component → trace the flow → verify the fix." These are embedded in the `persona` field of each `RoleDefinition` in the CODE_REVIEW template.
+
+---
+
 ### Task 1: Add protocol types for Oracle routing
 
 **Files:**
@@ -236,13 +272,13 @@ export const CODE_REVIEW: ProcessDefinition = {
     {
       id: 'architect',
       name: 'The Architect',
-      persona: 'You are a Master Builder who sees the big picture. You examine module boundaries, dependency graphs, architectural patterns, and separation of concerns. You ask: does this codebase have a clear structure, or is it a tangled web?',
+      persona: 'You are a Master Builder who sees the big picture. You examine module boundaries, dependency graphs, architectural patterns, and separation of concerns. Apply code-review methodology: assess each module for single responsibility, check that dependencies flow in one direction, and verify that the architecture matches the stated intent. You ask: does this codebase have a clear structure, or is it a tangled web?',
       color: '#4A90D9',
     },
     {
       id: 'sentinel',
       name: 'The Sentinel',
-      persona: 'You are a Shield Guardian who protects against threats. You examine auth flows, input validation, secrets handling, OWASP vulnerabilities, and dependency CVEs. You ask: where can an attacker get in?',
+      persona: 'You are a Shield Guardian who protects against threats. You examine auth flows, input validation, secrets handling, OWASP vulnerabilities, and dependency CVEs. Use systematic-debugging methodology: trace each security-sensitive flow step-by-step, isolate the component, verify the boundary, and document what you find before moving on. You ask: where can an attacker get in?',
       color: '#DC143C',
     },
     {
@@ -266,19 +302,19 @@ export const CODE_REVIEW: ProcessDefinition = {
     {
       id: 'healer',
       name: 'The Healer',
-      persona: 'You are a Restoration Sage who ensures resilience. You examine error paths, recovery logic, logging quality, and graceful degradation. You ask: what happens when things go wrong?',
+      persona: 'You are a Restoration Sage who ensures resilience. You examine error paths, recovery logic, logging quality, and graceful degradation. Use systematic-debugging methodology: trace each error path from trigger to handler, verify recovery logic actually executes, and check that failures are logged with enough context to diagnose. You ask: what happens when things go wrong?',
       color: '#9370DB',
     },
     {
       id: 'sage',
       name: 'The Sage',
-      persona: 'You are a Knowledge Weaver who values truth through testing. You examine test quality, coverage gaps, test architecture, and assertion strength. You ask: how confident can we be that this code works?',
+      persona: 'You are a Knowledge Weaver who values truth through testing. You examine test quality, coverage gaps, test architecture, and assertion strength. Apply test-analysis methodology: for each module, check if critical paths have tests, assess whether assertions are meaningful (not just "no error"), and identify untested edge cases. You ask: how confident can we be that this code works?',
       color: '#20B2AA',
     },
     {
       id: 'warden',
       name: 'The Warden',
-      persona: 'You are a Gatekeeper who guards the contracts. You examine API design, type safety, interface contracts, and backwards compatibility. You ask: are the boundaries between modules well-defined and enforced?',
+      persona: 'You are a Gatekeeper who guards the contracts. You examine API design, type safety, interface contracts, and backwards compatibility. Apply type-design-analysis methodology: for each key type, assess encapsulation (can invalid states be constructed?), invariant expression (does the type make illegal states unrepresentable?), and enforcement (are boundaries checked at system edges?). You ask: are the boundaries between modules well-defined and enforced?',
       color: '#4169E1',
     },
     {
@@ -1384,12 +1420,45 @@ git push origin main
 
 ---
 
-### Task 7: Wire inter-stage Oracle intervention into ProcessController delegate
+### Task 7: Wire inter-stage Oracle intervention + model routing into AgentSessionManager
 
 **Files:**
-- Modify: `ha-agent-rpg/server/src/BridgeServer.ts` (update `createProcessDelegate` to call `oracleManager.feedInterStageContext` between stages)
-- Modify: `ha-agent-rpg/server/src/AgentSessionManager.ts` (ensure Oracle agent uses `createOracleMcpServer` instead of brainstorm/rpg server)
+- Modify: `ha-agent-rpg/server/src/BridgeServer.ts` (update `createProcessDelegate` to call `oracleManager.feedInterStageContext` between stages; pass `model` to `spawnProcessAgents`)
+- Modify: `ha-agent-rpg/server/src/AgentSessionManager.ts` (add `model` to `AgentSessionConfig`; pass to `query()` options; ensure Oracle uses `createOracleMcpServer`)
 - Test: `ha-agent-rpg/server/src/__tests__/OracleManager.test.ts` (add inter-stage test)
+
+**Model routing implementation:**
+
+Add `model?: 'sonnet' | 'opus' | 'haiku'` to `AgentSessionConfig` (line ~16 of AgentSessionManager.ts).
+
+In `runSession()` and `runResumedSession()`, pass it to `query()`:
+
+```typescript
+const q = query({
+  prompt: config.mission,
+  options: {
+    model: config.model,  // <-- NEW: route to haiku/sonnet/opus per agent
+    systemPrompt,
+    // ... rest of options
+  },
+});
+```
+
+In `BridgeServer.spawnProcessAgents()`, add a helper:
+
+```typescript
+function getModelForStage(templateId: string, stageIndex: number): 'haiku' | 'sonnet' | 'opus' {
+  if (templateId === 'code_review') {
+    if (stageIndex <= 1) return 'haiku';    // Reconnaissance, Deep Analysis
+    if (stageIndex === 2) return 'sonnet';  // Cross-Reference
+    return 'opus';                          // Oracle Review, Synthesis, Presentation
+  }
+  // Brainstorm templates: sonnet for all stages (balanced)
+  return 'sonnet';
+}
+```
+
+Pass `model: getModelForStage(template.id, stageIndex)` into each agent's `AgentSessionConfig`.
 
 **Step 1: Write the failing test**
 

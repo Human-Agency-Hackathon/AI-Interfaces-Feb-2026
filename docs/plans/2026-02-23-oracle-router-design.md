@@ -138,3 +138,29 @@ User -> player:submit {repo?, problem?}
 3. **Fixed roster with dynamic selection** — 10 curated heroes ensure quality personas. Oracle picks a subset and can summon reinforcements. Best of curation + flexibility.
 4. **Staged code review** — Reuses ProcessController infrastructure. Structured and predictable, matching the brainstorm precedent.
 5. **Oracle always present on map** — Visual anchor for the session. Heroes report back to it. Summoning and dismissal are visible events.
+6. **Model routing by stage** — Haiku for cheap exploration (reconnaissance, deep analysis), Sonnet for reasoning tasks (cross-reference), Opus for heavy synthesis (Oracle decisions, final report). Minimizes cost while keeping quality where it matters.
+7. **Skill-derived hero methodologies** — Heroes embed existing Claude Code skill approaches (systematic-debugging, pr-test-analyzer, type-design-analyzer, code-review) into their personas rather than reimplementing analysis logic from scratch.
+
+## Model Routing
+
+| Stage/Role | Model | Rationale |
+|-----------|-------|-----------|
+| Oracle (analysis phase) | **Opus** | Critical routing decision |
+| Reconnaissance heroes | **Haiku** | Fast, cheap scanning |
+| Deep Analysis heroes | **Haiku** | Still exploratory |
+| Cross-Reference heroes | **Sonnet** | Needs reasoning to compare |
+| Oracle (inter-stage) | **Sonnet** | Lighter review decision |
+| Oracle Review / Synthesis / Presentation | **Opus** | Heavy synthesis and final output |
+
+## Skill Methodology Mapping
+
+Heroes use existing Claude Code skill methodologies embedded in their system prompts:
+
+| Hero | Skill | Methodology Embedded |
+|------|-------|---------------------|
+| The Sentinel | `systematic-debugging` | Trace flows step-by-step, isolate components, verify boundaries |
+| The Healer | `systematic-debugging` | Trace error paths, find unhandled exceptions, assess recovery |
+| The Sage | `pr-test-analyzer` | Assess coverage gaps, assertion quality, test architecture |
+| The Warden | `type-design-analyzer` | Assess type contracts, encapsulation, invariant expression |
+| The Architect | `code-review` | Module boundaries, dependency flow, separation of concerns |
+| Others | Native tools only | Read, Glob, Grep with specialist persona guidance |
