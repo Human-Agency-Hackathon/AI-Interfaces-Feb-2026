@@ -405,6 +405,36 @@ export interface ServerInfoMessage {
   activeRealmId: string | null;
 }
 
+// ── Messages: Player → Server (Oracle) ──
+
+export interface PlayerSubmitMessage {
+  type: 'player:submit';
+  problem?: string;
+  repoInput?: string;
+}
+
+// ── Messages: Server → All (Oracle) ──
+
+export interface OracleDecisionMessage {
+  type: 'oracle:decision';
+  activityType: 'brainstorm' | 'code_review' | 'code_brainstorm';
+  processId: string;
+  heroes: Array<{ roleId: string; name: string; mission: string }>;
+}
+
+export interface HeroSummonedMessage {
+  type: 'hero:summoned';
+  agentId: string;
+  name: string;
+  role: string;
+}
+
+export interface HeroDismissedMessage {
+  type: 'hero:dismissed';
+  agentId: string;
+  reason: string;
+}
+
 // ── Messages: Player → Server (Process) ──
 
 export interface StartProcessMessage {
@@ -528,6 +558,7 @@ export type ClientMessage =
   | PlayerNavigateBackMessage
   | PlayerMoveMessage
   | StartProcessMessage
+  | PlayerSubmitMessage
   | SpectatorRegisterMessage
   | SpectatorCommandMessage
   | FortClickMessage
@@ -565,4 +596,7 @@ export type ServerMessage =
   | ServerInfoMessage
   | FogRevealMessage
   | FortUpdateMessage
-  | FortViewMessage;
+  | FortViewMessage
+  | OracleDecisionMessage
+  | HeroSummonedMessage
+  | HeroDismissedMessage;
