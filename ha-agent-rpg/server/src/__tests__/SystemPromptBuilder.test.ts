@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildSystemPrompt } from '../SystemPromptBuilder.js';
-import type { PromptContext, TeamMember } from '../SystemPromptBuilder.js';
+import type { PromptContext, TeamMember, OracleContext } from '../SystemPromptBuilder.js';
 import type { ProcessAgentContext } from '../AgentSessionManager.js';
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -293,5 +293,148 @@ describe('buildSystemPrompt', () => {
       );
       expect(prompt).toContain('PLAYER COMMAND');
     });
+  });
+});
+
+describe('Oracle prompt mode', () => {
+  it('generates an oracle analysis prompt when oracleContext phase is analysis', () => {
+    const prompt = buildSystemPrompt({
+      agentName: 'The Oracle',
+      role: 'Session Leader',
+      realm: '/',
+      mission: 'Analyze the user input and select heroes',
+      repoPath: '/test/repo',
+      knowledge: null,
+      team: [],
+      findings: [],
+      oracleContext: {
+        userProblem: 'How to improve auth?',
+        userRepoInput: '/path/to/repo',
+        availableRoles: [
+          { id: 'architect', name: 'The Architect', persona: 'System structure specialist' },
+          { id: 'sentinel', name: 'The Sentinel', persona: 'Security specialist' },
+        ],
+        availableTemplates: ['code_review', 'standard_brainstorm'],
+        phase: 'analysis',
+      },
+    });
+
+    expect(prompt).toContain('The Oracle');
+    expect(prompt).toContain('How to improve auth?');
+    expect(prompt).toContain('/path/to/repo');
+    expect(prompt).toContain('The Architect');
+    expect(prompt).toContain('SelectHeroes');
+  });
+
+  it('generates an oracle inter-stage prompt with findings context', () => {
+    const prompt = buildSystemPrompt({
+      agentName: 'The Oracle',
+      role: 'Session Leader',
+      realm: '/',
+      mission: 'Review stage findings and adjust party',
+      repoPath: '/test/repo',
+      knowledge: null,
+      team: [{ agent_id: 'architect', agent_name: 'The Architect', role: 'Master Builder', realm: '/', expertise_summary: 'architecture' }],
+      findings: [
+        { id: '1', agent_id: 'architect', agent_name: 'The Architect', realm: '/', finding: 'Monolithic structure detected', severity: 'high', timestamp: '' },
+      ],
+      oracleContext: {
+        userProblem: undefined,
+        userRepoInput: '/path/to/repo',
+        availableRoles: [],
+        availableTemplates: [],
+        phase: 'inter-stage',
+        completedStageName: 'Reconnaissance',
+        nextStageName: 'Deep Analysis',
+      },
+    });
+
+    expect(prompt).toContain('Monolithic structure detected');
+    expect(prompt).toContain('SummonReinforcement');
+    expect(prompt).toContain('DismissHero');
+  });
+
+  it('generates an oracle final prompt for presentation', () => {
+    const prompt = buildSystemPrompt({
+      agentName: 'The Oracle',
+      role: 'Session Leader',
+      realm: '/',
+      mission: 'Compile and present the final report',
+      repoPath: '/test/repo',
+      knowledge: null,
+      team: [],
+      findings: [
+        { id: '1', agent_id: 'architect', agent_name: 'The Architect', realm: '/', finding: 'Good architecture', severity: 'low', timestamp: '' },
+      ],
+      oracleContext: {
+        userProblem: undefined,
+        userRepoInput: '/path/to/repo',
+        availableRoles: [],
+        availableTemplates: [],
+        phase: 'final',
+      },
+    });
+
+    expect(prompt).toContain('PresentReport');
+    expect(prompt).toContain('Good architecture');
+  });
+});
+
+describe('Code review hero prompt mode', () => {
+  it('includes file access tool info when isCodeReview is true', () => {
+    const prompt = buildSystemPrompt({
+      agentName: 'The Architect',
+      role: 'Master Builder',
+      realm: '/',
+      mission: 'Analyze system architecture',
+      repoPath: '/test/repo',
+      knowledge: null,
+      team: [],
+      findings: [],
+      processContext: {
+        problem: 'Review the codebase',
+        processName: 'Code Review',
+        stageId: 'reconnaissance',
+        stageName: 'Reconnaissance',
+        stageGoal: 'Survey the codebase',
+        stageIndex: 0,
+        totalStages: 6,
+        persona: 'You examine module boundaries and architectural patterns.',
+        priorArtifacts: {},
+        isCodeReview: true,
+      },
+    });
+
+    expect(prompt).toContain('Read');
+    expect(prompt).toContain('Glob');
+    expect(prompt).toContain('Grep');
+  });
+
+  it('does not include file access info for regular brainstorm', () => {
+    const prompt = buildSystemPrompt({
+      agentName: 'The Visionary',
+      role: 'Wild Ideator',
+      realm: '/',
+      mission: 'Generate ideas',
+      repoPath: '/test/repo',
+      knowledge: null,
+      team: [],
+      findings: [],
+      processContext: {
+        problem: 'How to improve UX?',
+        processName: 'Standard Brainstorm',
+        stageId: 'divergent',
+        stageName: 'Divergent Thinking',
+        stageGoal: 'Generate wild ideas',
+        stageIndex: 1,
+        totalStages: 9,
+        persona: 'You think big and wild.',
+        priorArtifacts: {},
+        isCodeReview: false,
+      },
+    });
+
+    // Should not have file-access tool section for brainstorm
+    expect(prompt).not.toContain('You have access to file-reading tools');
   });
 });

@@ -47,6 +47,8 @@ export interface ProcessAgentContext {
   priorArtifacts: Record<string, Record<string, string>>;
   /** Note injected when resuming a paused brainstorm session */
   resumeNote?: string;
+  /** When true, the agent is a code-review hero and has access to file-reading tools */
+  isCodeReview?: boolean;
 }
 
 interface ActiveSession {
